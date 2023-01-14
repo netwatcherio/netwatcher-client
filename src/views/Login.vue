@@ -1,0 +1,92 @@
+<script lang="ts" setup>
+import {reactive} from "vue";
+import authService from "@/services/authService";
+import type {User} from "@/types"
+
+const state = reactive({
+  email: "",
+  password: ""
+})
+
+function submit(_: MouseEvent) {
+  let user = {
+    email: state.email,
+    password: state.password
+  } as User
+  authService.login(user).then().catch(err => alert(err))
+}
+
+</script>
+
+<template>
+  <div class="row auth-wrapper gx-0">
+    <div class="col-lg-4 col-xl-3 bg-primary auth-box-2 on-sidebar">
+      <div class="h-100 d-flex align-items-center justify-content-center">
+        <div class="row justify-content-center text-center">
+          <div class="col-md-7 col-lg-12 col-xl-9">
+            <div>
+              <span class="db"><img alt="logo" src="/assets/images/logo-light-icon.png"></span>
+              <span class="db"><img alt="logo" src="/assets/images/logo-light-text.png"></span>
+            </div>
+            <h2 class="text-white mt-4 fw-light">
+              <span class="font-weight-medium">Network Monitoring</span> made easy
+            </h2>
+            <p class="op-5 text-white fs-4 mt-4">
+              A simple network performance monitoring platform designed for MSPs
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="
+            col-lg-8 col-xl-9
+            d-flex
+            align-items-center
+            justify-content-center
+          ">
+      <div class="row justify-content-center w-100 mt-4 mt-lg-0">
+        <div class="col-lg-6 col-xl-3 col-md-7">
+          <div id="loginform" class="card">
+            <div class="card-body">
+              <h1>login</h1>
+              <p class="text-muted fs-4">
+                new here?
+                <a id="to-register" href="javascript:void(0)">create an account</a>
+              </p>
+              <form action="/auth/login" class="form-horizontal mt-4 pt-4 needs-validation" method="post" novalidate="">
+                <div class="form-floating mb-3">
+                  <input id="tb-email" v-model="state.email" class="form-control form-input-bg" name="email"
+                         placeholder="name@example.com" required="" type="email">
+                  <label for="tb-email">email</label>
+                  <div class="invalid-feedback">email is required</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input id="text-password" v-model="state.password" class="form-control form-input-bg" name="password"
+                         placeholder="*****" required="" type="password">
+                  <label for="text-password">password</label>
+                  <div class="invalid-feedback">password is required</div>
+                </div>
+
+                <div class="d-flex align-items-center mb-3">
+                  <div class="ms-auto">
+                    <a id="to-recover" class="fw-bold" href="javascript:void(0)">forgot password?</a>
+                  </div>
+                </div>
+                <div class="d-flex align-items-stretch button-group mt-4 pt-2">
+                  <button class="btn btn-primary btn-lg px-4" type="submit" @click="submit">
+                    login
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+
+</style>

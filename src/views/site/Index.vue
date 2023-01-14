@@ -4,7 +4,6 @@
 
 <template>
   <div>
-    SITES PAGE
     <RouterView/>
   </div>
 </template>
