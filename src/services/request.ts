@@ -12,7 +12,7 @@ let headers = {
 }
 
 function host(): string {
-    let ctrl = localStorage.getItem("controller")
+    let ctrl = 'localhost:8080'
     if (ctrl) {
         return ctrl
     } else {
@@ -22,12 +22,13 @@ function host(): string {
 
 
 export default {
-    async post(url: string, data?: {} | undefined): Promise<void> {
-        const response = await axios.post(`https://${host()}${url}`, data, headers)
+    async post(url: string, data?: {} | undefined): Promise<any> {
+        const response = await axios.post(`http://${host()}${url}`, data, headers)
         let resp = response.data
         if (response.status !== 200) {
 
         }
+        return response
     }
 }
 

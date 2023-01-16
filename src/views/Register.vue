@@ -1,7 +1,30 @@
 <script lang="ts" setup>
 import {useRouter} from "vue-router";
+import {reactive} from "vue";
+import {User} from "@/types";
+import authService from "@/services/authService";
 
 const router = useRouter()
+
+
+const state = reactive({
+  user: {} as User,
+  confirmPassword: "",
+  waiting: false
+})
+
+function submit(_: MouseEvent) {
+  state.waiting = true
+  authService.register(state.user).then(res => {
+    console.log(res)
+    state.waiting = false
+  }).catch(err => {
+    state.waiting = false
+    console.log(err)
+  })
+}
+
+
 </script>
 
 <template>
@@ -28,8 +51,7 @@ const router = useRouter()
             col-lg-8 col-xl-9
             d-flex
             align-items-center
-            justify-content-center
-          ">
+            justify-content-center">
       <div class="row justify-content-center w-100 mt-4 mt-lg-0">
         <div class="col-lg-6 col-xl-3 col-md-7">
           <div class="card">
@@ -38,36 +60,35 @@ const router = useRouter()
               <p class="text-muted fs-4">
                 Enter given details for new account
               </p>
-              <form action="/auth/register" class="form-horizontal mt-4 pt-4 needs-validation" method="post"
-                    novalidate="">
+              <form class="form-horizontal mt-4 pt-4 needs-validation" novalidate="">
                 <div class="form-floating mb-3">
-                  <input id="tb-firstname" class="form-control form-input-bg" name="first_name" placeholder="john deo"
+                  <input id="nw-firstname" v-model="state.user.first_name" class="form-control form-input-bg" name="first_name" placeholder="john deo"
                          required="" type="text">
-                  <label for="tb-firstname">First Name</label>
+                  <label for="nw-firstname">First Name</label>
                   <div class="invalid-feedback">First name is required</div>
                 </div>
                 <div class="form-floating mb-3">
-                  <input id="tb-lastname" class="form-control form-input-bg" name="last_name" placeholder="john deo"
+                  <input id="nw-lastname" v-model="state.user.last_name" class="form-control form-input-bg" name="last_name" placeholder="john deo"
                          required="" type="text">
-                  <label for="tb-lastname">Last Name</label>
+                  <label for="nw-lastname">Last Name</label>
                   <div class="invalid-feedback">Last name is required</div>
                 </div>
                 <div class="form-floating mb-3">
-                  <input id="tb-remail" class="form-control form-input-bg" name="email" placeholder="john@gmail.com"
+                  <input id="nw-remail" v-model="state.user.email" class="form-control form-input-bg" name="email" placeholder="john@gmail.com"
                          required="" type="email">
-                  <label for="tb-remail">Email</label>
+                  <label for="nw-remail">Email</label>
                   <div class="invalid-feedback">Email is required</div>
                 </div>
                 <div class="form-floating mb-3">
-                  <input id="text-rpassword" class="form-control form-input-bg" name="password" placeholder="*****"
+                  <input id="text-rpassword" v-model="state.user.password" class="form-control form-input-bg" name="password" placeholder="*****"
                          required="" type="password">
                   <label for="text-rpassword">Password</label>
                   <div class="invalid-feedback">Password is required</div>
                 </div>
                 <div class="form-floating mb-3">
-                  <input id="text-rcpassword" class="form-control form-input-bg" name="password_confirm" placeholder="*****"
+                  <input id="nw-rcpassword" v-model="state.confirmPassword" class="form-control form-input-bg" name="password_confirm" placeholder="*****"
                          required="" type="password">
-                  <label for="text-rcpassword">Confirm Password</label>
+                  <label for="nw-rcpassword">Confirm Password</label>
                   <div class="invalid-feedback">Password is required</div>
                 </div>
                 <div class="form-check mb-4 pb-2">
@@ -80,14 +101,14 @@ const router = useRouter()
                   </div>
                 </div>
                 <div class="d-flex align-items-stretch button-group">
-                  <button class="btn btn-primary btn-lg px-4" type="submit">
+                  <button class="btn btn-primary btn-lg px-4" type="submit" @click="submit">
                     Submit
                   </button>
                   <a id="to-login2" class="
                           btn btn-lg btn-light-secondary
                           text-secondary
                           font-weight-medium
-                        " href="javascript:void(0)">Cancel</a>
+                        " >Cancel</a>
                 </div>
               </form>
             </div>

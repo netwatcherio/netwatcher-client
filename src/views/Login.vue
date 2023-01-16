@@ -2,18 +2,33 @@
 import {reactive} from "vue";
 import authService from "@/services/authService";
 import type {User} from "@/types"
+import core from "@/core";
+import Loader from "@/components/Loader.vue";
 
 const state = reactive({
-  email: "",
-  password: ""
+  user: {} as User,
+  waiting: false
 })
 
+interface Response {
+  token: string
+}
+
+let session = core.session()
+let router = core.router()
+
 function submit(_: MouseEvent) {
-  let user = {
-    email: state.email,
-    password: state.password
-  } as User
-  authService.login(user).then().catch(err => alert(err))
+  state.waiting = true
+  authService.login(state.user).then(res => {
+    state.waiting = false
+    let data = res.data as Response
+    console.log("Setting token to: ", data.token)
+    session.token = data.token
+    window.location.href="/"
+  }).catch(err => {
+    state.waiting = false
+    console.log(err)
+  })
 }
 
 </script>
@@ -46,25 +61,25 @@ function submit(_: MouseEvent) {
           ">
       <div class="row justify-content-center w-100 mt-4 mt-lg-0">
         <div class="col-lg-6 col-xl-3 col-md-7">
-          <div id="loginform" class="card">
+          <div class="card">
             <div class="card-body">
               <h1>login</h1>
               <p class="text-muted fs-4">
                 new here?
-                <a id="to-register" href="javascript:void(0)">create an account</a>
+                <router-link id="to-register" to="/auth/register">create an account</router-link>
               </p>
-              <form action="/auth/login" class="form-horizontal mt-4 pt-4 needs-validation" method="post" novalidate="">
+              <div class="form-horizontal mt-4 pt-4 needs-validation">
                 <div class="form-floating mb-3">
-                  <input id="tb-email" v-model="state.email" class="form-control form-input-bg" name="email"
+                  <input id="tb-email" v-model="state.user.email" class="form-control form-input-bg" name="email"
                          placeholder="name@example.com" required="" type="email">
                   <label for="tb-email">email</label>
                   <div class="invalid-feedback">email is required</div>
                 </div>
 
                 <div class="form-floating mb-3">
-                  <input id="text-password" v-model="state.password" class="form-control form-input-bg" name="password"
+                  <input id="current-password" v-model="state.user.password" class="form-control form-input-bg" name="password"
                          placeholder="*****" required="" type="password">
-                  <label for="text-password">password</label>
+                  <label for="current-password">password</label>
                   <div class="invalid-feedback">password is required</div>
                 </div>
 
@@ -74,11 +89,11 @@ function submit(_: MouseEvent) {
                   </div>
                 </div>
                 <div class="d-flex align-items-stretch button-group mt-4 pt-2">
-                  <button class="btn btn-primary btn-lg px-4" type="submit" @click="submit">
-                    login
+                  <button class="btn btn-primary btn-lg px-4"  @click="submit" :disabled="state.waiting">
+                    login <Loader v-if="state.waiting"></Loader>
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>

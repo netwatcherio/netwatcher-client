@@ -1,5 +1,15 @@
 <script lang="ts" setup>
 
+import core from "@/core";
+
+const persistent = core.persistent()
+const router = core.router()
+
+function logout() {
+  persistent.token = ""
+  router.push("/auth/login")
+}
+
 </script>
 
 <template>
@@ -17,7 +27,6 @@
               <div class="sidebar-link waves-effect waves-dark">Sites</div>
             </router-link>
           </li>
-
           <li class="nav-small-cap">
             <span class="hide-menu"><b>Sites</b></span>
           </li>
@@ -56,8 +65,8 @@
              <span class="hide-menu">site</span>-->
             <!--TODO show which site is selected -->
           </li>
-          <li class="sidebar-item"><a aria-expanded="false"
-                                      class="sidebar-link btn-light waves-effect waves-dark sidebar-link" href="/logout"><i class="mdi mdi-logout"></i><span
+          <li class="sidebar-item" @click="logout"><a aria-expanded="false"
+                                      class="sidebar-link btn-light waves-effect waves-dark sidebar-link"><i class="mdi mdi-logout"></i><span
               class="hide-menu">logout</span></a></li>
         </ul>
       </nav>

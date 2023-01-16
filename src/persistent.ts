@@ -1,10 +1,9 @@
 // Copyright (c) 2022 Braden Nicholson
 
 import type {Preferences} from "@/types";
-import {provide, reactive, watch} from "vue";
+import {inject, provide, reactive, watch} from "vue";
 
 export function usePersistent() {
-
     // preferenceDefaults are the default preferences for a new terminal install
     const preferenceDefaults: Preferences = {
         dark: false,
