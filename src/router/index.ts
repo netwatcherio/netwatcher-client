@@ -4,31 +4,13 @@ import Site from '@/views/site/Site.vue'
 import Sites from '@/views/site/Sites.vue'
 import SiteView from '@/views/site/Index.vue'
 import SiteNew from '@/views/site/NewSite.vue'
-import Login from '@/views/Login.vue'
-import Register from "@/views/Register.vue";
 import RootView from "@/views/Root.vue";
-import Auth from "@/views/Auth.vue";
+import auth from "@/views/auth";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: '/auth',
-      name: 'auth',
-      component: Auth,
-      children: [
-        {
-          path: '/auth/login',
-          name: 'login',
-          component: Login
-        },
-        {
-          path: '/auth/register',
-          name: 'register',
-          component: Register
-        },
-      ]
-    },
+   auth,
     {
       path: '/',
       redirect: '/home',

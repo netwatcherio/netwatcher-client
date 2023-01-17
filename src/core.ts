@@ -5,6 +5,7 @@ import {usePersistent} from "@/persistent";
 import type {Preferences, User} from "@/types";
 import type {Remote} from "@/remote";
 import type {Session} from "@/session";
+import {useSession} from "@/session";
 
 export interface Core {
     router: () => Router,
@@ -17,5 +18,5 @@ export default {
     router: () => useRouter(),
     remote: () => inject("remote") as Remote,
     persistent: () => usePersistent() as Preferences,
-    session: () => inject("session") as Session
+    session: () => useSession() as Session
 } as Core

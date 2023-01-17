@@ -3,6 +3,7 @@ import {useRouter} from "vue-router";
 import {reactive} from "vue";
 import {User} from "@/types";
 import authService from "@/services/authService";
+import core from "@/core";
 
 const router = useRouter()
 
@@ -10,18 +11,34 @@ const router = useRouter()
 const state = reactive({
   user: {} as User,
   confirmPassword: "",
-  waiting: false
+  waiting: false,
+  error: false,
 })
 
+interface Response {
+  token: string
+  user: User
+}
+
+let session = core.session()
+
+function onRegister(response: any) {
+  state.waiting = false
+  let data = response.data as Response
+  session.token = data.token
+  session.user = data.user
+  console.log(response)
+  window.location.href = "/"
+}
+
+function onFailure(error: any) {
+  state.waiting = false
+  state.error = true
+  console.log(error)
+}
 function submit(_: MouseEvent) {
   state.waiting = true
-  authService.register(state.user).then(res => {
-    console.log(res)
-    state.waiting = false
-  }).catch(err => {
-    state.waiting = false
-    console.log(err)
-  })
+  authService.register(state.user).then(onRegister).catch(onFailure)
 }
 
 
@@ -60,7 +77,7 @@ function submit(_: MouseEvent) {
               <p class="text-muted fs-4">
                 Enter given details for new account
               </p>
-              <form class="form-horizontal mt-4 pt-4 needs-validation" novalidate="">
+              <div class="form-horizontal mt-4 pt-4 needs-validation">
                 <div class="form-floating mb-3">
                   <input id="nw-firstname" v-model="state.user.first_name" class="form-control form-input-bg" name="first_name" placeholder="john deo"
                          required="" type="text">
@@ -110,7 +127,7 @@ function submit(_: MouseEvent) {
                           font-weight-medium
                         " >Cancel</a>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,17 @@
 <script lang="ts" setup>
 
+import core from "@/core";
+import {User} from "@/types";
+
+const persistent = core.persistent()
+const router = core.router()
+const session = core.session()
+
+function logout() {
+  session.token = ""
+  session.user = {} as User
+  router.push("/auth/login")
+}
 </script>
 
 <template>
@@ -101,7 +113,7 @@
               <div class="d-none d-md-flex">
                      <span class="ms-2"
                      >Hi,
-                     <span class="text-dark fw-bold">FIRST LAST</span></span
+                     <span class="text-dark fw-bold text-capitalize">{{session.user.first_name}} {{session.user.last_name}}</span></span
                      >
                 <span>
                      <i class="feather-sm" data-feather="chevron-down"></i>
@@ -142,11 +154,11 @@
                         width="90"
                     />
                     <div class="ms-4">
-                      <h4 class="mb-0">FirstName LastName</h4>
+                      <h4 class="mb-0">{{session.user.first_name}} {{session.user.last_name}}</h4>
                       <!--<span class="text-muted">User</span>-->
                       <p class="text-muted mb-0 mt-1">
                         <i class="feather-sm me-1" data-feather="mail"></i>
-                        EMAIL
+                        {{session.user.email}}
                       </p>
                     </div>
                   </div>
@@ -199,11 +211,11 @@
                     </a>
                   </div>
                   <div class="mt-4">
-                    <a
+                    <div
                         class="btn btn-info text-white"
-                        href="/logout">
+                         @click="logout">
                       logout
-                    </a>
+                    </div>
                   </div>
                 </li>
               </ul>

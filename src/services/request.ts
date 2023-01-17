@@ -2,12 +2,11 @@
 
 
 import axios from "axios";
-
-const token = localStorage.getItem("token")
+import {getSession} from "@/session";
 
 let headers = {
     headers: {
-        Authorization: "Bearer " + token
+        Authorization: "Bearer " + getSession().token
     }
 }
 
@@ -29,6 +28,9 @@ export default {
 
         }
         return response
+    },
+    async get(url: string, data?: {} | undefined): Promise<any> {
+        return axios.get(`http://${host()}${url}`, headers)
     }
 }
 

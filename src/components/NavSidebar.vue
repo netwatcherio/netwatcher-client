@@ -1,12 +1,15 @@
 <script lang="ts" setup>
 
 import core from "@/core";
+import type {User} from "@/types";
 
 const persistent = core.persistent()
 const router = core.router()
+const session = core.session()
 
 function logout() {
-  persistent.token = ""
+  session.token = ""
+  session.user = {} as User
   router.push("/auth/login")
 }
 
@@ -17,14 +20,15 @@ function logout() {
     <div class="scroll-sidebar">
       <nav class="sidebar-nav">
         <ul id="sidebarnav">
+
           <li class="sidebar-item">
             <router-link active-class="selected" class="sidebar-item" to="/home">
-              <div class="sidebar-link waves-effect waves-dark">Home</div>
+              <div class="sidebar-link waves-effect waves-dark">home</div>
             </router-link>
           </li>
           <li class="sidebar-item">
             <router-link active-class="selected" class="sidebar-item" to="/sites">
-              <div class="sidebar-link waves-effect waves-dark">Sites</div>
+              <div class="sidebar-link waves-effect waves-dark">sites</div>
             </router-link>
           </li>
           <li class="nav-small-cap">
@@ -59,7 +63,7 @@ function logout() {
               </li>
             </ul>
           </li>
-          =
+
           <li class="nav-devider">
             <!-- <i class="nav-small-line"></i>
              <span class="hide-menu">site</span>-->

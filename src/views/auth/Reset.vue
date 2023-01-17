@@ -1,13 +1,15 @@
 <script lang="ts" setup>
 import {reactive} from "vue";
 import authService from "@/services/authService";
+import profileService from "@/services/profile";
 import type {User} from "@/types"
 import core from "@/core";
 import Loader from "@/components/Loader.vue";
 
 const state = reactive({
   user: {} as User,
-  waiting: false
+  waiting: false,
+  error: false
 })
 
 interface Response {
@@ -15,20 +17,29 @@ interface Response {
 }
 
 let session = core.session()
-let router = core.router()
+
+function onLogin(response: any) {
+  state.waiting = false
+  let data = response.data as Response
+  session.token = data.token
+  profileService.getProfile().then((res) => {
+    session.user = res.data as User
+  }).catch((err) => {
+    console.log(err)
+  })
+  window.location.href = "/"
+}
+
+function onFailure(error: any) {
+  state.waiting = false
+  state.error = true
+  console.log(error)
+}
 
 function submit(_: MouseEvent) {
   state.waiting = true
-  authService.login(state.user).then(res => {
-    state.waiting = false
-    let data = res.data as Response
-    console.log("Setting token to: ", data.token)
-    session.token = data.token
-    window.location.href="/"
-  }).catch(err => {
-    state.waiting = false
-    console.log(err)
-  })
+  // Attempt to log in with the provided credentials
+  authService.login(state.user).then(onLogin).catch(onFailure)
 }
 
 </script>
@@ -64,11 +75,13 @@ function submit(_: MouseEvent) {
           <div class="card">
             <div class="card-body">
               <h1>login</h1>
-              <p class="text-muted fs-4">
+              <p class="text-muted fs-4 mb-2">
                 new here?
                 <router-link id="to-register" to="/auth/register">create an account</router-link>
               </p>
-              <div class="form-horizontal mt-4 pt-4 needs-validation">
+              <div class="text-danger" v-if="state.error">Incorrect Email/Password combination. Please try again.</div>
+              <div v-else>&nbsp;</div>
+              <div class="form-horizontal needs-validation mt-2">
                 <div class="form-floating mb-3">
                   <input id="tb-email" v-model="state.user.email" class="form-control form-input-bg" name="email"
                          placeholder="name@example.com" required="" type="email">
@@ -77,7 +90,8 @@ function submit(_: MouseEvent) {
                 </div>
 
                 <div class="form-floating mb-3">
-                  <input id="current-password" v-model="state.user.password" class="form-control form-input-bg" name="password"
+                  <input id="current-password" v-model="state.user.password" class="form-control form-input-bg"
+                         name="password"
                          placeholder="*****" required="" type="password">
                   <label for="current-password">password</label>
                   <div class="invalid-feedback">password is required</div>
@@ -85,12 +99,13 @@ function submit(_: MouseEvent) {
 
                 <div class="d-flex align-items-center mb-3">
                   <div class="ms-auto">
-                    <a id="to-recover" class="fw-bold" href="javascript:void(0)">forgot password?</a>
+                    <router-link id="to-recover" class="fw-bold" to="/auth/reset">forgot password?</router-link>
                   </div>
                 </div>
                 <div class="d-flex align-items-stretch button-group mt-4 pt-2">
-                  <button class="btn btn-primary btn-lg px-4"  @click="submit" :disabled="state.waiting">
-                    login <Loader v-if="state.waiting"></Loader>
+                  <button class="btn btn-primary btn-lg px-4" @click="submit" :disabled="state.waiting">
+                    login
+                    <Loader v-if="state.waiting"></Loader>
                   </button>
                 </div>
               </div>

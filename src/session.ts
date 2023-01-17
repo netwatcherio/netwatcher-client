@@ -1,15 +1,23 @@
 import type {User} from "@/types";
 import {provide, reactive, watch} from "vue";
+import axios from "axios";
+import profileService from "@/services/profile";
 
 export interface Session {
     token: string
     user: User
 }
 
+
 let defaults = {
     token: "",
-    user: {} as User
+    user: {} as User,
 } as Session
+
+function init() {
+
+}
+
 
 // Save the Preferences object to localStorage
 function save(session: Session) {
@@ -35,6 +43,10 @@ function restore(): Session {
     }
 }
 
+export function getSession() {
+    return reactive<Session>(restore())
+}
+
 export function useSession() {
     // Create a reactive object to contain the preferences
     let session = reactive<Session>(restore())
@@ -43,7 +55,6 @@ export function useSession() {
         // Save any changes to localStorage
         save(session)
     })
-    provide("session", session)
     return session
 }
 
