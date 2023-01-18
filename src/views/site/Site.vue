@@ -25,8 +25,8 @@ onMounted(() => {
 
 <template>
 
-  <Title :title="state.site.name" :history="[{title: 'Sites', link: '/sites'}]"></Title>
   <div class="container-fluid">
+  <Title :title="state.site.name" :history="[{title: 'Sites', link: '/sites'}]"></Title>
 
     <div class="row" v-if="state.site">
       <div class="col-lg-12">

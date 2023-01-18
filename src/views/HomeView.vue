@@ -1,25 +1,16 @@
-<script lang="ts" setup></script>
+<script>
+import {defineComponent} from "vue";
+import Title from "@/components/Title.vue";
+
+export default defineComponent({
+  components: {Title}
+})
+</script>
 
 <template>
-  <div class="page-titles">
-    <div class="row">
-      <div class="col-lg-8 col-md-6 col-12 align-self-center">
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb mb-0 d-flex align-items-center">
-            <li class="breadcrumb-item">
-              <a class="link" href="/home"><i class="ri-home-3-line fs-5"></i></a>
-            </li>
-            <li aria-current="page" class="breadcrumb-item active">
-              Home
-            </li>
-          </ol>
-        </nav>
-        <h1 class="mb-0 fw-bold">Overview</h1>
-      </div>
-    </div>
-  </div>
 
   <div class="container-fluid">
+  <Title title="Overview"></Title>
     <div class="row">
       <!-- column -->
       <div class="col-12">

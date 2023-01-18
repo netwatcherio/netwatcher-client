@@ -42,8 +42,8 @@ function submit(_: MouseEvent) {
 </script>
 
 <template>
-  <div class="row auth-wrapper gx-0">
-    <div class="col-lg-4 col-xl-3 bg-primary auth-box-2 on-sidebar">
+  <div class="d-flex h-100" >
+    <div class="col-lg-3 col-xl-3 bg-primary on-sidebar" style="height: 100vh;">
       <div class="h-100 d-flex align-items-center justify-content-center">
         <div class="row justify-content-center text-center">
           <div class="col-md-7 col-lg-12 col-xl-9">
@@ -62,49 +62,47 @@ function submit(_: MouseEvent) {
       </div>
     </div>
     <div class="
-            col-lg-8 col-xl-9
+            col-lg-8
             d-flex
             align-items-center
             justify-content-center
           ">
-      <div class="row justify-content-center w-100 mt-4 mt-lg-0">
-        <div class="col-lg-6 col-xl-3 col-md-7">
-          <div class="card">
-            <div class="card-body">
-              <h1>login</h1>
-              <p class="text-muted fs-4 mb-2">
-                new here?
-                <router-link id="to-register" to="/auth/register">create an account</router-link>
-              </p>
-              <div class="text-danger" v-if="state.error">Incorrect Email/Password combination. Please try again.</div>
-              <div v-else>&nbsp;</div>
-              <div class="form-horizontal needs-validation mt-2">
-                <div class="form-floating mb-3">
-                  <input id="tb-email" v-model="state.user.email" class="form-control form-input-bg" name="email"
-                         placeholder="name@example.com" required="" type="email">
-                  <label for="tb-email">email</label>
-                  <div class="invalid-feedback">email is required</div>
-                </div>
+      <div class="col-6">
+        <div class="card">
+          <div class="card-body">
+            <h1>login</h1>
+            <p class="text-muted fs-4 mb-2">
+              new here?
+              <router-link id="to-register" to="/auth/register">create an account</router-link>
+            </p>
+            <div class="text-danger" v-if="state.error">Incorrect Email/Password combination. Please try again.</div>
+            <div v-else>&nbsp;</div>
+            <div class="form-horizontal needs-validation mt-2">
+              <div class="form-floating mb-3">
+                <input id="tb-email" v-model="state.user.email" class="form-control form-input-bg" name="email"
+                       placeholder="name@example.com" required="" type="email">
+                <label for="tb-email">email</label>
+                <div class="invalid-feedback">email is required</div>
+              </div>
 
-                <div class="form-floating mb-3">
-                  <input id="current-password" v-model="state.user.password" class="form-control form-input-bg"
-                         name="password"
-                         placeholder="*****" required="" type="password">
-                  <label for="current-password">password</label>
-                  <div class="invalid-feedback">password is required</div>
-                </div>
+              <div class="form-floating mb-3">
+                <input id="current-password" v-model="state.user.password" class="form-control form-input-bg"
+                       name="password"
+                       placeholder="*****" required="" type="password">
+                <label for="current-password">password</label>
+                <div class="invalid-feedback">password is required</div>
+              </div>
 
-                <div class="d-flex align-items-center mb-3">
-                  <div class="ms-auto">
-                    <router-link id="to-recover" class="fw-bold" to="/auth/reset">forgot password?</router-link>
-                  </div>
+              <div class="d-flex align-items-center mb-3">
+                <div class="ms-auto">
+                  <router-link id="to-recover" class="fw-bold" to="/auth/reset">forgot password?</router-link>
                 </div>
-                <div class="d-flex align-items-stretch button-group mt-4 pt-2">
-                  <button class="btn btn-primary btn-lg px-4" @click="submit" :disabled="state.waiting">
-                    login
-                    <Loader v-if="state.waiting"></Loader>
-                  </button>
-                </div>
+              </div>
+              <div class="d-flex align-items-stretch button-group mt-4 pt-2">
+                <button class="btn btn-primary btn-lg px-4" @click="submit" :disabled="state.waiting">
+                  login
+                  <Loader v-if="state.waiting"></Loader>
+                </button>
               </div>
             </div>
           </div>

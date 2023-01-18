@@ -1,0 +1,55 @@
+
+
+$body-bg: rgba(241,245,249,1);
+$border-color: rgb(230, 231, 233);
+$card-border-color: rgb(230, 231, 233);
+$card-border-radius: 6px;
+$btn-border-radius: 4px;
+$primary: #206bc4;
+
+@import "../../node_modules/bootstrap/scss/bootstrap";
+
+.breadcrumb-item.active {
+  text-decoration: none !important;
+  color: $text-muted;
+  font-weight: 600 !important;
+  font-size: 0.8rem;
+}
+
+.btn.btn-primary {
+  box-shadow: 0 1px 0 rgba(29,39,59, 0.04), inset 0 -1px 0 rgba(29,39,59, 0.2);
+  font-size: 14px;
+  padding-inline: 1.5rem;
+}
+
+.breadcrumb-item {
+
+}
+
+a:link { text-decoration: none; }
+
+
+.breadcrumb-item .router-link-active {
+  color: rgba(0,0,0,1);
+}
+
+.nav-link.nav-link-static {
+  background-color: rgba($border-color, 0.5);
+}
+.logo {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.sidebar {
+  border-right: 1px solid $border-color !important;
+}
+
+.nav-link-static {
+  cursor: pointer !important;
+}
+
+.navbar {
+  border-bottom: 1px solid $border-color !important;
+}
