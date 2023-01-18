@@ -20,7 +20,6 @@ function logout() {
     <div class="scroll-sidebar">
       <nav class="sidebar-nav">
         <ul id="sidebarnav">
-
           <li class="sidebar-item">
             <router-link active-class="selected" class="sidebar-item" to="/home">
               <div class="sidebar-link waves-effect waves-dark">home</div>
@@ -32,7 +31,7 @@ function logout() {
             </router-link>
           </li>
           <li class="nav-small-cap">
-            <span class="hide-menu"><b>Sites</b></span>
+            <span class="hide-menu"><b>sites</b></span>
           </li>
           <li class="sidebar-item"><a aria-expanded="false"
                                       class="sidebar-link waves-effect waves-dark sidebar-link" href="/site/{{.siteId}}"><i

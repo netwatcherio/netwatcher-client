@@ -1,5 +1,30 @@
 <script lang="ts" setup>
 
+import {reactive} from "vue";
+import siteService from "@/services/siteService";
+import type {Site} from "@/types";
+import core from "@/core";
+
+const state = reactive({
+  name: ""
+})
+
+const router = core.router()
+
+function onCreate(response: any) {
+  router.push("/sites")
+}
+
+function onError(response: any) {
+  alert(response)
+}
+
+function submit() {
+  siteService.createSite({
+    name: state.name
+  } as Site).then(onCreate).catch(onError)
+}
+
 </script>
 
 <template>
@@ -43,12 +68,12 @@
           <div class="card-body">
             <h4 class="card-title">new site</h4>
           </div>
-          <form action="/sites/new" class="form-horizontal r-separator border-top" method="post">
+          <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
                 <label class="col-3 text-end control-label col-form-label" for="siteName">site name</label>
                 <div class="col-9 border-start pb-2 pt-2">
-                  <input id="siteName" class="form-control" name="name" placeholder="site name here" type="text">
+                  <input id="siteName" class="form-control" name="name" v-model="state.name" placeholder="site name here" type="text">
                 </div>
               </div>
             </div>
@@ -59,13 +84,13 @@
                           rounded-pill
                           px-4
                           waves-effect waves-light
-                        " type="submit">
+                        " type="submit" @click="submit">
                   create
                 </button>
 
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

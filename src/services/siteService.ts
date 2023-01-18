@@ -1,12 +1,14 @@
 import request from "@/services/request";
-
-function getEndpoint(id: string, path: string): string {
-    return `/sites/${id}${path}`
-}
+import type {Site} from "@/types";
 
 export default {
-    async getSites(id: string): Promise<void> {
-        const url = getEndpoint(id, "/reload")
-        return await request.post(url)
+    async getSites(): Promise<any> {
+        return await request.get("/sites")
+    },
+    async createSite(site: Site): Promise<void> {
+        return await request.post("/site/new", site)
+    },
+    async getSite(id: string): Promise<any> {
+        return await request.get(`/site/${id}`)
     },
 }

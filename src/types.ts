@@ -15,6 +15,7 @@ export interface Site {
     name: string;
     members: SiteMember[];
     create_timestamp: string;
+    agents?: number
 }
 
 export interface SiteMember {

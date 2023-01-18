@@ -1,10 +1,37 @@
 <script lang="ts" setup>
 
 import type {Site} from "@/types";
-import {reactive} from "vue";
+import {onMounted, reactive} from "vue";
+import siteService from "@/services/siteService";
+
+declare interface AgentCountInfo {
+  site_id: string;
+  count: number;
+}
+
+declare interface sitesList {
+  sites: Site[];
+  agent_counts: AgentCountInfo[];
+}
+
 
 const state = reactive({
-  sites: [] as Site[]
+  sites: [] as Site[],
+  agent_counts: [] as AgentCountInfo[]
+})
+
+onMounted(() => {
+  siteService.getSites().then(res => {
+    let data = res.data as sitesList
+    if(!data.sites) return
+    state.sites = data.sites.map(s => {
+      let target = data.agent_counts.find(a => a.site_id === s.id)
+      if (target) s.agents = target.count
+      return s
+    })
+  }).catch(res => {
+    alert(res)
+  })
 })
 
 </script>
@@ -68,6 +95,7 @@ const state = reactive({
                   <thead>
                   <tr>
                     <th class="px-0 text-muted" scope="col">name</th>
+                    <th class="px-0 text-muted" scope="col">members</th>
                     <th class="px-0 text-muted" scope="col">agent count</th>
                     <th class="px-0 text-muted text-end" scope="col">view</th>
                   </tr>
@@ -75,10 +103,13 @@ const state = reactive({
                   <tbody>
                   <tr v-for="site in state.sites">
                     <td class="px-0">
-                      {{ site.name }}
+                      {{site.name}}
                     </td>
                     <td class="px-0">
                       <span class="badge bg-dark">{{ site.members.length }}</span>
+                    </td>
+                    <td class="px-0">
+                      <span class="badge bg-dark">{{ site.agents }}</span>
                     </td>
                     <td class="px-0 text-end">
                       <router-link :to="`/sites/${site.id}`" active-class="selected" class="badge bg-purple">

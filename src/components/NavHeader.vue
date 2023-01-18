@@ -193,22 +193,15 @@ function logout() {
                       </a>
                   </div>-->
                   <div class="mt-4">
-                    <a class="
+                    <router-link class="
                               text-dark
                               fs-3
                               font-weight-medium
                               hover-primary
-                              " href="/account/settings">
+                              " to="/profile">
                       account settings
-                    </a>
-                    <a class="
-                              text-dark
-                              fs-3
-                              font-weight-medium
-                              hover-primary
-                              " href="/faq">
-                      frequently asked questions
-                    </a>
+                    </router-link>
+
                   </div>
                   <div class="mt-4">
                     <div
