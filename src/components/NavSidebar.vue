@@ -22,12 +22,14 @@ function logout() {
         <ul id="sidebarnav">
           <li class="sidebar-item">
             <router-link active-class="selected" class="sidebar-item" to="/home">
-              <div class="sidebar-link waves-effect waves-dark">home</div>
+            <div class="sidebar-link waves-effect waves-dark">  <i
+                class="mdi mdi-home"></i>home</div>
             </router-link>
           </li>
           <li class="sidebar-item">
             <router-link active-class="selected" class="sidebar-item" to="/sites">
-              <div class="sidebar-link waves-effect waves-dark">sites</div>
+              <div class="sidebar-link waves-effect waves-dark"><i
+                  class="mdi mdi-access-point-network"></i>sites</div>
             </router-link>
           </li>
           <li class="nav-small-cap">
