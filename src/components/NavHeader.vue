@@ -19,18 +19,26 @@ function logout() {
     <div class="container-fluid">
       <form class="d-flex" role="search">
         <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success" type="submit">Search</button>
+        <button class="btn btn-outline-primary" type="submit">Search</button>
       </form>
-      <div class="d-flex gap-2 align-items-start">
-        <div style="width: 28px; height: 28px; background-color: orange; border-radius: 100%;">
+      <div class="d-flex align-items-center gap-3">
+          <div>
+            <i class="bi bi-moon"></i>
+          </div>
+        <div>
+          <i class="bi bi-bell"></i>
         </div>
-        <div class="d-flex flex-column gap-0">
-          <small class="text-capitalize lh-1">
-            {{ session.user.first_name }} {{ session.user.last_name }}
-          </small>
-          <small class="lh-1 text-muted">Default</small>
+        <div class="nav-divider"></div>
+        <div class="d-flex gap-1 align-items-center px-1">
+          <i class="bi bi-person text-muted" style="font-size: 22px; line-height: 22px"></i>
+          <div class="d-flex flex-column gap-0 align-items-center">
+            <small class="text-capitalize lh-1">
+              {{ session.user.first_name }} {{ session.user.last_name }}
+            </small>
+
+          </div>
+
         </div>
-        <i class="fa-solid fa-caret-down"></i>
       </div>
     </div>
   </nav>

@@ -1,32 +1,17 @@
 
 <script setup lang="ts">
-
+const props = defineProps<{
+  inverse?: boolean
+}>()
 </script>
 
 
 <template>
-  <span class="loader"></span>
+  <span class="loader" :class="`${props.inverse?'loader-dark':''}`"></span>
 </template>
 
 
-<style scoped>
-.loader {
-  width: 0.8rem;
-  height: 0.8rem;
-  border: 2px solid #FFF;
-  border-bottom-color: transparent;
-  border-radius: 50%;
-  display: inline-block;
-  box-sizing: border-box;
-  animation: rotation 1s linear infinite;
-}
+<style>
 
-@keyframes rotation {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
+
 </style>

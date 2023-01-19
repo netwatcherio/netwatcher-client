@@ -11,4 +11,7 @@ export default {
     async getSite(id: string): Promise<any> {
         return await request.get(`/site/${id}`)
     },
+    async getSiteAgents(id: string): Promise<any> {
+        return await request.get(`/agents/${id}`)
+    },
 }

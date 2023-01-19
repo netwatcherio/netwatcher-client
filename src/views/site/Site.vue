@@ -3,11 +3,15 @@
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
 import core from "@/core";
-import type {Site} from "@/types";
+import type {Agent, Site} from "@/types";
 import Title from "@/components/Title.vue";
+import Loader from "@/components/Loader.vue";
+import Code from "@/components/Code.vue";
 
 const state = reactive({
-  site: {} as Site
+  site: {} as Site,
+  agents: [] as Agent[],
+  ready: false,
 })
 
 let router = core.router()
@@ -18,7 +22,14 @@ onMounted(() => {
 
   siteService.getSite(id).then(res => {
     state.site = res.data as Site
+    siteService.getSiteAgents(id).then(res => {
+      state.agents = res.data as Agent[]
+      state.ready = true
+    })
   })
+
+
+
 })
 
 </script>
@@ -26,41 +37,54 @@ onMounted(() => {
 <template>
 
   <div class="container-fluid">
-  <Title :title="state.site.name" :history="[{title: 'Sites', link: '/sites'}]"></Title>
-
-    <div class="row" v-if="state.site">
-      <div class="col-lg-12">
-        <div class="card">
-          <div class="border-bottom title-part-padding">
-            <h4 class="mb-0">agent overview</h4>
-          </div>
-          <div class="card-body img-responsive">
-            <div>
-              <div style="display: flex; justify-content: center;" id="my_dataviz"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+  <Title :title="state.site.name || 'Site'" :history="[{title: 'Sites', link: '/sites'}]">
+    <div class="d-flex gap-1">
+    <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;Invite Member</router-link>
+    <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Add Agent</router-link>
     </div>
-
-    <div class="row" v-else>
-      <div class="col-lg-12">
-        <div class="error-body text-center">
-          <h1 class="error-title text-danger">no data</h1>
-          <h3 class="text-error-subtitle">please create a new agent and install it</h3>
-          <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
-           <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
-        </div>
-      </div>
-    </div>
-    <div class="row" v-else>
-      <div class="col-lg-12">
-        <div class="error-body text-center">
-          <h1 class="error-title text-danger">no data</h1>
-          <h3 class="text-error-subtitle">please create a new agent and install it</h3>
-          <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
-           <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
-        </div>
+  </Title>
+    <div v-if=state.ready class="card px-3 py-1">
+     <div class="table-responsive">
+       <table class="table">
+         <thead>
+         <tr>
+           <th class="px-0 text-muted" scope="col">Name</th>
+           <th class="px-0 text-muted" scope="col">Location</th>
+           <th class="px-0 text-muted" scope="col">Pin</th>
+           <th class="px-0 text-muted" scope="col">Id</th>
+           <th class="px-0 text-muted" scope="col">Activated</th>
+           <th class="px-0 text-muted text-end" scope="col">Options</th>
+         </tr>
+         </thead>
+         <tbody>
+         <tr v-for="agent in state.agents">
+           <td class="px-0">
+             {{agent.name}}
+           </td>
+           <td class="px-0">
+             {{agent.latitude}}, {{agent.longitude}}
+           </td>
+           <td class="px-0">
+             <Code :code="agent.pin"></Code>
+           </td>
+           <td class="px-0">
+             <Code :code="agent.id"></Code>
+           </td>
+           <td class="px-0 fw-bold text-muted">
+             {{agent.initialized?"Yes":"No"}}
+           </td>
+           <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
+             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary btn-sm"><i class="fa-solid fa-gears"></i>&nbsp;Configure</router-link>
+             <div class="btn btn-danger btn-sm"><i class="fa-regular fa-trash-can"></i>&nbsp;Delete</div>
+           </td>
+         </tr>
+         </tbody>
+       </table>
+     </div>
+   </div>
+    <div v-else class="card px-3 py-1">
+      <div class="d-flex flex-row py-2">
+      This site has no agents.
       </div>
     </div>
 

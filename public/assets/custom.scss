@@ -6,20 +6,25 @@ $card-border-color: rgb(230, 231, 233);
 $card-border-radius: 6px;
 $btn-border-radius: 4px;
 $primary: #206bc4;
+$card-box-shadow: 0 0 4px rgba(29,39,59, 0.04);
 
 @import "../../node_modules/bootstrap/scss/bootstrap";
 
 .breadcrumb-item.active {
   text-decoration: none !important;
-  color: $text-muted;
+  font-weight: 600 !important;
+  font-size: 0.8rem;
+}
+.breadcrumb-item.router-link-active {
+  text-decoration: none !important;
   font-weight: 600 !important;
   font-size: 0.8rem;
 }
 
-.btn.btn-primary {
+.btn {
   box-shadow: 0 1px 0 rgba(29,39,59, 0.04), inset 0 -1px 0 rgba(29,39,59, 0.2);
   font-size: 14px;
-  padding-inline: 1.5rem;
+  padding-inline: 1.25rem;
 }
 
 .breadcrumb-item {
@@ -28,9 +33,53 @@ $primary: #206bc4;
 
 a:link { text-decoration: none; }
 
+.loader-dark {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid $primary;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite
+}
 
-.breadcrumb-item .router-link-active {
-  color: rgba(0,0,0,1);
+.code-copy {
+  cursor: pointer;
+}
+
+code {
+  background-color: rgba(230, 231, 233, 0.5);
+  font-family: 'Roboto Mono', monospace;
+  box-shadow: 0 1px 0 rgba(29,39,59, 0.04), inset 0 -1px 0 rgba(29,39,59, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: $primary;
+}
+
+.loader {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid #FFF;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+.nav-divider {
+  width: 2px; height: 1.6rem;
+  background-color: $border-color;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .nav-link.nav-link-static {

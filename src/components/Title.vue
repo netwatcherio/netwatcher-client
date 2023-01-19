@@ -17,8 +17,8 @@ const router = core.router()
     <div class="align-self-center">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-1 d-flex align-items-center px-1">
-          <li class="breadcrumb-item">
-            <router-link to="/" class=""><i class="bi bi-house"></i></router-link>
+          <li class="breadcrumb-item ">
+            <router-link to="/" class="text-muted"><i class="bi bi-house"></i></router-link>
           </li>
           <li v-if="props.history" v-for="page in props.history" class="breadcrumb-item active" aria-current="page">
             <router-link :to="page.link" class="">{{ page.title }}</router-link>
@@ -28,23 +28,19 @@ const router = core.router()
           </li>
         </ol>
       </nav>
-      <div class="d-flex justify-content-between ">
+      <div class="d-flex justify-content-between fade-in">
         <div class="d-flex align-items-center gap-2">
-          <div v-if="props.history" class="lh-1">
-            <router-link :to="props.history[0].link" class="btn btn-primary"><i class="fa-solid fa-chevron-left"></i></router-link>
+          <div v-if="props.history" class="">
+            <router-link :to="props.history[props.history.length-1].link" class="btn btn-primary"><i class="fa-solid fa-chevron-left"></i></router-link>
           </div>
-          <div>
-          <h1 class="fw-bold">{{ props.title }}</h1>
-          </div>
+          <div class="fw-bold lh-1 h2 mb-0" >{{ props.title }}</div>
+
+
         </div>
 
       </div>
-      <div v-if="!props.history">
-        <span v-if="props.subtitle" class="text-muted">{{ props.subtitle }}</span>
-      </div>
-      <div v-else>
-        <span v-if="props.subtitle" class="text-muted mx-4">{{ props.subtitle }}</span>
-      </div>
+        <div v-if="props.subtitle" class="text-muted">{{ props.subtitle }}</div>
+
     </div>
     <div>
       <slot></slot>
@@ -52,6 +48,19 @@ const router = core.router()
   </div>
 </template>
 
-<style>
+<style lang="scss">
+.fade-in {
+  animation: fadeIn 200ms forwards ease;
+}
 
+@keyframes fadeIn {
+  0% {
+    opacity: 0.5;
+    transform: translate(0.25rem, 0) scale(0.998);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
 </style>
