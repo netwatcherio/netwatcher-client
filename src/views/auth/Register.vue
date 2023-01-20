@@ -4,6 +4,7 @@ import {reactive} from "vue";
 import {User} from "@/types";
 import authService from "@/services/authService";
 import core from "@/core";
+import Loader from "@/components/Loader.vue";
 
 const router = useRouter()
 
@@ -45,8 +46,8 @@ function submit(_: MouseEvent) {
 </script>
 
 <template>
-  <div class="row auth-wrapper gx-0">
-    <div class="col-lg-4 col-xl-3 bg-primary auth-box-2 on-sidebar">
+  <div class="d-flex h-100" >
+    <div class="col-lg-3 col-xl-3 bg-primary on-sidebar" style="height: 100vh;">
       <div class="h-100 d-flex align-items-center justify-content-center">
         <div class="row justify-content-center text-center">
           <div class="col-md-7 col-lg-12 col-xl-9">
@@ -65,68 +66,71 @@ function submit(_: MouseEvent) {
       </div>
     </div>
     <div class="
-            col-lg-8 col-xl-9
+            col-lg-8
             d-flex
             align-items-center
-            justify-content-center">
-      <div class="row justify-content-center w-100 mt-4 mt-lg-0">
-        <div class="col-lg-6 col-xl-3 col-md-7">
-          <div class="card">
-            <div class="card-body">
-              <h2>Sign Up Form</h2>
-              <p class="text-muted fs-4">
-                Enter given details for new account
-              </p>
-              <div class="form-horizontal mt-4 pt-4 needs-validation">
-                <div class="form-floating mb-3">
-                  <input id="nw-firstname" v-model="state.user.first_name" class="form-control form-input-bg" name="first_name" placeholder="john deo"
-                         required="" type="text">
-                  <label for="nw-firstname">First Name</label>
-                  <div class="invalid-feedback">First name is required</div>
+            justify-content-center
+          ">
+      <div class="col-6">
+        <div class="card">
+          <div class="card-body">
+            <h1>register</h1>
+            <p class="text-muted fs-4 mb-2">
+              already have an account?
+              <router-link id="to-register" to="/auth/login">login here</router-link>
+            </p>
+            <div class="text-danger" v-if="state.error">Something went wrong. Please try again.</div>
+            <div v-else>&nbsp;</div>
+            <div class="form-horizontal needs-validation mt-2">
+
+              <div class="form-floating mb-3">
+                <input id="nw-firstname" v-model="state.user.first_name" class="form-control form-input-bg"
+                       name="first_name"
+                       placeholder="John" required="" type="text">
+                <label for="nw-lastname">first name</label>
+                <div class="invalid-feedback">first name is required</div>
+              </div>
+
+              <div class="form-floating mb-3">
+                <input id="nw-lastname" v-model="state.user.last_name" class="form-control form-input-bg"
+                       name="last_name"
+                       placeholder="John" required="" type="text">
+                <label for="nw-lastname">last name</label>
+                <div class="invalid-feedback">last name is required</div>
+              </div>
+
+              <div class="form-floating mb-3">
+                <input id="nw-remail" v-model="state.user.email" class="form-control form-input-bg" name="email"
+                       placeholder="name@example.com" required="" type="email">
+                <label for="nw-remail">email</label>
+                <div class="invalid-feedback">email is required</div>
+              </div>
+
+              <div class="form-floating mb-3">
+                <input id="nm-rpassword" v-model="state.user.password" class="form-control form-input-bg"
+                       name="rpassword"
+                       placeholder="*****" required="" type="password">
+                <label for="nm-rpassword">password</label>
+                <div class="invalid-feedback">password is required</div>
+              </div>
+              <div class="form-floating mb-3">
+                <input id="nm-rcpassword" v-model="state.confirmPassword" class="form-control form-input-bg"
+                       name="rcpassword"
+                       placeholder="*****" required="" type="password">
+                <label for="nm-rcpassword">password confirmation</label>
+                <div class="invalid-feedback">password confirmation is required</div>
+              </div>
+
+              <div class="d-flex align-items-center mb-3">
+                <div class="ms-auto">
+                  <router-link id="to-recover" class="fw-bold" to="/auth/reset">forgot password?</router-link>
                 </div>
-                <div class="form-floating mb-3">
-                  <input id="nw-lastname" v-model="state.user.last_name" class="form-control form-input-bg" name="last_name" placeholder="john deo"
-                         required="" type="text">
-                  <label for="nw-lastname">Last Name</label>
-                  <div class="invalid-feedback">Last name is required</div>
-                </div>
-                <div class="form-floating mb-3">
-                  <input id="nw-remail" v-model="state.user.email" class="form-control form-input-bg" name="email" placeholder="john@gmail.com"
-                         required="" type="email">
-                  <label for="nw-remail">Email</label>
-                  <div class="invalid-feedback">Email is required</div>
-                </div>
-                <div class="form-floating mb-3">
-                  <input id="text-rpassword" v-model="state.user.password" class="form-control form-input-bg" name="password" placeholder="*****"
-                         required="" type="password">
-                  <label for="text-rpassword">Password</label>
-                  <div class="invalid-feedback">Password is required</div>
-                </div>
-                <div class="form-floating mb-3">
-                  <input id="nw-rcpassword" v-model="state.confirmPassword" class="form-control form-input-bg" name="password_confirm" placeholder="*****"
-                         required="" type="password">
-                  <label for="nw-rcpassword">Confirm Password</label>
-                  <div class="invalid-feedback">Password is required</div>
-                </div>
-                <div class="form-check mb-4 pb-2">
-                  <input id="r-me" class="form-check-input" required="" type="checkbox" value="">
-                  <label class="form-check-label" for="r-me">
-                    Remember me
-                  </label>
-                  <div class="invalid-feedback">
-                    You must agree before submitting.
-                  </div>
-                </div>
-                <div class="d-flex align-items-stretch button-group">
-                  <button class="btn btn-primary btn-lg px-4" type="submit" @click="submit">
-                    Submit
-                  </button>
-                  <a id="to-login2" class="
-                          btn btn-lg btn-light-secondary
-                          text-secondary
-                          font-weight-medium
-                        " >Cancel</a>
-                </div>
+              </div>
+              <div class="d-flex align-items-stretch button-group mt-4 pt-2">
+                <button class="btn btn-primary btn-lg px-4" @click="submit" :disabled="state.waiting">
+                  register
+                  <Loader v-if="state.waiting"></Loader>
+                </button>
               </div>
             </div>
           </div>

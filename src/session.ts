@@ -9,7 +9,7 @@ export interface Session {
 }
 
 
-let defaults = {
+let authDefaults = {
     token: "",
     user: {} as User,
 } as Session
@@ -36,8 +36,13 @@ function restore(): Session {
         // Parse the string to the Preferences object
         return JSON.parse(stored)
     } else {
+        let defaults = {
+            token: "",
+            user: {} as User,
+        } as Session
+
         // If the retrieval failed, save the default values to localStorage
-        save(defaults)
+        save(authDefaults)
         // Return the default parameters
         return defaults
     }
