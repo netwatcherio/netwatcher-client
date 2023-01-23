@@ -40,7 +40,10 @@ onMounted(() => {
 <template>
   <div class="container-fluid">
     <Title title="Sites" subtitle="an overview of the sites you have access to">
+      <div class="d-flex gap-1">
+      <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-plus"></i>&nbsp;View Alerts</router-link>
       <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Create</router-link>
+      </div>
     </Title>
     <div v-if="state.sites" class="row">
       <!-- column -->
@@ -54,10 +57,10 @@ onMounted(() => {
               <table class="table">
                 <thead>
                 <tr>
-                  <th class="px-0 text-muted" scope="col">name</th>
-                  <th class="px-0 text-muted" scope="col">members</th>
-                  <th class="px-0 text-muted" scope="col">agent count</th>
-                  <th class="px-0 text-muted text-end" scope="col">view</th>
+                  <th class="px-0" scope="col">name</th>
+                  <th class="px-0" scope="col">members</th>
+                  <th class="px-0" scope="col">agent count</th>
+                  <th class="px-0 text-end" scope="col">view</th>
                 </tr>
                 </thead>
                 <tbody>

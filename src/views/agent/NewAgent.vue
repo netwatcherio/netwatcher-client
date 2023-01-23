@@ -16,12 +16,12 @@ const state = reactive({
 
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["siteId"] as string
+  let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  siteService.getSite(id).then(res => {
-    state.site = res.data as Site
-    state.agent.site = state.site.id
+  agentService.getAgent(id).then(res => {
+    state.agent = res.data as Agent
+
     state.ready = true
   })
 

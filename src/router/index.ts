@@ -5,6 +5,7 @@ import auth from "@/views/auth";
 import profile from "@/views/profile";
 import site from "@/views/site";
 import agent from "@/views/agent";
+import check from "@/views/check";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,6 +20,7 @@ const router = createRouter({
                 profile,
                 agent,
                 site,
+                check,
                 {
                     path: '/home',
                     name: 'home',

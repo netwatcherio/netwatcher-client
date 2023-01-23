@@ -41,6 +41,7 @@ function logout() {
         </div>
       </div>
     </div>
+
   </nav>
 </template>
 

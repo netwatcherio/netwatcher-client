@@ -65,11 +65,5 @@ function submit() {
 </template>
 
 <style>
-.check-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  grid-gap: 0.5rem;
-  height: 22rem;
-}
+
 </style>
