@@ -16,14 +16,7 @@ const state = reactive({
   stats: {} as Stats
 })
 
-
-// const site = inject("site") as Site
-
-onMounted(() => {
-
-  let id = router.currentRoute.value.params["agentId"] as string
-  if (!id) return
-
+function reloadData(id: string){
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
     siteService.getSite(state.agent.site).then(res => {
@@ -38,10 +31,20 @@ onMounted(() => {
       state.ready = true
     })
   })
+}
 
 
+// const site = inject("site") as Site
 
+onMounted(() => {
 
+  let id = router.currentRoute.value.params["agentId"] as string
+  if (!id) return
+
+  reloadData(id);
+  setInterval(() => {
+    reloadData(id);
+  }, 1000*15);
 })
 const router = core.router()
 
@@ -68,14 +71,65 @@ function submit() {
       </div>
     </Title>
 
-    <div class="check-grid">
-      <div v-for="check in state.checks" class="card">
-        <div >
-          {{ check.type }}
+    <div class="row">
+      <div class="col-sm-4">
+        <div class="card">
+          <div class="card-body">
+
+            <h5 class="card-title">general information</h5>
+            <hr>
+            <ul class="list-group">
+              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == "" ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
+              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
+              <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
+              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>
+              <br>
+              <li class="list-group-item">last seen: <code>{{new Date(state.stats.heartbeat).toString()}}</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-8">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">targets</h5>
+            <p class="card-text">view various targets that your checks are running against</p>
+            <a href="#" class="btn btn-primary">Go somewhere</a>
+          </div>
+        </div>
+      </div>
+      </div>
+    <br>
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">speedtest</h5>
+            <p class="card-text">view historical speedtests</p>
+            <table class="table">
+              <thead>
+              <tr>
+                <th scope="col">timestamp</th>
+                <th scope="col">server</th>
+                <th scope="col">host</th>
+                <th scope="col">upload</th>
+                <th scope="col">download</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr>
+                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
+                <td>{{state.stats.speed_test_info.server}}</td>
+                <td>{{state.stats.speed_test_info.host}}</td>
+                <td>{{state.stats.speed_test_info.ul_speed}}</td>
+                <td>{{state.stats.speed_test_info.dl_speed}}</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-      <Widget title="Speed Test" subtext="100 MPS / 200 GBH" desc="AAH" style="grid-column: 1 / span 4" ></Widget>
   </div>
 </template>
 
