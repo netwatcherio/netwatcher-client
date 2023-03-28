@@ -39,7 +39,7 @@ onMounted(() => {
 
 <template>
   <div class="container-fluid">
-    <Title title="Sites" subtitle="an overview of the sites you have access to">
+    <Title title="sites" subtitle="an overview of the sites you have access to">
       <div class="d-flex gap-1">
       <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-plus"></i>&nbsp;View Alerts</router-link>
       <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Create</router-link>

@@ -37,10 +37,10 @@ onMounted(() => {
 <template>
 
   <div class="container-fluid">
-  <Title :title="state.site.name || 'Site'" :history="[{title: 'Sites', link: '/sites'}]">
+  <Title :title="state.site.name || 'site'" :history="[{title: 'sites', link: '/sites'}]">
     <div class="d-flex gap-1">
-    <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;Invite Member</router-link>
-    <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Add Agent</router-link>
+    <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;invite member</router-link>
+    <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add agent</router-link>
     </div>
   </Title>
     <div v-if=state.ready class="card px-3 py-1">
@@ -49,11 +49,11 @@ onMounted(() => {
          <thead>
          <tr>
            <th class="px-0 text-muted" scope="col">Name</th>
-           <th class="px-0 text-muted" scope="col">Location</th>
-           <th class="px-0 text-muted" scope="col">Pin</th>
-           <th class="px-0 text-muted" scope="col">Id</th>
-           <th class="px-0 text-muted" scope="col">Activated</th>
-           <th class="px-0 text-muted text-end" scope="col">Options</th>
+<!--           <th class="px-0 text-muted" scope="col">Location</th>-->
+           <th class="px-0 text-muted" scope="col">pin</th>
+           <th class="px-0 text-muted" scope="col">unique id</th>
+           <th class="px-0 text-muted" scope="col">activated</th>
+           <th class="px-0 text-muted text-end" scope="col"></th>
          </tr>
          </thead>
          <tbody>
@@ -61,9 +61,9 @@ onMounted(() => {
            <td class="px-0">
              {{agent.name}}
            </td>
-           <td class="px-0">
+<!--           <td class="px-0">
              {{agent.latitude}}, {{agent.longitude}}
-           </td>
+           </td>-->
            <td class="px-0">
              <Code :code="agent.pin"></Code>
            </td>
@@ -74,8 +74,7 @@ onMounted(() => {
              {{agent.initialized?"Yes":"No"}}
            </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
-             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary btn-sm"><i class="fa-solid fa-gears"></i>&nbsp;Configure</router-link>
-             <div class="btn btn-danger btn-sm"><i class="fa-regular fa-trash-can"></i>&nbsp;Delete</div>
+             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
            </td>
          </tr>
          </tbody>

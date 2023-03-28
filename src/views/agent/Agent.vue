@@ -61,10 +61,10 @@ function submit() {
 
 <template>
   <div class="container-fluid" v-if="state.ready">
-    <Title :title="state.agent.name" subtitle="Information about this agent" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
+    <Title :title="state.agent.name" subtitle="information about this agent" :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
       <div class="d-flex gap-1">
-        <router-link :to="`/checks/new`" active-class="active" class="btn btn-outline-primary"><i class="fa-regular fa-pen-to-square"></i>&nbsp;Update</router-link>
-        <router-link :to="`/agents/${state.agent.id}/checks/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Add Check</router-link>
+        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks</router-link>
+        <router-link :to="`/agents/${state.agent.id}/checks/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add check</router-link>
       </div>
     </Title>
 
@@ -75,7 +75,7 @@ function submit() {
         </div>
       </div>
     </div>
-<!--      <Widget title="Speed Test" subtext="100 MPS / 200 GBH" desc="AAH" style="grid-column: 1 / span 4" ></Widget>-->
+      <Widget title="Speed Test" subtext="100 MPS / 200 GBH" desc="AAH" style="grid-column: 1 / span 4" ></Widget>
   </div>
 </template>
 
