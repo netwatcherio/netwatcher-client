@@ -120,7 +120,7 @@ function submit() {
                     <option value="mtr" selected>MTR (My Trace Route)</option>
                     <option value="rperf">RPERF (Network Traffic Simulator)</option>
                     <option value="ping">PING (Packet Internet Groper)</option>
-                    <option value="speed">Speed Test</option>
+                    <option value="speedtest">Speed Test</option>
                     <option value="netinfo">Network Info</option>
                   </select>
                   <div id="memberEmail"

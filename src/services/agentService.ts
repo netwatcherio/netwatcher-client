@@ -17,4 +17,7 @@ export default {
     async createCheck(id: string, check: Check): Promise<any> {
         return await request.post(`/check/new/${id}`, check)
     },
+    async getTargets(id: string, check: Check): Promise<any> {
+        return await request.post(`/agent/targets/${id}`, check)
+    },
 }

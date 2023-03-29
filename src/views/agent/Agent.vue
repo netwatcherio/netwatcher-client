@@ -75,26 +75,62 @@ function submit() {
       <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
-
-            <h5 class="card-title">general information</h5>
+            <h5 class="card-title">system</h5>
+            <p class="card-text">system information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
-              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == "" ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
-              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
-              <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
-              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>
+              <li class="list-group-item">cpu usage: <code>69%</code></li>
+              <li class="list-group-item">ram usage: <code>1024MiB</code></li>
+              <li class="list-group-item">disk usage: <code>32GiB / 64 GiB</code></li>
+              <li class="list-group-item">os: <code>Ubuntu 20.04 Server LTS</code></li>
               <br>
               <li class="list-group-item">last seen: <code>{{new Date(state.stats.heartbeat).toString()}}</code></li>
             </ul>
           </div>
         </div>
       </div>
-      <div class="col-sm-8">
+      <div class="col-sm-4">
+        <div class="card">
+          <div class="card-body">
+
+            <h5 class="card-title">network</h5>
+            <p class="card-text">network information of the host the agent is on</p>
+            <hr>
+            <ul class="list-group">
+              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == "" ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
+              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
+              <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
+              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">targets</h5>
-            <p class="card-text">view various targets that your checks are running against</p>
-            <a href="#" class="btn btn-primary">Go somewhere</a>
+            <p class="card-text">view the targets for your MTR, PING, and RPERF checks</p>
+            <table class="table">
+              <thead>
+              <tr>
+                <th scope="col">host</th>
+                <th scope="col">checks</th>
+                <th class="text-end" scope="col">view</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr>
+                <th scope="row">1.1.1.1</th>
+                <td><p>
+                  <span class="badge bg-info"> MTR, PING, SPEEDTEST</span>
+                </p>
+                </td>
+                <td class="text-end">
+                  <router-link :to="`/agents/${state.agent.id}/target/`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
+                </td>
+              </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
