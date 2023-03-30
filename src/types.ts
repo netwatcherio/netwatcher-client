@@ -19,6 +19,11 @@ export interface Stats {
     speed_test_pending: boolean;
 }
 
+export interface Target {
+    target: string;
+    checks: Check[];
+}
+
 export interface NetResult {
     local_address: string;
     default_gateway: string;

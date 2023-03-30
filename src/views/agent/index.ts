@@ -20,7 +20,7 @@ export default {
             component: Agent,
         },
         {
-            path: '/agents/:agentId/target',
+            path: '/agents/:agentId:/target/:targetHost:',
             name: 'agentTarget',
             component: AgentTarget,
         },

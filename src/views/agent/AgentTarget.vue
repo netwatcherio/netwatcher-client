@@ -6,8 +6,10 @@ import type {Agent, Check, Site, Stats} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
+import {AsciiTable3} from "ascii-table3";
 
 const state = reactive({
+  target: {} as string,
   site: {} as Site,
   ready: false,
   agent: {} as Agent,
@@ -35,10 +37,27 @@ function reloadData(id: string) {
 
 // const site = inject("site") as Site
 
+let table =
+    new AsciiTable3()
+        .setAlignCenter(3)
+        .addRowMatrix([
+          ['John', 23, 'green'],
+          ['Mary', 16, 'brown'],
+          ['Rita', 47, 'blue'],
+          ['Peter', 8, 'brown']
+        ]);
+
+console.log(table.toString());
+
 onMounted(() => {
 
-  let id = router.currentRoute.value.params["agentTarget"] as string
+  let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
+
+  let targetHost = router.currentRoute.value.params["targetHost"] as string
+  if (!targetHost) return
+
+  state.target = targetHost
 
   reloadData(id);
   setInterval(() => {
@@ -63,8 +82,8 @@ function submit() {
 
 <template>
   <div v-if="state.ready" class="container-fluid">
-    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]" :title="state.agent.name"
-           subtitle="information about this agent">
+    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]" :title="state.target"
+           subtitle="information about this target">
       <div class="d-flex gap-1">
       <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
       class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks</router-link>
@@ -77,83 +96,42 @@ function submit() {
       <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
-
-            <h5 class="card-title">general information</h5>
-            <hr>
-            <ul class="list-group">
-              <li class="list-group-item">internet provider:
-                <code>{{ state.stats.net_info.internet_provider == "" ? "Unknown" : state.stats.net_info.internet_provider }}</code>
-              </li>
-              <li class="list-group-item">default gateway:
-                <code>{{ state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway }}</code>
-              </li>
-              <li class="list-group-item">local address:
-                <code>{{ state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address }}</code>
-              </li>
-              <li class="list-group-item">public address:
-                <code>{{ state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address }}</code>
-              </li>
-              <br>
-              <li class="list-group-item">last seen: <code>{{ new Date(state.stats.heartbeat).toString() }}</code></li>
-            </ul>
+            <h5 class="card-title">voice graph</h5>
+            <p class="card-text">this shows the estimated mos score of your target</p>
           </div>
         </div>
       </div>
       <div class="col-sm-8">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">targets</h5>
-            <p class="card-text">view various targets that your checks are running against</p>
-            <table class="table">
-              <thead>
-              <tr>
-                <th scope="col">host</th>
-                <th scope="col">checks</th>
-                <th class="text-end" scope="col">view</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr>
-                <th scope="row">1.1.1.1</th>
-                <td><p>
-                  <span class="badge bg-info"> MTR, PING, SPEEDTEST</span>
-                </p>
-                </td>
-                <td class="text-end"><a class="btn btn-primary" href="#"> <span class="fa fa-cog"></span> view</a></td>
-              </tr>
-              </tbody>
-            </table>
+            <h5 class="card-title">health graph</h5>
+            <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to the target</p>
           </div>
         </div>
       </div>
-    </div>
-    <br>
-    <div class="row">
+      </div>
+    <hr>
+      <div class="row">
       <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">speedtest</h5>
-            <p class="card-text">view historical speedtests</p>
-            <table class="table">
-              <thead>
-              <tr>
-                <th scope="col">timestamp</th>
-                <th scope="col">server</th>
-                <th scope="col">host</th>
-                <th scope="col">upload</th>
-                <th scope="col">download</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr>
-                <th scope="row">{{ state.stats.speed_test_info.timestamp }}</th>
-                <td>{{ state.stats.speed_test_info.server }}</td>
-                <td>{{ state.stats.speed_test_info.host }}</td>
-                <td>{{ state.stats.speed_test_info.ul_speed }}</td>
-                <td>{{ state.stats.speed_test_info.dl_speed }}</td>
-              </tr>
-              </tbody>
-            </table>
+            <h5 class="card-title">traceroutes</h5>
+            <p class="card-text">view the recent trace routes for the selected period of time</p>
+
+            <div class="accordion" id="traceroutes">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                    timestamp now yay yay
+                  </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                  <div class="accordion-body">
+                    <pre>{{table}}}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

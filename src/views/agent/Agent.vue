@@ -2,7 +2,7 @@
 
 import {inject, onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Site, Agent, Stats, Check} from "@/types";
+import type {Site, Agent, Stats, Check, Target} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -13,7 +13,8 @@ const state = reactive({
   ready: false,
   agent: {} as Agent,
   checks: [] as Check[],
-  stats: {} as Stats
+  stats: {} as Stats,
+  targets: [] as Target[],
 })
 
 function reloadData(id: string){
@@ -24,13 +25,46 @@ function reloadData(id: string){
     })
     agentService.getAgentStats(id).then(agent => {
       state.stats = agent.data as Stats
-      state.ready = true
     })
-    agentService.getChecks(id).then(agent => {
-      state.checks = agent.data as Check[]
-      state.ready = true
+
+    agentService.getChecks(id).then(cs => {
+      console.log("got checks", cs.data)
+
+      // get checks and calculate targets based on the checks
+      state.checks = cs.data as Check[]
+      for (let check of cs.data as Check[]) {
+        if (check.type == "PING" || check.type == "MTR" || check.type == "RPERF") {
+          if (check.type == "RPERF" && check.server) {
+            return // skip rperf checks that are server checks
+          }
+
+          let target = state.targets.find(t => t.target == check.target)
+          if (!target) {
+            console.log("creating new target", check.target)
+            target = {
+              target: check.target,
+              checks: []
+            }
+            console.log("target", target)
+            state.targets.push(target)
+          }
+          // check to see if the target already contains the check
+          if (target.checks.find(c => c.id == check.id)) {
+            console.log("target already contains check", check)
+            continue
+          }
+          console.log("adding check to target", check)
+          target.checks.push(check)
+        }
+      }
     })
+    console.log("targets", state.targets)
+
+    state.ready = true
   })
+
+  // get checks and group them in a list of targets based on if they have matching ips, and are either
+  // ping, mtr, or rperf (rperf and ping are combined to get an average "voice score" when monitoring a site.)
 }
 
 
@@ -75,7 +109,7 @@ function submit() {
       <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">system</h5>
+            <h5 class="card-title">system *TODO*</h5>
             <p class="card-text">system information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
@@ -97,7 +131,7 @@ function submit() {
             <p class="card-text">network information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
-              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == "" ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
+              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == ("" || undefined) ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
               <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
               <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
               <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>
@@ -119,16 +153,15 @@ function submit() {
               </tr>
               </thead>
               <tbody>
-              <tr>
-                <th scope="row">1.1.1.1</th>
-                <td><p>
-                  <span class="badge bg-info"> MTR, PING, SPEEDTEST</span>
-                </p>
-                </td>
+              <template v-for="t in state.targets">
+                <tr>
+                <th scope="row">{{t.target}}</th>
+                <td><span class="badge bg-info" v-for="c in t.checks"> {{c.type}}</span></td>
                 <td class="text-end">
-                  <router-link :to="`/agents/${state.agent.id}/target/`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
+                  <router-link :to="`/agents/${state.agent.id}/target/${t.target}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
                 </td>
-              </tr>
+                </tr>
+              </template>
               </tbody>
             </table>
           </div>

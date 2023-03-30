@@ -10,17 +10,20 @@ export default defineComponent({
 <template>
 
   <div class="container-fluid">
-  <Title title="Overview"></Title>
+  <Title title="overview"></Title>
     <div class="row">
       <!-- column -->
       <div class="col-12">
+        <div class="alert alert-info" role="alert">
+          todo: add some sort of overview here
+        </div>
         <div class="card">
           <div class="card-body">
             <!-- title -->
             <div class="d-md-flex">
               <div>
-                <h4 class="card-title">Sites</h4>
-                <h5 class="card-subtitle">Overview of Sites</h5>
+                <h4 class="card-title">sites</h4>
+<!--                <h5 class="card-subtitle">sites</h5>-->
               </div>
             </div>
             <!-- title -->
