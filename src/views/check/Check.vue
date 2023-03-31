@@ -2,35 +2,66 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Site} from "@/types";
+import type {Agent, Check, Site, Stats} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
-import {Agent} from "@/types";
 import agentService from "@/services/agentService";
+import {AsciiTable3} from "ascii-table3";
+import checkService from "@/services/checkService";
 
 const state = reactive({
+  target: {} as string,
   site: {} as Site,
   ready: false,
-  agent: {} as Agent
+  agent: {} as Agent,
+  checks: [] as Check[],
+  stats: {} as Stats
 })
 
+function reloadData(id: string) {
+  agentService.getAgent(id).then(res => {
+    state.agent = res.data as Agent
+    siteService.getSite(state.agent.site).then(res => {
+      state.site = res.data as Site
+    })
+    agentService.getAgentStats(id).then(agent => {
+      state.stats = agent.data as Stats
+      state.ready = true
+    })
+    agentService.getChecks(id).then(agent => {
+      state.checks = agent.data as Check[]
+      state.ready = true
+    })
+  })
+}
+
+
+// const site = inject("site") as Site
+
+let table =
+    new AsciiTable3()
+        .setAlignCenter(3)
+        .addRowMatrix([
+          ['John', 23, 'green'],
+          ['Mary', 16, 'brown'],
+          ['Rita', 47, 'blue'],
+          ['Peter', 8, 'brown']
+        ]);
+
+console.log(table.toString());
 
 onMounted(() => {
 
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
-    siteService.getSite(state.agent.site).then(res => {
-      state.site = res.data as Site
-      state.ready = true
-    })
-  })
+  let checkId = router.currentRoute.value.params["checkId"] as string
+  if (!checkId) return
 
-
-
-
+  reloadData(id);
+  setInterval(() => {
+    reloadData(id);
+  }, 1000 * 15);
 })
 const router = core.router()
 
@@ -49,21 +80,72 @@ function submit() {
 </script>
 
 <template>
-  <div class="container-fluid" v-if="state.ready">
-    <Title :title="state.agent.name" subtitle="Information about this agent" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
+  <div v-if="state.ready" class="container-fluid">
+    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]" :title="state.target"
+           subtitle="information about this target">
       <div class="d-flex gap-1">
-      <router-link :to="`/checks/new`" active-class="active" class="btn btn-outline-primary"><i class="fa-regular fa-pen-to-square"></i>&nbsp;Update</router-link>
-      <router-link :to="`/checks/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Add Check</router-link>
+      <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
+      class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks</router-link>
+      <router-link :to="`/agents/${state.agent.id}/checks/new`" active-class="active" class="btn btn-primary"><i
+      class="fa-solid fa-plus"></i>&nbsp;add check</router-link>
       </div>
     </Title>
-    <div class="check-grid">
-    <div class="card px-3 py-1" v-for="a in Array(12).keys()">
-      {{a}}
+
+    <div class="row">
+      <div class="col-sm-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">voice graph</h5>
+            <p class="card-text">this shows the estimated mos score of your target</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-8">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">health graph</h5>
+            <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to the target</p>
+          </div>
+        </div>
+      </div>
     </div>
+    <hr>
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">traceroutes</h5>
+            <p class="card-text">view the recent trace routes for the selected period of time</p>
+
+            <div class="accordion" id="traceroutes">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                    timestamp now yay yay
+                  </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                  <div class="accordion-body">
+                    <pre>{{table}}}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
-<style>
+<style lang="scss">
+.check-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(12, minmax(8rem, 1fr));
+  grid-gap: 0.5rem;
 
+}
 </style>
