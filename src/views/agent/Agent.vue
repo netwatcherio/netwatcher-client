@@ -158,7 +158,7 @@ function submit() {
                 <th scope="row">{{t.target}}</th>
                 <td><span class="badge bg-info" v-for="c in t.checks"> {{c.type}}</span></td>
                 <td class="text-end">
-                  <router-link :to="`/agents/${state.agent.id}/checks/${t.target}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
+                  <router-link :to="`/checks/${t.checks[0].id}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
                 </td>
                 </tr>
               </template>
