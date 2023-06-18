@@ -20,4 +20,7 @@ export default {
     async createCheck(id: string, check: Check): Promise<any> {
         return await request.post(`/check/new/${id}`, check)
     },
+    async getCheck(id: string): Promise<any> {
+        return await request.get(`/check/${id}`)
+    },
 }

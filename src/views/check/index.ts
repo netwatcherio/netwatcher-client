@@ -14,7 +14,7 @@ export default {
             component: NewCheck,
         },
         {
-            path: '/agents/:agentId/checks/:checkId',
+            path: '/checks/:checkId',
             name: 'check',
             component: Check,
         },
