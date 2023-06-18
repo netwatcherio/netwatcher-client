@@ -8,6 +8,9 @@ export default {
     async getAgent(id: string): Promise<any> {
         return await request.get(`/agent/${id}`)
     },
+    async getCheck(id: string): Promise<any> {
+        return await request.get(`/check/${id}`)
+    },
     async getChecks(agentId: string): Promise<any> {
         return await request.get(`/checks/${agentId}`)
     },

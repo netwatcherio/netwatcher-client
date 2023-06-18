@@ -1,5 +1,7 @@
 import {createRouter, createWebHistory} from 'vue-router'
+// @ts-ignore
 import HomeView from '@/views/HomeView.vue'
+// @ts-ignore
 import RootView from "@/views/Root.vue";
 import auth from "@/views/auth";
 import profile from "@/views/profile";

@@ -66,6 +66,7 @@ export interface Agent {
     longitude: number;
     latitude: number;
     timestamp: string;
+    loki_data_path: string;
 }
 
 export interface CheckData {

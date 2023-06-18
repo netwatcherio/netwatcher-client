@@ -7,7 +7,6 @@ import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import {AsciiTable3} from "ascii-table3";
-import checkService from "@/services/checkService";
 
 const state = reactive({
   target: {} as string,
@@ -19,7 +18,13 @@ const state = reactive({
 })
 
 function reloadData(id: string) {
-  agentService.getAgent(id).then(res => {
+  agentService.getCheck(id).then(res=>{
+    state.target = res.data as string
+  })
+
+  // validate that the user has access to the check and the agent / site
+  // if not, redirect to the login page
+  /*agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
@@ -32,7 +37,7 @@ function reloadData(id: string) {
       state.checks = agent.data as Check[]
       state.ready = true
     })
-  })
+  })*/
 }
 
 
@@ -52,15 +57,12 @@ console.log(table.toString());
 
 onMounted(() => {
 
-  let id = router.currentRoute.value.params["agentId"] as string
-  if (!id) return
-
   let checkId = router.currentRoute.value.params["checkId"] as string
   if (!checkId) return
 
-  reloadData(id);
+  reloadData(checkId);
   setInterval(() => {
-    reloadData(id);
+    reloadData(checkId);
   }, 1000 * 15);
 })
 const router = core.router()
