@@ -7,7 +7,9 @@ import core from "@/core";
 import Title from "@/components/Title.vue";
 
 const state = reactive({
-  name: ""
+  name: "",
+  description: "",
+  location: ""
 })
 
 const router = core.router()
@@ -22,7 +24,9 @@ function onError(response: any) {
 
 function submit() {
   siteService.createSite({
-    name: state.name
+    name: state.name,
+    description: state.description,
+    location: state.location
   } as Site).then(onCreate).catch(onError)
 }
 
@@ -37,9 +41,13 @@ function submit() {
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="siteName">site name</label>
+                <label class="col-3 text-end control-label col-form-label" for="siteName">new site</label>
                 <div class="col-9 border-start pb-2 pt-2">
                   <input id="siteName" class="form-control" name="name" v-model="state.name" placeholder="site name" type="text">
+                  <br>
+                  <input id="siteDesc" class="form-control" name="desc" v-model="state.description" placeholder="description" type="text">
+                  <br>
+                  <input id="siteLocation" class="form-control" name="name" v-model="state.location" placeholder="location" type="text">
                 </div>
               </div>
             </div>

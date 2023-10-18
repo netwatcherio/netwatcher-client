@@ -14,7 +14,7 @@ const state = reactive({
 
 interface Response {
   token: string
-  user: User
+  data: User
 }
 
 let session = core.session()
@@ -23,7 +23,7 @@ function onLogin(response: any) {
   state.waiting = false
   let data = response.data as Response
   session.token = data.token
-  session.user = data.user
+  session.data = data.data
   window.location.href = "/"
 }
 
@@ -36,7 +36,7 @@ function onFailure(error: any) {
 function submit(_: MouseEvent) {
   state.waiting = true
   // Attempt to log in with the provided credentials
-  authService.login(state.user).then(onLogin).catch(onFailure)
+  authService.authLogin(state.user).then(onLogin).catch(onFailure)
 }
 
 </script>

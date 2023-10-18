@@ -5,7 +5,7 @@ import profileService from "@/services/profile";
 
 export interface Session {
     token: string
-    user: User
+    data: User
 }
 
 function init() {
@@ -14,7 +14,7 @@ function init() {
 
 let defaults = {
     token: "",
-    user: {} as User,
+    data: {} as User,
 } as Session
 
 
@@ -37,7 +37,7 @@ function restore(): Session {
     } else {
         let defaults = {
             token: "",
-            user: {} as User,
+            data: {} as User,
         } as Session
 
         // If the retrieval failed, save the default values to localStorage

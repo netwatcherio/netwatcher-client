@@ -12,7 +12,6 @@ declare interface AgentCountInfo {
 
 declare interface sitesList {
   sites: Site[];
-  agent_counts: AgentCountInfo[];
 }
 
 
@@ -23,11 +22,9 @@ const state = reactive({
 
 onMounted(() => {
   siteService.getSites().then(res => {
-    let data = res.data as sitesList
-    if(!data.sites) return
-    state.sites = data.sites.map(s => {
-      let target = data.agent_counts.find(a => a.site_id === s.id)
-      if (target) s.agents = target.count
+    let data = res.data as Site[]
+    if(!data) return
+    state.sites = data.map(s => {
       return s
     })
   }).catch(res => {
@@ -58,8 +55,9 @@ onMounted(() => {
                 <thead>
                 <tr>
                   <th class="px-0" scope="col">name</th>
+                  <th class="px-0" scope="col">description</th>
+                  <th class="px-0" scope="col">location</th>
                   <th class="px-0" scope="col">members</th>
-                  <th class="px-0" scope="col">agent count</th>
                   <th class="px-0 text-end" scope="col">view</th>
                 </tr>
                 </thead>
@@ -72,11 +70,17 @@ onMounted(() => {
 
                   </td>
                   <td class="px-0">
-                    <span class="badge bg-dark">{{ site.members.length }}</span>
+                    {{ site.description }}
                   </td>
                   <td class="px-0">
-                    <span class="badge bg-dark">{{ site.agents }}</span>
+                    {{ site.location.length }}
                   </td>
+                  <td class="px-0">
+                    <span class="badge bg-dark">{{ site.members.length }}</span>
+                  </td>
+<!--                  <td class="px-0">
+                    <span class="badge bg-dark">{{ site. }}</span>
+                  </td>-->
                   <td class="px-0 text-end px-3">
                     <router-link :to="`/sites/${site.id}`" class="">
                       <i class="fa-solid fa-up-right-from-square"></i> view

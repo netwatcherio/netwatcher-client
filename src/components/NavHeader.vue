@@ -9,7 +9,7 @@ const session = core.session()
 
 function logout() {
   session.token = ""
-  session.user = {} as User
+  session.data = {} as User
   router.push("/auth/login")
 }
 </script>
@@ -33,7 +33,7 @@ function logout() {
           <i class="bi bi-person text-muted" style="font-size: 22px; line-height: 22px"></i>
           <div class="d-flex flex-column gap-0 align-items-center">
             <small class="text-capitalize lh-1">
-              {{ session.user.first_name }} {{ session.user.last_name }}
+              {{ session.data.firstName }} {{ session.data.lastName }}
             </small>
 
           </div>
