@@ -6,12 +6,9 @@ export default {
         return await request.get("/sites")
     },
     async createSite(site: Site): Promise<void> {
-        return await request.post("/site/new", site)
+        return await request.post("/sites", site)
     },
     async getSite(id: string): Promise<any> {
-        return await request.get(`/site/${id}`)
-    },
-    async getSiteAgents(id: string): Promise<any> {
-        return await request.get(`/agents/${id}`)
+        return await request.get(`/sites/${id}`)
     },
 }

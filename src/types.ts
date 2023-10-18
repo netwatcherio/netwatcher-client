@@ -1,99 +1,83 @@
 export interface User {
-    id: string;
+    id: string; // You can use string for ObjectID in TypeScript
     email: string;
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
+    company: string;
     admin: boolean;
     password: string;
-    sites: string[];
     verified: boolean;
-    create_timestamp: string;
-}
-
-export interface Stats {
-    agent_id: string;
-    name: string;
-    heartbeat: string;
-    net_info: NetResult;
-    speed_test_info: SpeedTestResult;
-    speed_test_pending: boolean;
-}
-
-export interface Target {
-    target: string;
-    checks: Check[];
-}
-
-export interface NetResult {
-    local_address: string;
-    default_gateway: string;
-    public_address: string;
-    internet_provider: string;
-    lat: string;
-    long: string;
-    timestamp: string;
-}
-
-export interface SpeedTestResult {
-    latency: number;
-    dl_speed: number;
-    ul_speed: number;
-    server: string;
-    host: string;
-    timestamp: string;
+    phoneNumber: string;
+    role: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export interface Site {
-    id: string;
+    id: string; // You can use string for ObjectID in TypeScript
     name: string;
+    description: string;
+    location: string;
     members: SiteMember[];
-    create_timestamp: string;
-    agents?: number
+    createdAt: Date;
+    updatedAt: Date;
 }
+
+export type SiteMemberRole = "READ_ONLY" | "READ_WRITE" | "ADMIN" | "OWNER";
 
 export interface SiteMember {
-    user: string;
-    role: number;
+    user: string; // You can use string for ObjectID in TypeScript
+    role: SiteMemberRole;
+    // roles: "READ_ONLY" | "READ_WRITE" | "ADMIN" | "OWNER";
+    // ADMINS can regenerate agent pins
 }
+
 
 export interface Agent {
-    id: string;
+    id: string; // You can use string for ObjectID in TypeScript
     name: string;
-    site: string;
+    site: string; // You can use string for ObjectID in TypeScript
     pin: string;
-    heartbeat?: string;
     initialized: boolean;
-    longitude: number;
-    latitude: number;
-    timestamp: string;
-    loki_data_path: string;
+    location: number; // Assuming location is a numeric value
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-export interface CheckData {
-    target?: string;
-    id: string;
-    check: string;
-    agent: string;
-    triggered: boolean;
-    timestamp: string;
-    result: any;
-    type: string;
+export interface Probe {
+    type: ProbeType;
+    id: string; // You can use string for ObjectID in TypeScript
+    agent: string; // You can use string for ObjectID in TypeScript
+    pending: Date; // Assuming 'pending' is a timestamp represented as a Date
+    createdAt: Date;
+    updatedAt: Date;
+    notifications: boolean;
+    config: ProbeConfig;
 }
 
-
-export interface Check {
-    type: string;
+export // ProbeConfig
+interface ProbeConfig {
+    type: ProbeType;
     target: string;
-    id: string;
-    agent: string;
     duration: number;
     count: number;
-    triggered: boolean;
-    server: boolean;
-    pending: boolean;
     interval: number;
-    create_timestamp: string;
+    server: boolean;
 }
+
+// ProbeType
+export type ProbeType = "RPERF" | "MTR" | "PING" | "SPEEDTEST" | "NETINFO";
+
+// ProbeData
+export interface ProbeData {
+    id: string; // You can use string for ObjectID in TypeScript
+    probe: string; // You can use string for ObjectID in TypeScript
+    triggered: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    data?: any; // Use an appropriate type for data if possible, otherwise 'any'
+}
+
 
 export interface Preferences {
     dark: boolean,
