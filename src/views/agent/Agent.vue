@@ -23,11 +23,11 @@ function reloadData(id: string){
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
     })
-    agentService.getAgentStats(id).then(agent => {
+    /*agentService.getAgentStats(id).then(agent => {
       state.stats = agent.data as Stats
-    })
+    })*/
 
-    agentService.getChecks(id).then(cs => {
+    /*agentService.getChecks(id).then(cs => {
       console.log("got checks", cs.data)
 
       // get checks and calculate targets based on the checks
@@ -57,7 +57,7 @@ function reloadData(id: string){
           target.checks.push(check)
         }
       }
-    })
+    })*/
     console.log("targets", state.targets)
 
     state.ready = true
@@ -118,7 +118,7 @@ function submit() {
               <li class="list-group-item">disk usage: <code>32GiB / 64 GiB</code></li>
               <li class="list-group-item">os: <code>Ubuntu 20.04 Server LTS</code></li>
               <br>
-              <li class="list-group-item">last seen: <code>{{new Date(state.stats.heartbeat).toString()}}</code></li>
+              <li class="list-group-item">last seen: <code>test</code></li>
             </ul>
           </div>
         </div>
@@ -131,10 +131,10 @@ function submit() {
             <p class="card-text">network information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
-              <li class="list-group-item">internet provider: <code>{{state.stats.net_info.internet_provider == ("" || undefined) ? "Unknown" : state.stats.net_info.internet_provider}}</code></li>
-              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
+              <li class="list-group-item">internet provider: <code>demo</code></li>
+<!--              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
               <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
-              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>
+              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>-->
             </ul>
           </div>
         </div>
@@ -154,13 +154,13 @@ function submit() {
               </thead>
               <tbody>
               <template v-for="t in state.targets">
-                <tr>
+<!--                <tr>
                 <th scope="row">{{t.target}}</th>
                 <td><span class="badge bg-info" v-for="c in t.checks"> {{c.type}}</span></td>
                 <td class="text-end">
                   <router-link :to="`/checks/${t.checks[0].id}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
                 </td>
-                </tr>
+                </tr>-->
               </template>
               </tbody>
             </table>
@@ -187,11 +187,11 @@ function submit() {
               </thead>
               <tbody>
               <tr>
-                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
+<!--                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
                 <td>{{state.stats.speed_test_info.server}}</td>
                 <td>{{state.stats.speed_test_info.host}}</td>
                 <td>{{state.stats.speed_test_info.ul_speed}}</td>
-                <td>{{state.stats.speed_test_info.dl_speed}}</td>
+                <td>{{state.stats.speed_test_info.dl_speed}}</td>-->
               </tr>
               </tbody>
             </table>

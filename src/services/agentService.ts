@@ -8,4 +8,7 @@ export default {
     async getSiteAgents(id: string): Promise<any> {
         return await request.get(`/agents/site/${id}`)
     },
+    async getAgent(id: string): Promise<any> {
+        return await request.get(`/agents/${id}`)
+    },
 }
