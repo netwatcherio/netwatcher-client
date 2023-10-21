@@ -1,5 +1,5 @@
 import request from "@/services/request";
-import type {Agent, Check, Site} from "@/types";
+import type {Agent, Site} from "@/types";
 
 export default {
     async createAgent(agent: Agent): Promise<any> {

@@ -56,8 +56,9 @@ function submit() {
               <div class="form-group row align-items-center mb-0">
                 <label class="col-3 text-end control-label col-form-label" for="agentName">agent name</label>
                 <div class="col-9 border-start pb-2 pt-2">
-                  <input id="agentName" class="form-control" name="name" v-model="state.agent.name" placeholder="agent name" type="text">
-                    <input id="agentLokiDataPath" class="form-control" name="name" v-model="state.agent.loki_data_path" placeholder="loki data path" type="text">
+                  <input id="agentName" class="form-control" name="name" v-model="state.agent.name" placeholder="name" type="text">
+                  <br>
+                  <input id="agentLocation" class="form-control" name="name" v-model="state.agent.location" placeholder="location" type="text">
                 </div>
               </div>
             </div>

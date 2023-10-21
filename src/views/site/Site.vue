@@ -7,6 +7,7 @@ import type {Agent, Site} from "@/types";
 import Title from "@/components/Title.vue";
 import Loader from "@/components/Loader.vue";
 import Code from "@/components/Code.vue";
+import agentService from "@/services/agentService";
 
 const state = reactive({
   site: {} as Site,
@@ -22,7 +23,8 @@ onMounted(() => {
 
   siteService.getSite(id).then(res => {
     state.site = res.data as Site
-    siteService.getSiteAgents(id).then(res => {
+    agentService.getSiteAgents(id).then(res => {
+      console.log(res)
       state.agents = res.data as Agent[]
       state.ready = true
     })

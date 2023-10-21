@@ -5,6 +5,8 @@ import axios from "axios";
 import {getSession} from "@/session";
 
 let headers = {
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
         Authorization: "Bearer " + getSession().token
     }
