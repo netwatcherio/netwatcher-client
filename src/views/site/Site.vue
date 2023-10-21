@@ -53,7 +53,7 @@ onMounted(() => {
            <th class="px-0 text-muted" scope="col">Name</th>
 <!--           <th class="px-0 text-muted" scope="col">Location</th>-->
            <th class="px-0 text-muted" scope="col">pin</th>
-           <th class="px-0 text-muted" scope="col">unique id</th>
+           <th class="px-0 text-muted" scope="col">secret</th>
            <th class="px-0 text-muted" scope="col">activated</th>
            <th class="px-0 text-muted text-end" scope="col"></th>
          </tr>

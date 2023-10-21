@@ -2,7 +2,7 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, Check, Site, Stats} from "@/types";
+import type {Agent, Probe, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -13,8 +13,7 @@ const state = reactive({
   site: {} as Site,
   ready: false,
   agent: {} as Agent,
-  checks: [] as Check[],
-  stats: {} as Stats
+  checks: [] as Probe[],
 })
 
 function reloadData(id: string) {
@@ -88,7 +87,7 @@ function submit() {
       <div class="d-flex gap-1">
       <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
       class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks</router-link>
-      <router-link :to="`/agents/${state.agent.id}/checks/new`" active-class="active" class="btn btn-primary"><i
+      <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
       class="fa-solid fa-plus"></i>&nbsp;add check</router-link>
       </div>
     </Title>

@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 
 import {onMounted, reactive, watchEffect} from "vue";
-import type {Check, Site} from "@/types";
+import type {Probe, ProbeType, Site} from "@/types";
 import {Agent} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
+import probeService from "@/services/probeService";
 
 interface Option {
   target: boolean,
@@ -48,17 +49,16 @@ const state = reactive({
   ready: false,
   agent: {} as Agent,
   options: {} as Option,
-  check: {
-    duration: 60,
-    interval: 60,
-    server: false
-  } as Check,
-  type: "",
-  target: "",
+  probe: {
+    type: "MTR" as ProbeType,
+    config: {
+      target: ""
+    }
+  } as Probe,
 })
 
 onMounted(() => {
-  state.check.type = "mtr"
+  state.probe.type = "MTR" as ProbeType
 })
 
 const router = core.router()
@@ -72,7 +72,7 @@ function onError(response: any) {
 }
 
 watchEffect(() => {
-  state.options = options.get(state.check.type) || {
+  state.options = options.get(state.probe.type) || {
     target: false,
     duration: false,
     rperfServer: false,
@@ -80,7 +80,7 @@ watchEffect(() => {
     interval: false,
     show: false,
   } as Option
-  return state.check.type
+  return state.probe.type
 })
 
 function submit() {
@@ -88,10 +88,9 @@ function submit() {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  let send = state.check
-  send.type = send.type.toUpperCase()
+  let send = state.probe
 
-  agentService.createCheck(id, send).then((res) => {
+  probeService.createProbe(id, send).then((res) => {
     router.push(`/agents/${id}`)
   }).catch(err => {
     console.log(err)
@@ -116,7 +115,7 @@ function submit() {
               <div class="row">
                 <div class="mb-3 col-lg-5 col-12">
                   <label for="checkType" class="form-label">Check Type</label>
-                  <select class="form-select" v-model="state.check.type" aria-label="Default select example">
+                  <select class="form-select" v-model="state.probe.type" aria-label="Default select example">
                     <option value="mtr" selected>MTR (My Trace Route)</option>
                     <option value="rperf">RPERF (Network Traffic Simulator)</option>
                     <option value="ping">PING (Packet Internet Groper)</option>
@@ -131,7 +130,7 @@ function submit() {
               <div class="row">
                 <div class="mb-2 col-lg-12 col-12" v-if="state.options.rperfServer">
                   <div class="form-check">
-                    <input class="form-check-input" type="checkbox" v-model="state.check.server" value="true" id="flexCheckDefault">
+                    <input class="form-check-input" type="checkbox" v-model="state.probe.config.server" value="true" id="flexCheckDefault">
                     <label class="form-check-label" for="flexCheckDefault">
                       Enable rPerf Server
                     </label>
@@ -140,35 +139,35 @@ function submit() {
                 </div>
                 <div class="mb-3 col-lg-6 col-6" v-if="state.options.target">
                   <label for="target" class="form-label">Target</label>
-                  <input type="text" v-model="state.check.target" class="form-control" id="target"
+                  <input type="text" v-model="state.probe.config.target" class="form-control" id="target"
                          aria-describedby="target" placeholder="127.0.0.1">
-                  <div v-if="state.check.type === 'mtr'">
+                  <div v-if="state.probe.type === 'MTR'">
                     <div class="form-text">The destination to run the traceroute test on.</div>
                   </div>
-                  <div v-else-if="state.check.type === 'ping'">
+                  <div v-else-if="state.probe.type === 'PING'">
                     <div class="form-text">The accessible WAN or LAN device to ping.</div>
                   </div>
-                  <div v-else-if="state.check.type === 'rperf'">
-                    <div v-if="state.check.server" id="target" class="form-text">The address and port the server should listen on.</div>
+                  <div v-else-if="state.probe.type === 'RPERF'">
+                    <div v-if="state.probe.config.server" id="target" class="form-text">The address and port the server should listen on.</div>
                     <div v-else id="target" class="form-text">The address and port the client should connect to.</div>
                   </div>
 
                 </div>
                 <div class="mb-3 col-lg-6 col-6" v-if="state.options.count">
                   <label for="count" class="form-label">Count</label>
-                  <input type="number" min="0" step="1" v-model="state.check.count" class="form-control" id="count"
+                  <input type="number" min="0" step="1" v-model="state.probe.config.count" class="form-control" id="count"
                          aria-describedby="count" placeholder="0">
                   <div id="countLabel" class="form-text">The desired count</div>
                 </div>
-                <div class="mb-3 col-lg-6 col-6" v-if="state.options.duration && !state.check.server">
+                <div class="mb-3 col-lg-6 col-6" v-if="state.options.duration && !state.probe.config.server">
                   <label for="count" class="form-label">Duration</label>
-                  <input type="number" min="0" step="1" placeholder="60" v-model="state.check.duration" class="form-control" id="count"
+                  <input type="number" min="0" step="1" placeholder="60" v-model="state.probe.config.duration" class="form-control" id="count"
                          aria-describedby="count">
                   <div id="countLabel" class="form-text">The number of seconds the test should be run for.</div>
                 </div>
                 <div class="mb-3 col-lg-6 col-6" v-if="state.options.interval">
                   <label for="interval" class="form-label">Interval</label>
-                  <input type="number" min="0" step="1" v-model="state.check.interval" class="form-control" id="interval"
+                  <input type="number" min="0" step="1" v-model="state.probe.config.interval" class="form-control" id="interval"
                          aria-describedby="duration" placeholder="5">
                   <div id="durationLabel" class="form-text">The number of minutes the agent should wait between tests</div>
                 </div>
