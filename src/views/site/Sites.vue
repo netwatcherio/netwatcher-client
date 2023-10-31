@@ -73,7 +73,7 @@ onMounted(() => {
                     {{ site.description }}
                   </td>
                   <td class="px-0">
-                    {{ site.location.length }}
+                    {{ site.location }}
                   </td>
                   <td class="px-0">
                     <span class="badge bg-dark">{{ site.members.length }}</span>

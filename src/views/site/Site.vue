@@ -23,10 +23,13 @@ onMounted(() => {
 
   siteService.getSite(id).then(res => {
     state.site = res.data as Site
+    console.log(state)
     agentService.getSiteAgents(id).then(res => {
-      console.log(res)
-      state.agents = res.data as Agent[]
-      state.ready = true
+      //console.log("result", res)
+      if(res.data.length > 0) {
+        state.agents = res.data as Agent[]
+        state.ready = true
+      }
     })
   })
 
@@ -45,7 +48,7 @@ onMounted(() => {
     <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add agent</router-link>
     </div>
   </Title>
-    <div v-if=state.ready class="card px-3 py-1">
+    <div v-if="state.ready" class="card px-3 py-1">
      <div class="table-responsive">
        <table class="table">
          <thead>

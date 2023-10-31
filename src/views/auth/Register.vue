@@ -24,11 +24,12 @@ let session = core.session()
 
 function onRegister(response: any) {
   state.waiting = false
-  let data = response.data as Response
+/*  let data = response.data as Response
   session.token = data.token
-  session.user = data.user
+  session.data = data.user*/
+  // TODO log successful login and let user know they successfully registered / prompt for email verification
   console.log(response)
-  window.location.href = "/"
+  window.location.href = "/auth/login"
 }
 
 function onFailure(error: any) {
@@ -38,7 +39,7 @@ function onFailure(error: any) {
 }
 function submit(_: MouseEvent) {
   state.waiting = true
-  authService.register(state.user).then(onRegister).catch(onFailure)
+  authService.authRegister(state.user).then(onRegister).catch(onFailure)
 }
 
 
@@ -82,13 +83,13 @@ function submit(_: MouseEvent) {
             <div v-else>&nbsp;</div>
             <div class="form-horizontal mt-4 pt-4 needs-validation">
               <div class="form-floating mb-3">
-                <input id="nw-firstname" v-model="state.user.first_name" class="form-control form-input-bg" name="first_name" placeholder="john deo"
+                <input id="nw-firstname" v-model="state.user.firstName" class="form-control form-input-bg" name="first_name" placeholder="john deo"
                        required="" type="text">
                 <label for="nw-firstname">First Name</label>
                 <div class="invalid-feedback">First name is required</div>
               </div>
               <div class="form-floating mb-3">
-                <input id="nw-lastname" v-model="state.user.last_name" class="form-control form-input-bg" name="last_name" placeholder="john deo"
+                <input id="nw-lastname" v-model="state.user.lastName" class="form-control form-input-bg" name="last_name" placeholder="john deo"
                        required="" type="text">
                 <label for="nw-lastname">Last Name</label>
                 <div class="invalid-feedback">Last name is required</div>
