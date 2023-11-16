@@ -69,7 +69,6 @@ export interface ProbeTarget {
 
 export // ProbeConfig
 interface ProbeConfig {
-    type: ProbeType;
     target: ProbeTarget[];
     duration: number;
     count: number;
