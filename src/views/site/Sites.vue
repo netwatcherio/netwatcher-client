@@ -28,13 +28,12 @@ onMounted(() => {
     state.sites = data.map(s => {
       return s
     })
+    if(state.sites.length > 0) {
+      state.ready = true
+    }
   }).catch(res => {
     alert(res)
   })
-
-  if(state.sites.length > 0) {
-    state.ready = true
-  }
 })
 
 </script>

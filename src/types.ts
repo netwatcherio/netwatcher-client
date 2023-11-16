@@ -23,6 +23,12 @@ export interface Site {
     updatedAt: Date;
 }
 
+export interface SelectOption {
+    value: string
+    text: string
+    disabled: boolean
+}
+
 export type SiteMemberRole = "READ_ONLY" | "READ_WRITE" | "ADMIN" | "OWNER";
 
 export interface SiteMember {

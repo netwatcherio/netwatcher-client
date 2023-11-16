@@ -2,13 +2,20 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Site} from "@/types";
+import agentService from "@/services/agentService"
+import type {Agent, AgentGroup, SelectOption, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 
-const state = reactive({
+let state = reactive({
   name: "",
-  site: {} as Site
+  site: {} as Site,
+  agents: [] as Agent[],
+  selected: [] as string[], // Array reference
+  options: [] as SelectOption[],
+  ready: false,
+  groupName: "",
+  description: ""
 })
 
 const router = core.router()
@@ -20,7 +27,16 @@ onMounted(() => {
   siteService.getSite(id).then(res => {
     state.site = res.data as Site
   })
-
+  agentService.getSiteAgents(id).then(res => {
+    state.agents = res.data as Agent[]
+  }).then(function (){
+    for(let agent of state.agents){
+    let newOption = {value: agent.id, text: agent.name + " (" + agent.location + ")"} as SelectOption
+    console.log(newOption)
+    state.options.push(newOption)
+  }
+  state.ready = true
+  })
 })
 
 function onCreate(response: any) {
@@ -32,35 +48,41 @@ function onError(response: any) {
 }
 
 function submit() {
-  siteService.createSite({
-    name: state.name
-  } as Site).then(onCreate).catch(onError)
+  siteService.createAgentGroup(state.site.id, {
+    site: state.site.id,
+    agents: state.selected,
+    name: state.groupName,
+    description: state.description
+  } as AgentGroup).then(onCreate).catch(onError)
 }
 
 </script>
 
 <template>
   <div class="container-fluid">
-    <Title title="Invite Member" :subtitle="`Invite a member to the site '${state.site.name}'`" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"></Title>
+    <Title title="Create Agent Group" :subtitle="`create a group of agents for the site '${state.site.name}'`" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
           <div class="form-horizontal">
             <div class="card-body">
-              <div class="row">
+              <div v-if="state.ready" class="row">
                 <div class="mb-3 col-lg-8 col-12">
-                  <label for="memberEmail" class="form-label">Email address</label>
-                  <input type="email" v-model="state" class="form-control" id="memberEmail" aria-describedby="memberEmail" placeholder="example@netwatcher.io">
-                  <div id="memberEmail" class="form-text">If the email belongs to a user with a netwatcher account, they will be added to the site. If they do not have an account, they will be invited to create one.</div>
-                </div>
-                <div class="mb-3 col-lg-4 col-12">
-                  <label for="memberEmail" class="form-label">Member Permissions</label>
-                  <select class="form-select" aria-label="Default select example">
-                    <option value="read-only" selected>Read Only</option>
-                    <option value="read-write">Read/Write</option>
-                    <option value="admin">Full Access</option>
+                  <label for="agentOptions" class="form-label">Available Agents</label>
+                  <select v-model="state.selected" class="form-select" multiple>
+                    <option v-for="option in state.options" :value="option.value">
+                      {{ option.text }}
+                    </option>
                   </select>
-                  <div id="memberEmail" class="form-text">Members with full access can permanently change aspects of the site.</div>
+                    <div class="mt-3">Selected: <strong>{{ state.selected }}</strong></div>
+                  </div>
+                <div class="mb-3 col-lg-4 col-12">
+                  <label for="groupName" class="form-label">Group Name</label>
+                  <input type="text" v-model="state.groupName" class="form-control" id="groupName" aria-describedby="groupName" placeholder="My Group Name">
+                  <div id="groupName" class="form-text">The name of the agent group.</div>
+                  <label for="groupDescription" class="form-label">Group Description</label>
+                  <input type="text" v-model="state.description" class="form-control" id="groupDescription" aria-describedby="groupDescription" placeholder="My Group Description">
+                  <div id="groupDescription" class="form-text">The name of the agent group.</div>
                 </div>
               </div>
             </div>
@@ -68,7 +90,7 @@ function submit() {
               <div class="form-group mb-0 text-end">
                 <button class="
                          btn btn-primary px-4" type="submit" @click="submit">
-                  Invite Member
+                  Create Group
                 </button>
 
               </div>

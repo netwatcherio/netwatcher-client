@@ -51,9 +51,6 @@ const state = reactive({
   options: {} as Option,
   probe: {
     type: "MTR" as ProbeType,
-    config: {
-      target: ""
-    }
   } as Probe,
 })
 

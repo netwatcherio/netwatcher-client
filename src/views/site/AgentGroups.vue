@@ -7,16 +7,12 @@ import Title from "@/components/Title.vue";
 import core from "@/core";
 import {Agent} from "@/types";
 
-declare interface AgentCountInfo {
-  site_id: string;
-  count: number;
-}
-
-const state = reactive({
+let state = reactive({
   groups: [] as AgentGroup[],
   site: {} as Site,
   ready: false
 })
+
 onMounted(() => {
   let id = router.currentRoute.value.params["siteId"] as string
   if (!id) return

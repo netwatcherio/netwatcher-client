@@ -6,6 +6,7 @@ import Sites from "@/views/site/Sites.vue";
 import SiteNew from "@/views/site/NewSite.vue";
 import Invite from "@/views/site/InviteMember.vue";
 import AgentGroups from "@/views/site/AgentGroups.vue";
+import AgentGroupsNew from "@/views/site/NewAgentGroup.vue";
 
 export default {
   path: '/sites',
@@ -36,6 +37,11 @@ export default {
       path: '/sites/:siteId/groups',
       name: 'agentGroups',
       component: AgentGroups,
+    },
+    {
+      path: '/sites/:siteId/groups/new',
+      name: 'agentGroupsNew',
+      component: AgentGroupsNew,
     }
   ]
 }
