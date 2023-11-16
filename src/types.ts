@@ -55,14 +55,27 @@ export interface Probe {
     config: ProbeConfig;
 }
 
+export interface ProbeTarget {
+    target: string;
+    agent: string;
+    group: string;
+}
+
 export // ProbeConfig
 interface ProbeConfig {
     type: ProbeType;
-    target: string;
+    target: ProbeTarget[];
     duration: number;
     count: number;
     interval: number;
     server: boolean;
+}
+export interface AgentGroup {
+    id: string;
+    site: string;
+    agents: string[]; // these are the IDs of agents in the group
+    name: string;
+    description: string;
 }
 
 // ProbeType
@@ -75,6 +88,7 @@ export interface ProbeData {
     triggered: boolean;
     createdAt: Date;
     updatedAt: Date;
+    target: ProbeTarget
     data?: any; // Use an appropriate type for data if possible, otherwise 'any'
 }
 

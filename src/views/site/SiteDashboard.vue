@@ -44,8 +44,9 @@ onMounted(() => {
   <div class="container-fluid">
   <Title :title="state.site.name || 'site'" :history="[{title: 'sites', link: '/sites'}]">
     <div class="d-flex gap-1">
-    <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;invite member</router-link>
-    <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add agent</router-link>
+      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;invite member</router-link>
+      <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
+      <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add agent</router-link>
     </div>
   </Title>
     <div v-if="state.ready" class="card px-3 py-1">

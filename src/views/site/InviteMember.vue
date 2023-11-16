@@ -50,7 +50,7 @@ function submit() {
               <div class="row">
               <div class="mb-3 col-lg-8 col-12">
                 <label for="memberEmail" class="form-label">Email address</label>
-                <input type="email" v-model="state.email" class="form-control" id="memberEmail" aria-describedby="memberEmail" placeholder="example@netwatcher.io">
+                <input type="email" v-model="state" class="form-control" id="memberEmail" aria-describedby="memberEmail" placeholder="example@netwatcher.io">
                 <div id="memberEmail" class="form-text">If the email belongs to a user with a netwatcher account, they will be added to the site. If they do not have an account, they will be invited to create one.</div>
               </div>
               <div class="mb-3 col-lg-4 col-12">

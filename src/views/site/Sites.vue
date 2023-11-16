@@ -17,7 +17,8 @@ declare interface sitesList {
 
 const state = reactive({
   sites: [] as Site[],
-  agent_counts: [] as AgentCountInfo[]
+  agent_counts: [] as AgentCountInfo[],
+  ready: false
 })
 
 onMounted(() => {
@@ -30,6 +31,10 @@ onMounted(() => {
   }).catch(res => {
     alert(res)
   })
+
+  if(state.sites.length > 0) {
+    state.ready = true
+  }
 })
 
 </script>
@@ -42,7 +47,7 @@ onMounted(() => {
       <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Create</router-link>
       </div>
     </Title>
-    <div v-if="state.sites" class="row">
+    <div v-if="state.ready" class="row">
       <!-- column -->
       <div class="col-12">
         <div class="d-md-flex px-2">
