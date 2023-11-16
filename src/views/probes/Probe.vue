@@ -6,7 +6,7 @@ import type {Agent, Probe, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
-import {AsciiTable3} from "ascii-table3";
+import {AlignmentEnum, AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
 
 const state = reactive({
   target: {} as string,
@@ -14,49 +14,35 @@ const state = reactive({
   ready: false,
   agent: {} as Agent,
   checks: [] as Probe[],
+  table: {} as string // may need to re-work this...
 })
 
 function reloadData(id: string) {
-  agentService.getCheck(id).then(res=>{
-    state.target = res.data as string
-  })
+  let table =
+      new AsciiTable3('Sample table')
+          .setHeading('Name', 'Age', 'Eye color')
+          .addRowMatrix([
+            ['John', 23, 'green'],
+            ['Mary', 16, 'brown'],
+            ['Rita', 47, 'blue'],
+            ['Peter', 8, 'brown']
+          ]);
 
-  // validate that the user has access to the check and the agent / site
-  // if not, redirect to the login page
-  /*agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
-    siteService.getSite(state.agent.site).then(res => {
-      state.site = res.data as Site
-    })
-    agentService.getAgentStats(id).then(agent => {
-      state.stats = agent.data as Stats
-      state.ready = true
-    })
-    agentService.getChecks(id).then(agent => {
-      state.checks = agent.data as Check[]
-      state.ready = true
-    })
-  })*/
+  table.setStyle("unicode-round")
+  console.log(`cell margin = 0:\n${table.toString()}`);
+
+  console.log(table.toString());
+  state.table = table.toString()
+
+  state.ready = true
 }
 
 
 // const site = inject("site") as Site
 
-let table =
-    new AsciiTable3()
-        .setAlignCenter(3)
-        .addRowMatrix([
-          ['John', 23, 'green'],
-          ['Mary', 16, 'brown'],
-          ['Rita', 47, 'blue'],
-          ['Peter', 8, 'brown']
-        ]);
-
-console.log(table.toString());
-
 onMounted(() => {
 
-  let checkId = router.currentRoute.value.params["checkId"] as string
+  let checkId = router.currentRoute.value.params["probeId"] as string
   if (!checkId) return
 
   reloadData(checkId);
@@ -127,7 +113,7 @@ function submit() {
                 </h2>
                 <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
                   <div class="accordion-body">
-                    <pre>{{table}}}</pre>
+                    <pre>{{state.table}}</pre>
                   </div>
                 </div>
               </div>

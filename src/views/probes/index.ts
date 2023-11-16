@@ -14,8 +14,8 @@ export default {
             component: NewProbe,
         },
         {
-            path: '/probes/:checkId',
-            name: 'probe',
+            path: '/probes/:probeId/view',
+            name: 'probeView',
             component: Probe,
         },
     ]

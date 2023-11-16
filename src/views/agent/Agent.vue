@@ -2,69 +2,36 @@
 
 import {inject, onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Site, Agent, Stats, Check, Target} from "@/types";
+import type {Site, Agent, Probe} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import Widget from "@/components/Widget.vue";
+import probeService from "@/services/probeService";
+import {AsciiTable3, AlignmentEnum} from "@/lib/ascii-table3/ascii-table3";
 
-const state = reactive({
+let state = reactive({
   site: {} as Site,
   ready: false,
   agent: {} as Agent,
-  checks: [] as Check[],
-  stats: {} as Stats,
-  targets: [] as Target[],
+  probes: [] as Probe[],
 })
 
 function reloadData(id: string){
+  state.probes = [] as Probe[]
+
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
+
+      probeService.getAgentProbes(state.agent.id).then(res => {
+        state.probes = res.data as Probe[]
+        state.ready = true
+        console.log("probes ", res.data)
+      })
     })
-    /*agentService.getAgentStats(id).then(agent => {
-      state.stats = agent.data as Stats
-    })*/
-
-    /*agentService.getChecks(id).then(cs => {
-      console.log("got checks", cs.data)
-
-      // get checks and calculate targets based on the checks
-      state.checks = cs.data as Check[]
-      for (let check of cs.data as Check[]) {
-        if (check.type == "PING" || check.type == "MTR" || check.type == "RPERF") {
-          if (check.type == "RPERF" && check.server) {
-            return // skip rperf checks that are server checks
-          }
-
-          let target = state.targets.find(t => t.target == check.target)
-          if (!target) {
-            console.log("creating new target", check.target)
-            target = {
-              target: check.target,
-              checks: []
-            }
-            console.log("target", target)
-            state.targets.push(target)
-          }
-          // check to see if the target already contains the check
-          if (target.checks.find(c => c.id == check.id)) {
-            console.log("target already contains check", check)
-            continue
-          }
-          console.log("adding check to target", check)
-          target.checks.push(check)
-        }
-      }
-    })*/
-    console.log("targets", state.targets)
-
-    state.ready = true
   })
-
-  // get checks and group them in a list of targets based on if they have matching ips, and are either
-  // ping, mtr, or rperf (rperf and ping are combined to get an average "voice score" when monitoring a site.)
 }
 
 
@@ -106,10 +73,10 @@ function submit() {
     </Title>
 
     <div class="row">
-      <div class="col-sm-4">
+      <div class="col-sm-3">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">system *TODO*</h5>
+            <h5 class="card-title">system</h5>
             <p class="card-text">system information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
@@ -132,38 +99,55 @@ function submit() {
             <hr>
             <ul class="list-group">
               <li class="list-group-item">internet provider: <code>demo</code></li>
-<!--              <li class="list-group-item">default gateway: <code>{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}</code></li>
-              <li class="list-group-item">local address: <code>{{state.stats.net_info.local_address == "" ? "Unknown" : state.stats.net_info.local_address}}</code></li>
-              <li class="list-group-item">public address: <code>{{state.stats.net_info.public_address == "" ? "Unknown" : state.stats.net_info.public_address}}</code></li>-->
+              <li class="list-group-item">default gateway: <code>Default gateway<!--{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}--></code></li>
+              <li class="list-group-item">local address: <code>Local Address</code></li>
+              <li class="list-group-item">public address: <code>Public Address</code></li>
             </ul>
           </div>
         </div>
       </div>
-      <div class="col-sm-4">
+      <div class="col-sm-5">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">targets</h5>
+            <h5 class="card-title">probes</h5>
             <p class="card-text">view the targets for your MTR, PING, and RPERF checks</p>
-            <table class="table">
-              <thead>
-              <tr>
-                <th scope="col">host</th>
-                <th scope="col">checks</th>
-                <th class="text-end" scope="col">view</th>
-              </tr>
-              </thead>
-              <tbody>
-              <template v-for="t in state.targets">
-<!--                <tr>
-                <th scope="row">{{t.target}}</th>
-                <td><span class="badge bg-info" v-for="c in t.checks"> {{c.type}}</span></td>
-                <td class="text-end">
-                  <router-link :to="`/checks/${t.checks[0].id}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
-                </td>
-                </tr>-->
-              </template>
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                <tr>
+                  <th class="px-0" scope="col">name</th>
+                  <th class="px-0" scope="col">group / target</th>
+                  <th class="px-0" scope="col">created at</th>
+                  <th class="px-0 text-end" scope="col">view</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="group in state.probes">
+                  <td class="px-0">
+                    <router-link :to="`/sites/${group.id}`" class="">
+                      {{group.type}}
+                    </router-link>
+
+                  </td>
+                  <td class="px-0">
+                    <span class="badge bg-dark" v-if="group.type != 'NETINFO' && group.config.target.length > 0 && group.config.target[0].group != `000000000000000000000000`">{{group.config.target[0].group /* change to get the group names as well?? */}}</span>
+                    <span v-else v-if="group.type != 'NETINFO'"><code>{{ group.config.target[0].target }}</code></span>
+                  </td>
+                  <td class="px-0">
+                    {{ group.createdAt }}
+                  </td>
+                  <!--                  <td class="px-0">
+                                      <span class="badge bg-dark">{{ site. }}</span>
+                                    </td>-->
+                  <td class="px-0 text-end px-3">
+                    <router-link :to="`/probes/${group.id}/view`" class="">
+                      <i class="fa-solid fa-search"></i>
+                    </router-link>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

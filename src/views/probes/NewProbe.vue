@@ -17,9 +17,10 @@ let state = reactive({
   selected: {} as SelectOption,
   options: [] as SelectOption[],
   probe: {} as Probe,
+  probeConfig: {} as ProbeConfig,
   probeTarget: {} as ProbeTarget,
   targetGroup: false,
-  agentGroup: [] as AgentGroup[],
+  agentGroupSelected: [] as AgentGroup[],
   agentGroups: [] as AgentGroup[]
 })
 
@@ -27,23 +28,33 @@ onMounted(() => {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  state.probe.config = {} as ProbeConfig
-  state.probeTarget = {} as ProbeTarget
+  state.probeConfig = {
+    duration: 60,
+    count: 60,
+    interval: 5,
+    server: false,
+  } as ProbeConfig
+  state.probeTarget = {
+    target: ""
+  } as ProbeTarget
 
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
-    console.log(state.agent)
-    siteService.getAgentGroups(state.agent.site).then(res => {
-      state.agentGroups = res.data as AgentGroups[]
-      state.ready = true
+    siteService.getSite(state.agent.site).then(res => {
+      state.site = res.data as Site
+      console.log(state.agent)
+      siteService.getAgentGroups(state.agent.site).then(res => {
+        state.agentGroups = res.data as AgentGroups[]
+        state.ready = true
 
-      console.log(state.agentGroups)
+        console.log(state.agentGroups)
+      })
     })
   })
 
   state.options.push({value: "MTR", text: "My Trace Route"} as SelectOption)
   state.options.push({value: "PING", text: "Packet Internet Groper"} as SelectOption)
-  state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
+  //state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
   state.options.push({value: "RPERF", text: "REPERF"} as SelectOption)
 })
 
@@ -62,13 +73,37 @@ function submit() {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
+  // build probetarget for if groups are enabled for specific types
+
+
+  if(state.targetGroup && state.agentGroupSelected.length > 0) {
+    // for the selected groups, build a probe with them as the targets
+    let tempTargetGroups = [] as ProbeTarget[]
+    for(let aa of state.agentGroupSelected) {
+      tempTargetGroups.push({group: aa.id} as ProbeTarget)
+    }
+    state.probeConfig.target = tempTargetGroups
+  }else if(state.targetGroup && state.agentGroupSelected.length <= 0){
+    return
+  }else{
+    // load default/populated target
+    state.probeConfig.target = [] as ProbeTarget[]
+    state.probeConfig.target.push(state.probeTarget)
+  }
+
+
+  // set probe config as the config
+  state.probe.config = state.probeConfig
+
+  // update type of the probe
+  state.probe.type = state.selected.value as ProbeType
+
   let send = state.probe
 
   probeService.createProbe(id, send).then((res) => {
     router.push(`/agents/${id}`)
   }).catch(err => {
     console.log(err)
-
   })
 }
 
@@ -79,8 +114,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-    <Title title="Add Check" subtitle="Add a new check to the agent"
-           :history="[{title: 'Sites', link: '/sites'}]"></Title>
+    <Title title="Create Probe" :subtitle="`create a probe for an agent '${state.site.name}'`" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
@@ -115,28 +149,44 @@ function submit() {
                 <div v-if="state.targetGroup">
                   <div class="mb-3 col-lg-8 col-12">
                     <label for="agentGroupOptions" class="form-label">Available Agent Groups</label>
-                    <select v-model="state.agentGroup" class="form-select" multiple id="agentGroupOptions">
+                    <select v-model="state.agentGroupSelected" class="form-select" multiple id="agentGroupOptions">
                       <option v-for="group in state.agentGroups" :value="group" :key="group.name">
-                        {{ group.name }}
+                        {{ group.name + " (" + group.description + ")" }}
                       </option>
                     </select>
                     <div class="mt-3">
                       Selected:
-                      <strong>{{ state.agentGroup }}</strong>
+                      <strong>{{ state.agentGroupSelected }}</strong>
                     </div>
                   </div>
                 </div>
                   <div v-if="state.selected.value === 'MTR'">
                     <!-- Fields specific to MTR -->
+                    <div class="mb-3" v-if="!state.targetGroup">
+                      <label for="mtrTarget" class="form-label">Target <code>(eg. 1.1.1.1)</code></label>
+                      <input type="text" id="mtrTarget" v-model="state.probeTarget.target" class="form-control">
+                    </div>
                     <div class="mb-3">
-                      <label for="mtrTarget" class="form-label">Target</label>
-                      <input type="text" id="mtrTarget" v-model="state.probe.config.target" class="form-control">
+                      <label for="mtrInterval" class="form-label">Interval (minutes)</label>
+                      <input type="number" id="mtrTarget" v-model="state.probeConfig.interval" class="form-control">
                     </div>
                   </div>
 
                   <!-- PING Options -->
                   <div v-if="state.selected.value === 'PING'">
                     <!-- Fields specific to PING -->
+                    <div class="mb-3" v-if="!state.targetGroup">
+                      <label for="pingTarget" class="form-label">Target <code>(eg. 1.1.1.1)</code></label>
+                      <input type="text" id="pingTarget" v-model="state.probeTarget.target" class="form-control">
+                    </div>
+<!--                    <div class="mb-3">
+                      <label for="pingInterval" class="form-label">Interval (minutes)</label>
+                      <input type="number" id="pingInterval" v-model="state.probeConfig.interval" class="form-control">
+                    </div>-->
+                    <div class="mb-3">
+                      <label for="pingDuration" class="form-label">Duration (seconds)</label>
+                      <input type="number" id="pingDuration" v-model="state.probeConfig.duration" class="form-control">
+                    </div>
                   </div>
 
                   <!-- SPEEDTEST Options -->
@@ -147,6 +197,14 @@ function submit() {
                   <!-- RPERF Options -->
                   <div v-if="state.selected.value === 'RPERF'">
                     <!-- Fields specific to RPERF -->
+                    <div class="mb-3" v-if="!state.targetGroup">
+                      <label for="rperfTarget" class="form-label">Target <code>(eg. server_host:port)</code></label>
+                      <input type="text" id="pingTarget" v-model="state.probeTarget.target" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                      <label for="rperfInterval" class="form-label">Interval (minutes)</label>
+                      <input type="number" id="rperfInterval" v-model="state.probeConfig.interval" class="form-control">
+                    </div>
                   </div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ export default {
         return await request.post(`/probes/new/${id}`, probe)
     },
     async getAgentProbes(id: string): Promise<any> {
-        return await request.get(`/agents/site/${id}`)
+        return await request.get(`/probes/agent/${id}`)
     },
     async getProbe(id: string): Promise<any> {
         return await request.get(`/probes/${id}`)
