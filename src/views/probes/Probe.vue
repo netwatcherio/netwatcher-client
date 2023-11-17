@@ -1,13 +1,15 @@
 <script lang="ts" setup>
 
-import {onMounted, reactive} from "vue";
+import {onMounted, reactive, ref} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, MtrResult, Probe, ProbeData, ProbeDataRequest, Site} from "@/types";
+import type {Agent, MtrResult, PingResult, Probe, ProbeData, ProbeDataRequest, ProbeType, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import probeService from "@/services/probeService";
 import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
+import * as d3 from 'd3'
+import LatencyGraph from "@/components/Probes.vue";
 
 const state = reactive({
   target: {} as string,
@@ -16,12 +18,35 @@ const state = reactive({
   agent: {} as Agent,
   checks: [] as Probe[],
   table: {} as string, // may need to re-work this...
-  mtrData: [] as ProbeData[],
+  similarProbes: [] as Probe[],
   probe: {} as Probe[],
   probeData: [] as ProbeData[],
+  title: {} as string,
+  pingData: [] as ProbeData[],
+  pingGraph: {} as any,
 })
 
-function transformData(data: any[]): MtrResult {
+function transformPingDataMulti(dataArray: any[]): PingResult[] {
+  return dataArray.map(data => {
+    const findValueByKey = (key: string) => data.data.find((d: any) => d.Key === key)?.Value;
+
+    return {
+      startTimestamp: new Date(findValueByKey("start_timestamp")),
+      stopTimestamp: new Date(findValueByKey("stop_timestamp")),
+      packetsRecv: parseInt(findValueByKey("packets_recv")),
+      packetsSent: parseInt(findValueByKey("packets_sent")),
+      packetsRecvDuplicates: parseInt(findValueByKey("packets_recv_duplicates")),
+      packetLoss: parseInt(findValueByKey("packet_loss")),
+      addr: findValueByKey("addr"),
+      minRtt: parseInt(findValueByKey("min_rtt")),
+      maxRtt: parseInt(findValueByKey("max_rtt")),
+      avgRtt: parseInt(findValueByKey("avg_rtt")),
+      stdDevRtt: parseInt(findValueByKey("std_dev_rtt")),
+    };
+  });
+}
+
+function transformMtrData(data: any[]): MtrResult {
   let result: MtrResult = {
     startTimestamp: new Date(),
     stopTimestamp: new Date(),
@@ -75,22 +100,83 @@ function transformData(data: any[]): MtrResult {
 }
 
 function generateTable(probeData: ProbeData) {
-  let mtrCalculate = transformData(probeData.data)
+  let mtrCalculate = transformMtrData(probeData.data)
 
   let table = new AsciiTable3(mtrCalculate.report.mtr.dst + " - " + mtrCalculate.stopTimestamp);
   table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev', 'ASN')
-  for(let i = 0; i<mtrCalculate.report.hubs.length; i++){
+  for (let i = 0; i < mtrCalculate.report.hubs.length; i++) {
     let v = mtrCalculate.report.hubs[i]
     table.addRow(i, v.host, v["Loss%"], v.Snt, v.Rcv, v.Avg, v.Best, v.Wrst, v.StDev, v.ASN)
   }
   table.setStyle("unicode-single")
 
-  console.log(table.toString());
+  //console.log(table.toString());
   return table.toString()
 }
 
-function reloadData(id: string) {
-  state.ready = true
+function reloadData(checkId: string) {
+  state.pingGraph = ref(null)
+  probeService.getProbe(checkId).then(res => {
+    state.probe = res.data as Probe[]
+
+    // todo fix title - chances are when not using a group,
+    // it won't be more than 0, lets hope someone doesn't abuse it
+    state.title = state.probe[0].config.target[0].target
+
+    probeService.getSimilarProbes(checkId).then(res => {
+      state.similarProbes = res.data as Probe[]
+      for (let p of state.similarProbes) {
+        probeService.getProbeData(p.id, {recent: true} as ProbeDataRequest).then(res => {
+          for (let d of res.data as ProbeData[]) {
+            state.probeData.push(d)
+
+            if (getProbeType(d.probe) == "PING") {
+              state.pingData.push(d)
+            }
+          }
+        })
+      }
+
+      console.log(state.pingData)
+      });
+
+    agentService.getAgent(state.probe[0].agent).then(res => {
+      state.agent = res.data as Agent
+
+      siteService.getSite(state.agent.site).then(res => {
+        state.site = res.data as Site
+        /*siteService.getAgentGroups(state.agent.site).then(res => {
+        state.agentGroups = res.data as AgentGroups[]
+        state.ready = true
+
+        console.log(state.agentGroups)
+      })*/
+        state.ready = true
+      })
+    })
+  })
+}
+
+function transformPingData(data: any): PingResult {
+  return {
+    startTimestamp: new Date(data.data.find((d: any) => d.Key === "start_timestamp").Value),
+    stopTimestamp: new Date(data.data.find((d: any) => d.Key === "stop_timestamp").Value),
+    packetsRecv: data.data.find((d: any) => d.Key === "packets_recv").Value,
+    packetsSent: data.data.find((d: any) => d.Key === "packets_sent").Value,
+    packetsRecvDuplicates: data.data.find((d: any) => d.Key === "packets_recv_duplicates").Value,
+    packetLoss: data.data.find((d: any) => d.Key === "packet_loss").Value,
+    addr: data.data.find((d: any) => d.Key === "addr").Value,
+    minRtt: data.data.find((d: any) => d.Key === "min_rtt").Value,
+    maxRtt: data.data.find((d: any) => d.Key === "max_rtt").Value,
+    avgRtt: data.data.find((d: any) => d.Key === "avg_rtt").Value,
+    stdDevRtt: data.data.find((d: any) => d.Key === "std_dev_rtt").Value,
+  }
+}
+
+
+function getProbeType(probeId: string) {
+  let foundProbe = state.similarProbes.find(probe => probe.id === probeId);
+  return foundProbe ? foundProbe.type : null;
 }
 
 // const site = inject("site") as Site
@@ -99,40 +185,12 @@ onMounted(() => {
   let checkId = router.currentRoute.value.params["probeId"] as string
   if (!checkId) return
 
-console.log(checkId)
-
-  probeService.getProbe(checkId).then(res => {
-    state.probe = res.data as Probe[]
-    console.log(res.data)
-
-    probeService.getProbeData(checkId, {recent: true} as ProbeDataRequest).then(res => {
-      state.probeData = res.data as ProbeData[]
-
-      console.log(state.probeData)
-
-      agentService.getAgent(state.probe[0].agent).then(res => {
-        state.agent = res.data as Agent
-
-        siteService.getSite(state.agent.site).then(res => {
-          state.site = res.data as Site
-          /*siteService.getAgentGroups(state.agent.site).then(res => {
-            state.agentGroups = res.data as AgentGroups[]
-            state.ready = true
-
-            console.log(state.agentGroups)
-          })*/
-          state.ready = true
-
-          //state.ready = true
-        })
-      })
-    })
-  })
+  console.log(checkId)
 
   reloadData(checkId);
-  setInterval(() => {
+  /*setInterval(() => {
     reloadData(checkId);
-  }, 1000 * 15);
+  }, 1000 * 15);*/
 })
 const router = core.router()
 
@@ -154,7 +212,7 @@ function submit() {
   <div v-if="state.ready" class="container-fluid">
     <Title
         :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
-        :title="state.target"
+        :title="state.title"
         subtitle="information about this target">
       <div class="d-flex gap-1">
         <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
@@ -166,7 +224,7 @@ function submit() {
       </div>
     </Title>
 
-    <div class="row">
+    <div class="row" v-if="state.ready">
       <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
@@ -181,6 +239,7 @@ function submit() {
             <h5 class="card-title">health graph</h5>
             <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to
               the target</p>
+            <LatencyGraph :pingResults="transformPingDataMulti(state.pingData)"/>
           </div>
         </div>
       </div>
@@ -193,25 +252,30 @@ function submit() {
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
-            <div id="accordionExample" class="accordion">
-              <div v-for="mtr in state.probeData" :key="mtr.id" class="accordion-item">
-                <h2 :id="'heading' + mtr.id" class="accordion-header">
-                  <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" class="accordion-button collapsed"
-                          :data-bs-target="'#collapse' + mtr.id" data-bs-toggle="collapse" type="button">
-                    {{ transformData((mtr as ProbeData).data).stopTimestamp }}
-                    <span class="badge bg-dark" v-if="transformData((mtr as ProbeData).data).triggered">TRIGGERED</span>
-                  </button>
+            <div id="mtrAccordion" class="accordion">
 
-                </h2>
-                <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id" class="accordion-collapse collapse"
-                     data-bs-parent="#accordionExample">
-                  <div class="accordion-body">
-                    <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
+              <div v-for="mtr in state.probeData" :key="mtr.id">
+
+                <div class="accordion-item" v-if="getProbeType((mtr as ProbeData).probe) == `MTR` as ProbeType">
+                  <h2 :id="'heading' + mtr.id" class="accordion-header">
+                    <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" :data-bs-target="'#collapse' + mtr.id"
+                            class="accordion-button collapsed" data-bs-toggle="collapse" type="button">
+                      {{ transformMtrData((mtr as ProbeData).data).stopTimestamp }}
+                      <span v-if="transformMtrData((mtr as ProbeData).data).triggered" class="badge bg-dark">TRIGGERED</span>
+                    </button>
+
+                  </h2>
+                  <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id" class="accordion-collapse collapse"
+                       data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                      <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
+                    </div>
                   </div>
                 </div>
-            </div>
 
-            <!-- Add more accordion items here if needed -->
+              </div>
+
+              <!-- Add more accordion items here if needed -->
             </div>
 
           </div>

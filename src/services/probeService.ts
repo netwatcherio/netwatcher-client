@@ -8,6 +8,9 @@ export default {
     async getAgentProbes(id: string): Promise<any> {
         return await request.get(`/probes/agent/${id}`)
     },
+    async getSimilarProbes(id: string): Promise<any> {
+        return await request.get(`/probes/similar/${id}`)
+    },
     async getProbeData(id: string, req: ProbeDataRequest): Promise<any> {
         return await request.post(`/probes/data/${id}`, req)
     },
