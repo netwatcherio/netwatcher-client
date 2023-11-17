@@ -2,11 +2,12 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, Probe, Site} from "@/types";
+import type {Agent, MtrResult, Probe, ProbeData, ProbeDataRequest, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
-import {AlignmentEnum, AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
+import probeService from "@/services/probeService";
+import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
 
 const state = reactive({
   target: {} as string,
@@ -14,36 +15,119 @@ const state = reactive({
   ready: false,
   agent: {} as Agent,
   checks: [] as Probe[],
-  table: {} as string // may need to re-work this...
+  table: {} as string, // may need to re-work this...
+  mtrData: [] as ProbeData[],
+  probe: {} as Probe[],
+  probeData: [] as ProbeData[],
 })
 
-function reloadData(id: string) {
-  let table =
-      new AsciiTable3('Sample table')
-          .setHeading('Name', 'Age', 'Eye color')
-          .addRowMatrix([
-            ['John', 23, 'green'],
-            ['Mary', 16, 'brown'],
-            ['Rita', 47, 'blue'],
-            ['Peter', 8, 'brown']
-          ]);
+function transformData(data: any[]): MtrResult {
+  let result: MtrResult = {
+    startTimestamp: new Date(),
+    stopTimestamp: new Date(),
+    triggered: false,
+    report: {
+      mtr: {
+        src: '',
+        dst: '',
+        tos: 0,
+        tests: 0,
+        psize: '',
+        bitpattern: ''
+      },
+      hubs: []
+    }
+  };
 
-  table.setStyle("unicode-round")
-  console.log(`cell margin = 0:\n${table.toString()}`);
+  data.forEach(item => {
+    switch (item.Key) {
+      case 'start_timestamp':
+        result.startTimestamp = new Date(item.Value);
+        break;
+      case 'stop_timestamp':
+        result.stopTimestamp = new Date(item.Value);
+        break;
+      case 'triggered':
+        result.triggered = item.Value;
+        break;
+      case 'report':
+        item.Value.forEach(reportItem => {
+          if (reportItem.Key === 'mtr') {
+            reportItem.Value.forEach(mtrItem => {
+              result.report.mtr[mtrItem.Key] = mtrItem.Value;
+            });
+          } else if (reportItem.Key === 'hubs') {
+            reportItem.Value.forEach(hubArray => {
+              let hub = {};
+              hubArray.forEach(hubItem => {
+                hub[hubItem.Key] = hubItem.Value;
+              });
+              result.report.hubs.push(hub);
+            });
+          }
+        });
+        break;
+        // Add more cases as needed
+    }
+  });
 
-  console.log(table.toString());
-  state.table = table.toString()
-
-  state.ready = true
+  return result;
 }
 
+function generateTable(probeData: ProbeData) {
+  let mtrCalculate = transformData(probeData.data)
+
+  let table = new AsciiTable3(mtrCalculate.report.mtr.dst);
+  table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev', 'ASN')
+  for(let i = 0; i<mtrCalculate.report.hubs.length; i++){
+    let v = mtrCalculate.report.hubs[i]
+    table.addRow(i, v.host, v["Loss%"], v.Snt, v.Rcv, v.Avg, v.Best, v.Wrst, v.StDev, v.ASN)
+  }
+  table.setStyle("unicode-single")
+
+  console.log(table.toString());
+  return table.toString()
+}
+
+function reloadData(id: string) {
+  state.ready = true
+}
 
 // const site = inject("site") as Site
 
 onMounted(() => {
-
   let checkId = router.currentRoute.value.params["probeId"] as string
   if (!checkId) return
+
+console.log(checkId)
+
+  probeService.getProbe(checkId).then(res => {
+    state.probe = res.data as Probe[]
+    console.log(res.data)
+
+    probeService.getProbeData(checkId, {recent: true} as ProbeDataRequest).then(res => {
+      state.probeData = res.data as ProbeData[]
+
+      console.log(state.probeData)
+
+      agentService.getAgent(state.probe[0].agent).then(res => {
+        state.agent = res.data as Agent
+
+        siteService.getSite(state.agent.site).then(res => {
+          state.site = res.data as Site
+          /*siteService.getAgentGroups(state.agent.site).then(res => {
+            state.agentGroups = res.data as AgentGroups[]
+            state.ready = true
+
+            console.log(state.agentGroups)
+          })*/
+          state.ready = true
+
+          //state.ready = true
+        })
+      })
+    })
+  })
 
   reloadData(checkId);
   setInterval(() => {
@@ -68,13 +152,17 @@ function submit() {
 
 <template>
   <div v-if="state.ready" class="container-fluid">
-    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]" :title="state.target"
-           subtitle="information about this target">
+    <Title
+        :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :title="state.target"
+        subtitle="information about this target">
       <div class="d-flex gap-1">
-      <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
-      class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks</router-link>
-      <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
-      class="fa-solid fa-plus"></i>&nbsp;add check</router-link>
+        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
+            class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
+        </router-link>
+        <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
+            class="fa-solid fa-plus"></i>&nbsp;add check
+        </router-link>
       </div>
     </Title>
 
@@ -91,33 +179,41 @@ function submit() {
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">health graph</h5>
-            <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to the target</p>
+            <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to
+              the target</p>
           </div>
         </div>
       </div>
     </div>
     <hr>
-    <div class="row">
+    <div class="row" v-if="state.ready">
       <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
-            <div class="accordion" id="traceroutes">
-              <div class="accordion-item">
-                <h2 class="accordion-header" id="headingOne">
-                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-                    timestamp now yay yay
+            <div id="accordionExample" class="accordion">
+              <div v-for="mtr in state.probeData" :key="mtr.id" class="accordion-item">
+                <h2 :id="'heading' + mtr.id" class="accordion-header">
+                  <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" class="accordion-button collapsed"
+                          :data-bs-target="'#collapse' + mtr.id" data-bs-toggle="collapse" type="button">
+                    {{ transformData((mtr as ProbeData).data).stopTimestamp }}
+                    <span class="badge bg-dark" v-if="transformData((mtr as ProbeData).data).triggered">TRIGGERED</span>
                   </button>
+
                 </h2>
-                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id" class="accordion-collapse collapse"
+                     data-bs-parent="#accordionExample">
                   <div class="accordion-body">
-                    <pre>{{state.table}}</pre>
+                    <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
                   </div>
                 </div>
-              </div>
             </div>
+
+            <!-- Add more accordion items here if needed -->
+            </div>
+
           </div>
         </div>
       </div>

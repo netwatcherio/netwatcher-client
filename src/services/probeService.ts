@@ -1,5 +1,5 @@
 import request from "@/services/request";
-import type {Agent, Probe, Site} from "@/types";
+import type {Agent, Probe, ProbeDataRequest, Site} from "@/types";
 
 export default {
     async createProbe(id: string, probe: Probe): Promise<any> {
@@ -8,7 +8,10 @@ export default {
     async getAgentProbes(id: string): Promise<any> {
         return await request.get(`/probes/agent/${id}`)
     },
+    async getProbeData(id: string, req: ProbeDataRequest): Promise<any> {
+        return await request.post(`/probes/data/${id}`, req)
+    },
     async getProbe(id: string): Promise<any> {
-        return await request.get(`/probes/${id}`)
+        return await request.get(`/probe/${id}`)
     },
 }

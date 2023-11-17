@@ -103,4 +103,157 @@ export interface Preferences {
     token: string
 }
 
+export interface MtrResult {
+    startTimestamp: Date;
+    stopTimestamp: Date;
+    triggered: boolean;
+    report: MtrReport;
+}
+
+export interface MtrReport {
+    mtr: {
+        src: string;
+        dst: string;
+        tos: number;
+        tests: number;
+        psize: string;
+        bitpattern: string;
+    };
+    hubs: Array<{
+        count: number;
+        host: string;
+        ASN: string;
+        'Loss%': number;
+        Drop: number;
+        Rcv: number;
+        Snt: number;
+        Best: number;
+        Avg: number;
+        Wrst: number;
+        StDev: number;
+        Gmean: number;
+        Jttr: number;
+        Javg: number;
+        Jmax: number;
+        Jint: number;
+    }>;
+}
+
+export interface NetResult {
+    localAddress: string;
+    defaultGateway: string;
+    publicAddress: string;
+    internetProvider: string;
+    lat: string;
+    long: string;
+    timestamp: Date;
+}
+
+export interface SpeedTestResult {
+    latency: number; // TypeScript doesn't have a specific type for time.Duration, so you might use number (milliseconds)
+    dlSpeed: number;
+    ulSpeed: number;
+    server: string;
+    host: string;
+    timestamp: Date;
+}
+
+export interface RPerfResults {
+    startTimestamp: Date;
+    stopTimestamp: Date;
+    config: {
+        additional: {
+            ipVersion: number;
+            omitSeconds: number;
+            reverse: boolean;
+        };
+        common: {
+            family: string;
+            length: number;
+            streams: number;
+        };
+        download: {};
+        upload: {
+            bandwidth: number;
+            duration: number;
+            sendInterval: number;
+        };
+    };
+    streams: Array<{
+        abandoned: boolean;
+        failed: boolean;
+        intervals: {
+            receive: Array<{
+                bytesReceived: number;
+                duration: number;
+                jitterSeconds: number;
+                packetsDuplicated: number;
+                packetsLost: number;
+                packetsOutOfOrder: number;
+                packetsReceived: number;
+                timestamp: number;
+                unbrokenSequence: number;
+            }>;
+            send: Array<{
+                bytesSent: number;
+                duration: number;
+                packetsSent: number;
+                sendsBlocked: number;
+                timestamp: number;
+            }>;
+            summary: {
+                bytesReceived: number;
+                bytesSent: number;
+                durationReceive: number;
+                durationSend: number;
+                framedPacketSize: number;
+                jitterAverage: number;
+                jitterPacketsConsecutive: number;
+                packetsDuplicated: number;
+                packetsLost: number;
+                packetsOutOfOrder: number;
+                packetsReceived: number;
+                packetsSent: number;
+            };
+        };
+    }>;
+    success: boolean;
+    summary: {
+        bytesReceived: number;
+        bytesSent: number;
+        durationReceive: number;
+        durationSend: number;
+        framedPacketSize: number;
+        jitterAverage: number;
+        jitterPacketsConsecutive: number;
+        packetsDuplicated: number;
+        packetsLost: number;
+        packetsOutOfOrder: number;
+        packetsReceived: number;
+        packetsSent: number;
+    };
+}
+
+export interface PingResult {
+    startTimestamp: Date;
+    stopTimestamp: Date;
+    packetsRecv: number;
+    packetsSent: number;
+    packetsRecvDuplicates: number;
+    packetLoss: number;
+    addr: string;
+    minRtt: number; // Same as latency in SpeedTestResult
+    maxRtt: number;
+    avgRtt: number;
+    stdDevRtt: number;
+}
+
+export interface ProbeDataRequest {
+    limit: number;
+    startTimestamp: Date;
+    endTimestamp: Date;
+    recent: boolean;
+}
+
+
 export {}
