@@ -17,4 +17,7 @@ export default {
     async getProbe(id: string): Promise<any> {
         return await request.get(`/probe/${id}`)
     },
+    async getNetworkInfo(id: string): Promise<any> {
+        return await request.get(`/netinfo/${id}`)
+    },
 }

@@ -51,19 +51,30 @@ function isGapAcceptable(current: PingResult, previous: PingResult) {
 }
 
 function segmentData(data: PingResult[]) {
+  // First, sort the data by stopTimestamp
+  data.sort((a, b) => new Date(a.stopTimestamp) - new Date(b.stopTimestamp));
+
   const segments = [];
   let segment = [];
 
   for (let i = 0; i < data.length; i++) {
-    segment.push(data[i]);
+    const current = data[i];
+    const next = data[i + 1];
 
-    // Check if next point exists and if gap is large enough
-    if (i < data.length - 1 && data[i].stopTimestamp.getTime() - (data[i + 1].stopTimestamp.getTime()) > maxAllowedGap) {
-      segments.push(segment);
-      segment = [];
+    segment.push(current);
+
+    if (next) {
+      const currentStopTime = new Date(current.stopTimestamp).getTime();
+      const nextStopTime = new Date(next.stopTimestamp).getTime();
+
+      if (nextStopTime - currentStopTime > maxAllowedGap) {
+        segments.push(segment);
+        segment = [];
+      }
     }
   }
 
+  // Add the last segment if it has data
   if (segment.length) {
     segments.push(segment);
   }

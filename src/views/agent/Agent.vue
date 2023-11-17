@@ -2,7 +2,7 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, AgentGroup, Probe, Site} from "@/types";
+import type {Agent, AgentGroup, NetResult, Probe, ProbeData, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -20,7 +20,20 @@ let state = reactive({
   probes: [] as Probe[],
   organizedProbes: [] as OrganizedProbe[],
   agentGroups: [] as AgentGroup[],
+  networkInfo: {} as ProbeData
 })
+
+function transformNetData(data: any): NetResult {
+  return {
+    localAddress: data.find((d: any) => d.Key === "local_address").Value || '',
+    defaultGateway: data.find((d: any) => d.Key === "default_gateway").Value || '',
+    publicAddress: data.find((d: any) => d.Key === "public_address").Value || '',
+    internetProvider: data.find((d: any) => d.Key === "internet_provider").Value || '',
+    lat: data.find((d: any) => d.Key === "lat").Value || '',
+    long: data.find((d: any) => d.Key === "long").Value || '',
+    timestamp: new Date(data.find((d: any) => d.Key === "timestamp").Value || Date.now()),
+  };
+}
 
 function getGroupName(id: string): string {
   // Use the 'find' method to locate the group with the matching ID
@@ -34,8 +47,15 @@ function reloadData(id: string) {
   state.probes = [] as Probe[]
   state.organizedProbes = [] as OrganizedProbe[];
 
+
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
+
+    probeService.getNetworkInfo(state.agent.id).then(res => {
+      state.networkInfo = res.data as ProbeData
+      console.log(state.networkInfo)
+    })
+
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
 
@@ -154,12 +174,12 @@ function getRandomProbeId(list: Probe[]): string | undefined {
             <p class="card-text">network information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
-              <li class="list-group-item">internet provider: <code>demo</code></li>
-              <li class="list-group-item">default gateway: <code>Default gateway
-                <!--{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}--></code>
+              <li class="list-group-item">public address: <code>{{transformNetData(state.networkInfo.data).publicAddress == "" ? "Unknown" : transformNetData(state.networkInfo.data).publicAddress}}</code></li>
+              <li class="list-group-item">internet provider: <code>{{transformNetData(state.networkInfo.data).internetProvider == "" ? "Unknown" : transformNetData(state.networkInfo.data).internetProvider}}</code></li>
+              <br>
+              <li class="list-group-item">local address: <code>{{transformNetData(state.networkInfo.data).localAddress == "" ? "Unknown" : transformNetData(state.networkInfo.data).localAddress}}</code></li>
+              <li class="list-group-item">default gateway: <code>{{transformNetData(state.networkInfo.data).defaultGateway == "" ? "Unknown" : transformNetData(state.networkInfo.data).defaultGateway}}</code>
               </li>
-              <li class="list-group-item">local address: <code>Local Address</code></li>
-              <li class="list-group-item">public address: <code>Public Address</code></li>
             </ul>
           </div>
         </div>

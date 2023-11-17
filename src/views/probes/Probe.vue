@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 
-import {onMounted, reactive, ref} from "vue";
+import {onMounted, reactive, ref, watch} from "vue";
 import siteService from "@/services/siteService";
 import type {Agent, MtrResult, PingResult, Probe, ProbeData, ProbeDataRequest, ProbeType, Site} from "@/types";
 import core from "@/core";
@@ -9,6 +9,8 @@ import agentService from "@/services/agentService";
 import probeService from "@/services/probeService";
 import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
 import LatencyGraph from "@/components/PingGraph.vue";
+import VueDatePicker from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css'
 
 const state = reactive({
   target: {} as string,
@@ -23,6 +25,7 @@ const state = reactive({
   title: {} as string,
   pingData: [] as ProbeData[],
   pingGraph: {} as any,
+  timeRange: {} as [Date, Date],
 })
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
@@ -114,7 +117,12 @@ function generateTable(probeData: ProbeData) {
   return table.toString()
 }
 
+
 function reloadData(checkId: string) {
+  state.pingData = []
+  state.probeData = []
+  state.similarProbes = []
+
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
 
@@ -125,7 +133,7 @@ function reloadData(checkId: string) {
     probeService.getSimilarProbes(checkId).then(res => {
       state.similarProbes = res.data as Probe[]
       for (let p of state.similarProbes) {
-        probeService.getProbeData(p.id, {recent: true} as ProbeDataRequest).then(res => {
+        probeService.getProbeData(p.id, {recent: false, limit: 5000, startTimestamp: state.timeRange[0], endTimestamp: state.timeRange[1]} as ProbeDataRequest).then(res => {
           for (let d of res.data as ProbeData[]) {
             state.probeData.push(d)
 
@@ -174,13 +182,26 @@ function getProbeType(probeId: string) {
 
 // const site = inject("site") as Site
 
+watch(() => state.timeRange, (newTimeRange) => {
+  let checkId = router.currentRoute.value.params["probeId"] as string;
+  if (checkId) {
+    reloadData(checkId);
+  }
+  state.timeRange = newTimeRange
+}, { deep: true });
+
 onMounted(() => {
   let checkId = router.currentRoute.value.params["probeId"] as string
   if (!checkId) return
 
+  state.timeRange = [
+      new Date(new Date().getTime() - 3 * 60 * 60 * 1000), // Current time minus 6 hours
+      new Date() // Current time
+  ]
+
   console.log(checkId)
 
-  reloadData(checkId);
+  //reloadData(checkId);
   /*setInterval(() => {
     reloadData(checkId);
   }, 1000 * 15);*/
@@ -207,13 +228,14 @@ function submit() {
         :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
         :title="state.title"
         subtitle="information about this target">
-      <div class="d-flex gap-1">
-        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
+      <div class="d-flex gap-1" v-if="state.ready">
+<!--        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
             class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
         </router-link>
         <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
             class="fa-solid fa-plus"></i>&nbsp;add check
-        </router-link>
+        </router-link>-->
+        <VueDatePicker v-model="state.timeRange" range :partial-range="false" />
       </div>
     </Title>
 
