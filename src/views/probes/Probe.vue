@@ -77,7 +77,7 @@ function transformData(data: any[]): MtrResult {
 function generateTable(probeData: ProbeData) {
   let mtrCalculate = transformData(probeData.data)
 
-  let table = new AsciiTable3(mtrCalculate.report.mtr.dst);
+  let table = new AsciiTable3(mtrCalculate.report.mtr.dst + " - " + mtrCalculate.stopTimestamp);
   table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev', 'ASN')
   for(let i = 0; i<mtrCalculate.report.hubs.length; i++){
     let v = mtrCalculate.report.hubs[i]
