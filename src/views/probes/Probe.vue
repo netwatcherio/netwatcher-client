@@ -144,12 +144,6 @@ function reloadData(checkId: string) {
 
       siteService.getSite(state.agent.site).then(res => {
         state.site = res.data as Site
-        /*siteService.getAgentGroups(state.agent.site).then(res => {
-        state.agentGroups = res.data as AgentGroups[]
-        state.ready = true
-
-        console.log(state.agentGroups)
-      })*/
         state.ready = true
       })
     })

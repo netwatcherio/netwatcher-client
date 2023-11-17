@@ -149,7 +149,7 @@ function submit() {
                 <div v-if="state.targetGroup">
                   <div class="mb-3 col-lg-8 col-12">
                     <label for="agentGroupOptions" class="form-label">Available Agent Groups</label>
-                    <select v-model="state.agentGroupSelected" class="form-select" multiple id="agentGroupOptions">
+                    <select v-model="state.agentGroupSelected" class="form-select" id="agentGroupOptions">
                       <option v-for="group in state.agentGroups" :value="group" :key="group.name">
                         {{ group.name + " (" + group.description + ")" }}
                       </option>

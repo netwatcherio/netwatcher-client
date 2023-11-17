@@ -13,7 +13,7 @@ let headers = {
 }
 
 function host(): string {
-    let ctrl = '192.168.1.107:8080'
+    let ctrl = '0.0.0.0:8080'
     if (ctrl) {
         return ctrl
     } else {

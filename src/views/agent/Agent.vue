@@ -1,34 +1,75 @@
 <script lang="ts" setup>
 
-import {inject, onMounted, reactive} from "vue";
+import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Site, Agent, Probe} from "@/types";
+import type {Agent, AgentGroup, Probe, Site} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
-import Widget from "@/components/Widget.vue";
 import probeService from "@/services/probeService";
-import {AsciiTable3, AlignmentEnum} from "@/lib/ascii-table3/ascii-table3";
+
+interface OrganizedProbe {
+  key: string;
+  probes: Probe[];
+}
 
 let state = reactive({
   site: {} as Site,
   ready: false,
   agent: {} as Agent,
   probes: [] as Probe[],
+  organizedProbes: [] as OrganizedProbe[],
+  agentGroups: [] as AgentGroup[],
 })
 
-function reloadData(id: string){
+function getGroupName(id: string): string {
+  // Use the 'find' method to locate the group with the matching ID
+  const group = state.agentGroups.find(group => group.id === id);
+
+  // Return the group name if found, otherwise return a default value or empty string
+  return group ? group.name : 'Unknown Group';
+}
+
+function reloadData(id: string) {
   state.probes = [] as Probe[]
+  state.organizedProbes = [] as OrganizedProbe[];
 
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
 
-      probeService.getAgentProbes(state.agent.id).then(res => {
-        state.probes = res.data as Probe[]
-        state.ready = true
-        console.log("probes ", res.data)
+      siteService.getAgentGroups(state.agent.site).then(res => {
+        state.agentGroups = res.data as AgentGroup[]
+
+        probeService.getAgentProbes(state.agent.id).then(res => {
+          state.probes = res.data as Probe[]
+          state.ready = true
+          console.log("probes ", res.data)
+
+          let organizedProbesMap = new Map<string, Probe[]>();
+
+          for (let probe of state.probes) {
+            if (probe.config && probe.config.target) {
+              for (let target of probe.config.target) {
+                let key = target.target;
+                if (target.group && target.group !== "000000000000000000000000") {
+                  // Prefix group ID to differentiate
+                  key = `group:${target.group}`;
+                  // Fetch or determine group information here if necessary
+                  // e.g., groupInfoMap.get(target.group) or similar
+                }
+
+                if (!organizedProbesMap.has(key)) {
+                  organizedProbesMap.set(key, []);
+                }
+                organizedProbesMap.get(key).push(probe);
+              }
+            }
+          }
+
+          state.organizedProbes = Array.from(organizedProbesMap, ([key, probes]) => ({key, probes}));
+        })
       })
     })
   })
@@ -45,7 +86,7 @@ onMounted(() => {
   reloadData(id);
   setInterval(() => {
     reloadData(id);
-  }, 1000*15);
+  }, 1000 * 15);
 })
 const router = core.router()
 
@@ -61,14 +102,29 @@ function submit() {
 
 }
 
+function getRandomProbeId(list: Probe[]): string | undefined {
+  if (list.length === 0) {
+    return undefined; // Return undefined if the list is empty
+  }
+
+  const randomIndex = Math.floor(Math.random() * list.length);
+  return list[randomIndex].id; // Return the ID of the randomly selected probe
+}
+
+
 </script>
 
 <template>
-  <div class="container-fluid" v-if="state.ready">
-    <Title :title="state.agent.name" subtitle="information about this agent" :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
+  <div v-if="state.ready" class="container-fluid">
+    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]" :title="state.agent.name"
+           subtitle="information about this agent">
       <div class="d-flex gap-1">
-        <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes</router-link>
-        <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add probe</router-link>
+        <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i
+            class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes
+        </router-link>
+        <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
+            class="fa-solid fa-plus"></i>&nbsp;add probe
+        </router-link>
       </div>
     </Title>
 
@@ -99,7 +155,9 @@ function submit() {
             <hr>
             <ul class="list-group">
               <li class="list-group-item">internet provider: <code>demo</code></li>
-              <li class="list-group-item">default gateway: <code>Default gateway<!--{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}--></code></li>
+              <li class="list-group-item">default gateway: <code>Default gateway
+                <!--{{state.stats.net_info.default_gateway == "" ? "Unknown" : state.stats.net_info.default_gateway}}--></code>
+              </li>
               <li class="list-group-item">local address: <code>Local Address</code></li>
               <li class="list-group-item">public address: <code>Public Address</code></li>
             </ul>
@@ -111,47 +169,51 @@ function submit() {
           <div class="card-body">
             <h5 class="card-title">probes</h5>
             <p class="card-text">view the targets for your MTR, PING, and RPERF checks</p>
-            <div class="table-responsive">
-              <table class="table">
-                <thead>
-                <tr>
-                  <th class="px-0" scope="col">name</th>
-                  <th class="px-0" scope="col">group / target</th>
-                  <th class="px-0" scope="col">created at</th>
-                  <th class="px-0 text-end" scope="col">view</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="group in state.probes">
-                  <td class="px-0">
-                    <router-link :to="`/sites/${group.id}`" class="">
-                      {{group.type}}
-                    </router-link>
+                <!-- Iterate over organized probes -->
+                  <div class="table-responsive">
+                    <table class="table">
+                      <thead>
+                      <tr>
+                        <th class="px-0" scope="col">Group / Target</th>
+                        <th class="px-0" scope="col">Probe Types</th>
+                        <th class="px-0 text-end" scope="col">View</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      <!-- Iterate over organized probes -->
+                      <tr v-for="(organized, index) in state.organizedProbes" :key="index">
+                        <td class="px-0">
+                          <!-- Display group name or target -->
+                          <span class="badge bg-dark" v-if="organized.key.startsWith('group:')">
+            {{ getGroupName(organized.key.replace('group:', '')) }}
+          </span>
+                          <code v-else>
+                            {{ organized.key }}
+                          </code>
+                        </td>
+                        <td class="px-0">
+                          <!-- Generate badges for each probe type in the group -->
+                          <span v-for="probe in organized.probes" :key="probe.id" class="badge bg-secondary me-1">
+            {{ probe.type }}
+          </span>
+                        </td>
+                        <td class="px-0 text-end px-3">
+                          <!-- Link to view details of the group (adjust as needed) -->
+                          <router-link :to="`/probes/${getRandomProbeId(organized.probes)}/view`">
+                            <i class="fa-solid fa-search"></i>
+                          </router-link>
+                        </td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
 
-                  </td>
-                  <td class="px-0">
-                    <span class="badge bg-dark" v-if="group.type != 'NETINFO' && group.config.target.length > 0 && group.config.target[0].group != `000000000000000000000000`">{{group.config.target[0].group /* change to get the group names as well?? */}}</span>
-                    <span v-else v-if="group.type != 'NETINFO'"><code>{{ group.config.target[0].target }}</code></span>
-                  </td>
-                  <td class="px-0">
-                    {{ group.createdAt }}
-                  </td>
-                  <!--                  <td class="px-0">
-                                      <span class="badge bg-dark">{{ site. }}</span>
-                                    </td>-->
-                  <td class="px-0 text-end px-3">
-                    <router-link :to="`/probes/${group.id}/view`" class="">
-                      <i class="fa-solid fa-search"></i>
-                    </router-link>
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
+
+
           </div>
         </div>
       </div>
-      </div>
+    </div>
     <br>
     <div class="row">
       <div class="col-sm-12">
@@ -171,11 +233,11 @@ function submit() {
               </thead>
               <tbody>
               <tr>
-<!--                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
-                <td>{{state.stats.speed_test_info.server}}</td>
-                <td>{{state.stats.speed_test_info.host}}</td>
-                <td>{{state.stats.speed_test_info.ul_speed}}</td>
-                <td>{{state.stats.speed_test_info.dl_speed}}</td>-->
+                <!--                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
+                                <td>{{state.stats.speed_test_info.server}}</td>
+                                <td>{{state.stats.speed_test_info.host}}</td>
+                                <td>{{state.stats.speed_test_info.ul_speed}}</td>
+                                <td>{{state.stats.speed_test_info.dl_speed}}</td>-->
               </tr>
               </tbody>
             </table>

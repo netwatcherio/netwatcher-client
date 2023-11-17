@@ -3,9 +3,9 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, onUnmounted } from 'vue';
 import * as d3 from 'd3';
-import type { PingResult } from '@/types'; // Import your PingResult type
+import type { PingResult, ProbeData } from '@/types'; // Import your PingResult type
 
 export default {
   name: 'LatencyGraph',
@@ -15,28 +15,72 @@ export default {
   setup(props: { pingResults: PingResult[]; }) {
     const graphContainer = ref(null);
 
+    const drawGraph = () => {
+      if (!graphContainer.value || !props.pingResults || props.pingResults.length === 0) {
+        return;
+      }
+      createLatencyGraph(props.pingResults, graphContainer.value);
+    };
+
+    const resizeListener = () => {
+      drawGraph();
+    };
+
     onMounted(() => {
-      setTimeout(() => {
-        if (props.pingResults && props.pingResults.length > 0 && graphContainer.value) {
-          createLatencyGraph(props.pingResults, graphContainer.value);
-        }
-      }, 300); // Adjust the delay as needed
+      drawGraph();
+      window.addEventListener('resize', resizeListener);
     });
 
-    watch(() => props.pingResults, (newPingResults) => {
-      if (newPingResults && newPingResults.length > 0 && graphContainer.value) {
-        createLatencyGraph(newPingResults, graphContainer.value);
-      }
-    }, { immediate: true });
+    onUnmounted(() => {
+      window.removeEventListener('resize', resizeListener);
+    });
+
+    watch(() => props.pingResults, drawGraph, { immediate: true });
+
     return { graphContainer };
   },
 };
 
+
+// Define a threshold for the maximum allowed gap (in milliseconds)
+const maxAllowedGap = 1000 * 60 * 1.25; // Example: 5 minutes
+
+function isGapAcceptable(current: PingResult, previous: PingResult) {
+  if (!previous) return true; // Always accept the first point
+  return (current.stopTimestamp.getTime() - previous.stopTimestamp.getTime()) <= maxAllowedGap;
+}
+
+function segmentData(data: PingResult[]) {
+  const segments = [];
+  let segment = [];
+
+  for (let i = 0; i < data.length; i++) {
+    segment.push(data[i]);
+
+    // Check if next point exists and if gap is large enough
+    if (i < data.length - 1 && data[i].stopTimestamp.getTime() - (data[i + 1].stopTimestamp.getTime()) > maxAllowedGap) {
+      segments.push(segment);
+      segment = [];
+    }
+  }
+
+  if (segment.length) {
+    segments.push(segment);
+  }
+
+  return segments;
+}
+
+
+// Repeat for maxLine, avgLine, and lossLine
+
+
 function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-  if(graphElement.clientHeight > 0) return;
   const width = graphElement.clientWidth - margin.left - margin.right;
   const height = 400 - margin.top - margin.bottom;
+
+  d3.select(graphElement).selectAll('*').remove();
 
   // Create SVG element
   const svg = d3.select(graphElement)
@@ -64,10 +108,9 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   svg.append('g')
       .call(d3.axisLeft(yScale));
 
+  const dataSegments = segmentData(data);
+
   // Line generator for avgRtt
-  const minLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { minRtt: number; }) => yScale(d.minRtt / 1000000));
   const maxLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1000000));
@@ -77,31 +120,31 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   const lossLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
+  // Repeat for maxLine, avgLine, and lossLine
 
-  // Add the line
-  svg.append('path')
-      .datum(data)
-      .attr('fill', 'none')
-      .attr('stroke', 'steelblue')
-      .attr('stroke-width', 1.5)
-      .attr('d', minLine);
-  svg.append('path')
-      .datum(data)
-      .attr('fill', 'none')
-      .attr('stroke', 'red')
-      .attr('stroke-width', 1.5)
-      .attr('d', maxLine);
-  svg.append('path')
-      .datum(data)
-      .attr('fill', 'none')
-      .attr('stroke', 'green')
-      .attr('stroke-width', 1.5)
-      .attr('d', avgLine);
-  svg.append('path')
-      .datum(data)
-      .attr('fill', 'red')
-      .attr('stroke', 'darkred')
-      .attr('stroke-width', 1.5)
-      .attr('d', lossLine);
+  // Draw each segment separately
+  dataSegments.forEach(segment => {
+    svg.append('path')
+        .datum(segment)
+        .attr('fill', 'none')
+        .attr('stroke', 'green')
+        .attr('stroke-width', 1.5)
+        .attr('d', avgLine);
+    // Repeat for maxLine, avgLine, and lossLine
+    svg.append('path')
+        .datum(segment)
+        .attr('fill', 'none')
+        .attr('stroke', 'darkblue')
+        .attr('stroke-width', 1.5)
+        .attr('d', maxLine);
+    // Repeat for maxLine, avgLine, and lossLine
+    svg.append('path')
+        .datum(segment)
+        .attr('fill', 'none')
+        .attr('stroke', 'red')
+        .attr('stroke-width', 1.5)
+        .attr('d', lossLine);
+    // Repeat for maxLine, avgLine, and lossLine
+  });
 }
 </script>
