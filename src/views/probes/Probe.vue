@@ -8,8 +8,7 @@ import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import probeService from "@/services/probeService";
 import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
-import * as d3 from 'd3'
-import LatencyGraph from "@/components/Probes.vue";
+import LatencyGraph from "@/components/PingGraph.vue";
 
 const state = reactive({
   target: {} as string,
@@ -30,6 +29,7 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
   return dataArray.map(data => {
     const findValueByKey = (key: string) => data.data.find((d: any) => d.Key === key)?.Value;
 
+    console.log(new Date(findValueByKey("stop_timestamp")))
     return {
       startTimestamp: new Date(findValueByKey("start_timestamp")),
       stopTimestamp: new Date(findValueByKey("stop_timestamp")),
@@ -115,7 +115,6 @@ function generateTable(probeData: ProbeData) {
 }
 
 function reloadData(checkId: string) {
-  state.pingGraph = ref(null)
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
 
@@ -236,10 +235,10 @@ function submit() {
       <div class="col-sm-8">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">health graph</h5>
+            <h5 class="card-title">latency graph</h5>
             <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to
               the target</p>
-            <LatencyGraph :pingResults="transformPingDataMulti(state.pingData)"/>
+            <LatencyGraph v-if="state.ready" :pingResults="transformPingDataMulti(state.pingData)"/>
           </div>
         </div>
       </div>

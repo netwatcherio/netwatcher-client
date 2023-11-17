@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import * as d3 from 'd3';
 import type { PingResult } from '@/types'; // Import your PingResult type
 
@@ -16,18 +16,25 @@ export default {
     const graphContainer = ref(null);
 
     onMounted(() => {
-      if (props.pingResults && props.pingResults.length > 0) {
-        createLatencyGraph(props.pingResults, graphContainer.value);
-      }
+      setTimeout(() => {
+        if (props.pingResults && props.pingResults.length > 0 && graphContainer.value) {
+          createLatencyGraph(props.pingResults, graphContainer.value);
+        }
+      }, 300); // Adjust the delay as needed
     });
 
+    watch(() => props.pingResults, (newPingResults) => {
+      if (newPingResults && newPingResults.length > 0 && graphContainer.value) {
+        createLatencyGraph(newPingResults, graphContainer.value);
+      }
+    }, { immediate: true });
     return { graphContainer };
   },
 };
 
 function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-  console.log(graphElement.clientWidth + " - " + graphElement.clientHeight)
+  if(graphElement.clientHeight > 0) return;
   const width = graphElement.clientWidth - margin.left - margin.right;
   const height = 400 - margin.top - margin.bottom;
 
@@ -41,11 +48,11 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
 
   // Define scales
   const xScale = d3.scaleTime()
-      .domain(d3.extent(data, d => d.stopTimestamp))
+      .domain(d3.extent(data, (d: { stopTimestamp: any; }) => d.stopTimestamp))
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, d => d.maxRtt / 1000000)])
+      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000)])
       .range([height, 0]);
 
   // Add X axis
@@ -59,14 +66,17 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
 
   // Line generator for avgRtt
   const minLine = d3.line<PingResult>()
-      .x(d => xScale(d.stopTimestamp))
-      .y(d => yScale(d.minRtt / 1000000));
+      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
+      .y((d: { minRtt: number; }) => yScale(d.minRtt / 1000000));
   const maxLine = d3.line<PingResult>()
-      .x(d => xScale(d.stopTimestamp))
-      .y(d => yScale(d.maxRtt / 1000000));
+      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
+      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1000000));
   const avgLine = d3.line<PingResult>()
-      .x(d => xScale(d.stopTimestamp))
-      .y(d => yScale(d.avgRtt / 1000000));
+      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
+      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1000000));
+  const lossLine = d3.line<PingResult>()
+      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
+      .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
 
   // Add the line
   svg.append('path')
@@ -87,5 +97,11 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr('stroke', 'green')
       .attr('stroke-width', 1.5)
       .attr('d', avgLine);
+  svg.append('path')
+      .datum(data)
+      .attr('fill', 'red')
+      .attr('stroke', 'darkred')
+      .attr('stroke-width', 1.5)
+      .attr('d', lossLine);
 }
 </script>
