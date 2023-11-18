@@ -1,5 +1,5 @@
 <template>
-  <div ref="graphContainer"></div>
+  <div ref="pingGraph"></div>
 </template>
 
 <script lang="ts">
@@ -13,13 +13,13 @@ export default {
     pingResults: Array as () => PingResult[],
   },
   setup(props: { pingResults: PingResult[]; }) {
-    const graphContainer = ref(null);
+    const pingGraph = ref(null);
 
     const drawGraph = () => {
-      if (!graphContainer.value || !props.pingResults || props.pingResults.length === 0) {
+      if (!pingGraph.value || !props.pingResults || props.pingResults.length === 0) {
         return;
       }
-      createLatencyGraph(props.pingResults, graphContainer.value);
+      createLatencyGraph(props.pingResults, pingGraph.value);
     };
 
     const resizeListener = () => {
@@ -37,13 +37,13 @@ export default {
 
     watch(() => props.pingResults, drawGraph, { immediate: true });
 
-    return { graphContainer };
+    return { pingGraph };
   },
 };
 
 
 // Define a threshold for the maximum allowed gap (in milliseconds)
-const maxAllowedGap = 1000 * 60 * 1.25; // Example: 5 minutes
+const maxAllowedGap = 1000 * 60; // Example: 5 minutes
 
 function isGapAcceptable(current: PingResult, previous: PingResult) {
   if (!previous) return true; // Always accept the first point
@@ -93,6 +93,12 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
 
   d3.select(graphElement).selectAll('*').remove();
 
+  const packetLossColorScale = d3.scaleLinear<string>()
+      .domain([1, 50, 100]) // Assuming packet loss is given as a percentage
+      .range(['yellow', 'orange', 'red'] as any[]); // Cast the color range as any[] to satisfy TypeScript
+
+  // Draw packet loss areas
+
   // Create SVG element
   const svg = d3.select(graphElement)
       .append('svg')
@@ -107,7 +113,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000)])
+      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000 > 100 ? 100 : d.maxRtt / 1000000)])
       .range([height, 0]);
 
   // Add X axis
@@ -120,6 +126,36 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .call(d3.axisLeft(yScale));
 
   const dataSegments = segmentData(data);
+
+  data.forEach((d) => {
+    if (d.packetLoss > 0) { // Assuming packetLoss is a property of the data
+      const packetLossWidth = 5; // Fixed width for packet loss indicators, adjust as needed
+      svg.append('rect')
+          .attr('x', xScale(new Date(d.stopTimestamp)) - packetLossWidth / 2)
+          .attr('y', 0)
+          .attr('width', packetLossWidth)
+          .attr('height', height)
+          .attr('fill', packetLossColorScale(d.packetLoss))
+          .attr('opacity', 0.5); // Semi-translucent
+    }
+  });
+
+
+  for (let i = 0; i < data.length - 1; i++) {
+    const currentStopTime = new Date(data[i].stopTimestamp).getTime();
+    const nextStopTime = new Date(data[i + 1].stopTimestamp).getTime();
+
+    // Check if there's a gap between consecutive stopTimestamps
+    if (nextStopTime - currentStopTime > maxAllowedGap) {
+      svg.append('rect')
+          .attr('x', xScale(currentStopTime))
+          .attr('y', 0)
+          .attr('width', xScale(nextStopTime) - xScale(currentStopTime))
+          .attr('height', height)
+          .attr('fill', '#ddd') // Light grey color for gaps
+          .attr('opacity', 0.2); // Semi-translucent
+    }
+  }
 
   // Line generator for avgRtt
   const maxLine = d3.line<PingResult>()

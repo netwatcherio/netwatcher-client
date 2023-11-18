@@ -2,7 +2,17 @@
 
 import {onMounted, reactive, ref, watch} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, MtrResult, PingResult, Probe, ProbeData, ProbeDataRequest, ProbeType, Site} from "@/types";
+import type {
+  Agent,
+  MtrReport,
+  MtrResult,
+  PingResult,
+  Probe,
+  ProbeData,
+  ProbeDataRequest,
+  ProbeType,
+  Site
+} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -11,6 +21,7 @@ import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
 import LatencyGraph from "@/components/PingGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
+import NetworkMap from "@/components/NetworkMap.vue";
 
 const state = reactive({
   target: {} as string,
@@ -26,13 +37,14 @@ const state = reactive({
   pingData: [] as ProbeData[],
   pingGraph: {} as any,
   timeRange: {} as [Date, Date],
+  mtrData: [] as ProbeData[],
 })
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
   return dataArray.map(data => {
     const findValueByKey = (key: string) => data.data.find((d: any) => d.Key === key)?.Value;
 
-    console.log(new Date(findValueByKey("stop_timestamp")))
+    //console.log(new Date(findValueByKey("stop_timestamp")))
     return {
       startTimestamp: new Date(findValueByKey("start_timestamp")),
       stopTimestamp: new Date(findValueByKey("stop_timestamp")),
@@ -48,6 +60,57 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
     };
   });
 }
+
+function transformMtrDataMulti(dataArray: ProbeData[]): MtrResult[] {
+  console.log(dataArray)
+
+  return dataArray.map(data => {
+    // Initialize the report structure
+    const report: MtrReport = {
+      mtr: {
+        src: '',
+        dst: '',
+        tos: 0,
+        tests: 0,
+        psize: '',
+        bitpattern: ''
+      },
+      hubs: []
+    };
+
+    // Extract the report data
+    const reportData = data.data.find((d: { Key: string; }) => d.Key === 'report')?.Value;
+    if (reportData) {
+      reportData.forEach((reportItem: { Key: string; Value: any }) => {
+        if (reportItem.Key === 'mtr') {
+          Object.assign(report.mtr, reportItem.Value);
+        } else if (reportItem.Key === 'hubs') {
+          report.hubs = reportItem.Value.map((hubData: { [s: string]: unknown; } | ArrayLike<unknown>) => {
+            const hub: any = {};
+            Object.entries(hubData).forEach(([key, value]) => {
+              hub[key] = value;
+            });
+            return hub;
+          });
+        }
+      });
+    }
+
+    // Find the values for startTimestamp, stopTimestamp, and triggered
+    const startTimestamp = new Date(data.data.find((d: any) => d.Key === 'start_timestamp')?.Value);
+    const stopTimestamp = new Date(data.data.find((d: any) => d.Key === 'stop_timestamp')?.Value);
+    const triggered = data.data.find((d: any) => d.Key === 'triggered')?.Value;
+
+    // Return the MtrResult object
+    return {
+      startTimestamp,
+      stopTimestamp,
+      triggered,
+      report
+    };
+  });
+}
+
 
 function transformMtrData(data: any[]): MtrResult {
   let result: MtrResult = {
@@ -68,6 +131,7 @@ function transformMtrData(data: any[]): MtrResult {
   };
 
   data.forEach(item => {
+
     switch (item.Key) {
       case 'start_timestamp':
         result.startTimestamp = new Date(item.Value);
@@ -122,6 +186,7 @@ function reloadData(checkId: string) {
   state.pingData = []
   state.probeData = []
   state.similarProbes = []
+  state.mtrData = []
 
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
@@ -140,11 +205,14 @@ function reloadData(checkId: string) {
             if (getProbeType(d.probe) == "PING") {
               state.pingData.push(d)
             }
+            if (getProbeType(d.probe) == "MTR") {
+              state.mtrData.push(d)
+            }
           }
         })
       }
 
-      console.log(state.pingData)
+      //console.log(state.pingData)
       });
 
     agentService.getAgent(state.probe[0].agent).then(res => {
@@ -199,7 +267,7 @@ onMounted(() => {
       new Date() // Current time
   ]
 
-  console.log(checkId)
+  //console.log(checkId)
 
   //reloadData(checkId);
   /*setInterval(() => {
@@ -267,9 +335,11 @@ function submit() {
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
+            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>
+
             <div id="mtrAccordion" class="accordion">
 
-              <div v-for="mtr in state.probeData" :key="mtr.id">
+              <div v-for="mtr in state.mtrData" :key="mtr.id">
 
                 <div class="accordion-item" v-if="getProbeType((mtr as ProbeData).probe) == `MTR` as ProbeType">
                   <h2 :id="'heading' + mtr.id" class="accordion-header">
