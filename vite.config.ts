@@ -12,15 +12,13 @@ export default defineConfig({
         }
     },
         server: {
-            proxy: {
-                // Catch-all proxy configuration
-                '^/.*': {
-                    target: 'https://app.netwatcher.io', // Replace with your proxy server URL and port
-                    changeOrigin: true,
-                    ws: true, // Enables WebSocket support
-                    // You can add more specific configurations here if necessary
-                }
-            }
+            hmr: {
+                // Use the public host and port of your reverse proxy
+                host: 'app.netwatcher.io',
+                port: 443,
+                protocol: 'wss'
+            },
+            strictPort: false
         }
 
 })
