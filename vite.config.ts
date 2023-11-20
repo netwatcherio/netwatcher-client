@@ -11,7 +11,16 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./src', import.meta.url))
         }
     },
-    server: {
-      strictPort: false
-    }
+        server: {
+            proxy: {
+                // Catch-all proxy configuration
+                '^/.*': {
+                    target: 'https://app.netwatcher.io', // Replace with your proxy server URL and port
+                    changeOrigin: true,
+                    ws: true, // Enables WebSocket support
+                    // You can add more specific configurations here if necessary
+                }
+            }
+        }
+
 })
