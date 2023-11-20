@@ -13,7 +13,7 @@ let headers = {
 }
 
 function host(): string {
-    let ctrl = '0.0.0.0:8080'
+    let ctrl = 'api.netwatcher.io'
     if (ctrl) {
         return ctrl
     } else {
