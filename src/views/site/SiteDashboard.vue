@@ -42,7 +42,7 @@ onMounted(() => {
 <template>
 
   <div class="container-fluid">
-  <Title :title="state.site.name || 'site'" :history="[{title: 'sites', link: '/sites'}]">
+  <Title :title="state.site.name || 'site'" :history="[{title: 'workspaces', link: '/sites'}]">
     <div class="d-flex gap-1">
       <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;invite member</router-link>
       <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>

@@ -114,7 +114,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-    <Title title="Create Probe" :subtitle="`create a probe for an agent '${state.site.name}'`" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"></Title>
+    <Title title="Create Probe" :subtitle="`create a probe for an agent '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">

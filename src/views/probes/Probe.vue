@@ -293,7 +293,7 @@ function submit() {
 <template>
   <div v-if="state.ready" class="container-fluid">
     <Title
-        :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
         :title="state.title"
         subtitle="information about this target">
       <div class="d-flex gap-1" v-if="state.ready">

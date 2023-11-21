@@ -41,7 +41,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-  <Title title="Invite Member" :subtitle="`Invite a member to the site '${state.site.name}'`" :history="[{title: 'Sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"></Title>
+  <Title title="Invite Member" :subtitle="`Invite a member to the site '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">

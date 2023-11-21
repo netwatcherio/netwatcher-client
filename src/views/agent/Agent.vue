@@ -136,7 +136,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
 
 <template>
   <div v-if="state.ready" class="container-fluid">
-    <Title :history="[{title: 'sites', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]" :title="state.agent.name"
+    <Title :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]" :title="state.agent.name"
            subtitle="information about this agent">
       <div class="d-flex gap-1">
         <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i
