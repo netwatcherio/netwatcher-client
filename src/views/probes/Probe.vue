@@ -307,16 +307,16 @@ function submit() {
       </div>
     </Title>
 
-    <div class="row" v-if="state.ready">
-      <div class="col-sm-4">
+    <div class="row" v-if="state.pingData.length > 0">
+<!--      <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">voice graph</h5>
             <p class="card-text">this shows the estimated mos score of your target</p>
           </div>
         </div>
-      </div>
-      <div class="col-sm-8">
+      </div>-->
+      <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">latency graph</h5>
@@ -328,7 +328,7 @@ function submit() {
       </div>
     </div>
     <hr>
-    <div class="row" v-if="state.ready">
+    <div class="row" v-if="state.mtrData.length > 0">
       <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
