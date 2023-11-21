@@ -20,4 +20,7 @@ export default {
     async getNetworkInfo(id: string): Promise<any> {
         return await request.get(`/netinfo/${id}`)
     },
+    async getSystemInfo(id: string): Promise<any> {
+        return await request.get(`/sysinfo/${id}`)
+    },
 }

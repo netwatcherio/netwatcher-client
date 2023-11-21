@@ -2,7 +2,17 @@
 
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
-import type {Agent, AgentGroup, NetResult, Probe, ProbeData, Site} from "@/types";
+import type {
+  Agent,
+  AgentGroup,
+  CompleteSystemInfo,
+  CPUTimes, HostInfo,
+  HostMemoryInfo,
+  NetResult, OSInfo,
+  Probe,
+  ProbeData, ProbeType,
+  Site
+} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -20,7 +30,9 @@ let state = reactive({
   probes: [] as Probe[],
   organizedProbes: [] as OrganizedProbe[],
   agentGroups: [] as AgentGroup[],
-  networkInfo: {} as ProbeData
+  networkInfo: {} as ProbeData,
+  systemInfoComplete: {} as CompleteSystemInfo,
+  hasData: false
 })
 
 function transformNetData(data: any): NetResult {
@@ -34,6 +46,100 @@ function transformNetData(data: any): NetResult {
     timestamp: new Date(data.find((d: any) => d.Key === "timestamp").Value || Date.now()),
   };
 }
+
+function convertToCompleteSystemInfo(data: any[]): CompleteSystemInfo {
+  let completeSystemInfo: any = {};
+
+  data.forEach(item => {
+    switch (item.Key) {
+      case 'hostInfo':
+        completeSystemInfo.hostInfo = convertToHostInfo(item.Value);
+        break;
+      case 'memoryInfo':
+        completeSystemInfo.memoryInfo = convertToHostMemoryInfo(item.Value);
+        break;
+      case 'CPUTimes':
+        completeSystemInfo.CPUTimes = convertToCPUTimes(item.Value);
+        break;
+      case 'timestamp':
+        completeSystemInfo.timestamp = new Date(item.Value);
+        break;
+    }
+  });
+
+  return completeSystemInfo as CompleteSystemInfo;
+}
+
+function convertToHostInfo(data: any[]): HostInfo {
+  let hostInfo: any = { IPs: [], MACs: [], os: {} };
+
+  data.forEach(item => {
+    switch (item.Key) {
+      case 'architecture':
+      case 'bootTime':
+      case 'containerized':
+      case 'hostname':
+      case 'kernelVersion':
+      case 'timezone':
+      case 'timezoneOffsetSec':
+      case 'uniqueID':
+        hostInfo[item.Key] = item.Value;
+        break;
+      case 'IPs':
+        hostInfo.IPs = item.Value;
+        break;
+      case 'MACs':
+        hostInfo.MACs = item.Value;
+        break;
+      case 'OS':
+        hostInfo.os = convertToOSInfo(item.Value);
+        break;
+    }
+  });
+
+  hostInfo.bootTime = new Date(hostInfo.bootTime);
+
+  return hostInfo as HostInfo;
+}
+
+function convertToOSInfo(data: any[]): OSInfo {
+  let osInfo: any = {};
+
+  data.forEach(item => {
+    osInfo[item.Key] = item.Value;
+  });
+
+  return osInfo as OSInfo;
+}
+
+function convertToHostMemoryInfo(data: any[]): HostMemoryInfo {
+  let memoryInfo: any = { metrics: {} };
+
+  data.forEach(item => {
+    if (item.Key === 'metrics') {
+      item.Value.forEach((metric: any) => {
+        memoryInfo.metrics[metric.Key] = metric.Value;
+      });
+    } else {
+      memoryInfo[item.Key + 'Bytes'] = item.Value;
+    }
+  });
+
+  return memoryInfo as HostMemoryInfo;
+}
+
+function convertToCPUTimes(data: any[]): CPUTimes {
+  let cpuTimes: any = {};
+
+  data.forEach(item => {
+    cpuTimes[item.Key] = item.Value;
+  });
+
+  return cpuTimes as CPUTimes;
+}
+
+// Example us
+
 
 function getGroupName(id: string): string {
   // Use the 'find' method to locate the group with the matching ID
@@ -51,9 +157,14 @@ function reloadData(id: string) {
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
 
+    probeService.getSystemInfo(state.agent.id).then(res => {
+      state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
+      //console.log(state.systemInfoComplete)
+    })
+
     probeService.getNetworkInfo(state.agent.id).then(res => {
       state.networkInfo = res.data as ProbeData
-      console.log(state.networkInfo)
+      //console.log(state.networkInfo)
     })
 
     siteService.getSite(state.agent.site).then(res => {
@@ -65,12 +176,18 @@ function reloadData(id: string) {
         probeService.getAgentProbes(state.agent.id).then(res => {
           state.probes = res.data as Probe[]
           state.ready = true
-          console.log("probes ", res.data)
+          //console.log("probes ", res.data)
 
           let organizedProbesMap = new Map<string, Probe[]>();
 
           for (let probe of state.probes) {
+            if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType){
+              continue
+            }
+
             if (probe.config && probe.config.target) {
+              //console.log(probe)
+
               for (let target of probe.config.target) {
                 let key = target.target;
                 if (target.group && target.group !== "000000000000000000000000") {
@@ -148,21 +265,44 @@ function getRandomProbeId(list: Probe[]): string | undefined {
       </div>
     </Title>
 
-    <div class="row">
+    <div class="row" v-if="state.ready">
       <div class="col-sm-3">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">system</h5>
+            <h5 class="card-title">system
+            </h5>
             <p class="card-text">system information of the host the agent is on</p>
             <hr>
             <ul class="list-group">
-              <li class="list-group-item">cpu usage: <code>69%</code></li>
-              <li class="list-group-item">ram usage: <code>1024MiB</code></li>
-              <li class="list-group-item">disk usage: <code>32GiB / 64 GiB</code></li>
-              <li class="list-group-item">os: <code>Ubuntu 20.04 Server LTS</code></li>
+              <li class="list-group-item">cpu usage: <code>{{
+                  (state.systemInfoComplete.CPUTimes.system / 1000000000000) +
+                  (state.systemInfoComplete.CPUTimes.user / 1000000000000)
+                }} / {{(state.systemInfoComplete.CPUTimes.system / 1000000000000) +
+              (state.systemInfoComplete.CPUTimes.user / 1000000000000) +
+              (state.systemInfoComplete.CPUTimes.idle / 1000000000000) }}</code></li>
+              <li class="list-group-item">ram usage: <code>{{
+                  (state.systemInfoComplete.memoryInfo.usedBytes / 1000000) }} /
+                {{
+                  (state.systemInfoComplete.memoryInfo.totalBytes / 1000000) }}</code></li>
               <br>
-              <li class="list-group-item">last seen: <code>test</code></li>
+              <li class="list-group-item">os: <code>{{
+                  state.systemInfoComplete.hostInfo.os.name + " " +
+                  state.systemInfoComplete.hostInfo.os.version + " " +
+                  state.systemInfoComplete.hostInfo.os.build}}</code></li>
+              <li class="list-group-item">kernel: <code>{{ state.systemInfoComplete.hostInfo.kernelVersion }}</code></li>
+              <li class="list-group-item">architecture: <code>{{ state.systemInfoComplete.hostInfo.architecture }}</code></li>
+<!--
+              <li class="list-group-item">boot time: <code>{{ state.systemInfoComplete.hostInfo.bootTime }}</code></li>
+-->
+
+
+              <br>
+              <li class="list-group-item">last seen: <code>{{state.agent.updatedAt}}</code></li>
             </ul>
+            <br>
+            <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" style="width: 100%" class="btn btn-primary">
+              <i class="fa-solid fa-search"></i>&nbsp;view
+            </router-link>
           </div>
         </div>
       </div>
@@ -177,10 +317,16 @@ function getRandomProbeId(list: Probe[]): string | undefined {
               <li class="list-group-item">public address: <code>{{transformNetData(state.networkInfo.data).publicAddress == "" ? "Unknown" : transformNetData(state.networkInfo.data).publicAddress}}</code></li>
               <li class="list-group-item">internet provider: <code>{{transformNetData(state.networkInfo.data).internetProvider == "" ? "Unknown" : transformNetData(state.networkInfo.data).internetProvider}}</code></li>
               <br>
+              <li class="list-group-item">hostname: <code>{{ state.systemInfoComplete.hostInfo.hostname }}</code></li>
               <li class="list-group-item">local address: <code>{{transformNetData(state.networkInfo.data).localAddress == "" ? "Unknown" : transformNetData(state.networkInfo.data).localAddress}}</code></li>
               <li class="list-group-item">default gateway: <code>{{transformNetData(state.networkInfo.data).defaultGateway == "" ? "Unknown" : transformNetData(state.networkInfo.data).defaultGateway}}</code>
               </li>
             </ul>
+
+            <br>
+            <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" style="width: 100%" class="btn btn-primary">
+              <i class="fa-solid fa-search"></i>&nbsp;view
+            </router-link>
           </div>
         </div>
       </div>
@@ -235,7 +381,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
       </div>
     </div>
     <br>
-    <div class="row">
+<!--    <div class="row">
       <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
@@ -253,18 +399,18 @@ function getRandomProbeId(list: Probe[]): string | undefined {
               </thead>
               <tbody>
               <tr>
-                <!--                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
+                &lt;!&ndash;                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
                                 <td>{{state.stats.speed_test_info.server}}</td>
                                 <td>{{state.stats.speed_test_info.host}}</td>
                                 <td>{{state.stats.speed_test_info.ul_speed}}</td>
-                                <td>{{state.stats.speed_test_info.dl_speed}}</td>-->
+                                <td>{{state.stats.speed_test_info.dl_speed}}</td>&ndash;&gt;
               </tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
-    </div>
+    </div>-->
   </div>
 </template>
 

@@ -255,5 +255,62 @@ export interface ProbeDataRequest {
     recent: boolean;
 }
 
+export interface CompleteSystemInfo {
+    hostInfo: HostInfo;
+    memoryInfo: HostMemoryInfo;
+    CPUTimes: CPUTimes;
+    timestamp: Date;
+}
+
+export interface CPUTimes {
+    user: number; // Assuming milliseconds or choose an appropriate unit
+    system: number;
+    idle?: number;
+    iowait?: number;
+    irq?: number;
+    nice?: number;
+    softIRQ?: number;
+    steal?: number;
+}
+
+export interface HostInfo {
+    architecture: string;
+    bootTime: Date;
+    containerized?: boolean | null;
+    hostname: string;
+    IPs?: string[];
+    kernelVersion: string;
+    MACs: string[];
+    os: OSInfo;
+    timezone: string;
+    timezoneOffsetSec: number;
+    uniqueID?: string;
+}
+
+export interface OSInfo {
+    type: string;
+    family: string;
+    platform: string;
+    name: string;
+    version: string;
+    major: number;
+    minor: number;
+    patch: number;
+    build?: string;
+    codename?: string;
+}
+
+export interface HostMemoryInfo {
+    totalBytes: number;
+    usedBytes: number;
+    availableBytes: number;
+    freeBytes: number;
+    virtualTotalBytes: number;
+    virtualUsedBytes: number;
+    virtualFreeBytes: number;
+    metrics?: Record<string, number>; // Other memory related metrics
+}
+
+
 
 export {}
