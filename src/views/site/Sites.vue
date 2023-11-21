@@ -40,10 +40,10 @@ onMounted(() => {
 
 <template>
   <div class="container-fluid">
-    <Title title="sites" subtitle="an overview of the sites you have access to">
+    <Title title="workspaces" subtitle="an overview of the workspaces you have access to">
       <div class="d-flex gap-1">
-      <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-plus"></i>&nbsp;View Alerts</router-link>
-      <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Create</router-link>
+      <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-exclamation-triangle"></i>&nbsp;view alerts</router-link>
+      <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create</router-link>
       </div>
     </Title>
     <div v-if="state.ready" class="row">
@@ -101,8 +101,8 @@ onMounted(() => {
     <div v-else class="row">
       <div class="col-lg-12">
         <div class="error-body text-center">
-          <h1 class="error-title text-danger">no sites</h1>
-          <h3 class="text-error-subtitle">please create or join a new site</h3>
+          <h1 class="error-title text-danger">no workspaces</h1>
+          <h3 class="text-error-subtitle">please create or join a new workspace</h3>
           <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
            <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
         </div>

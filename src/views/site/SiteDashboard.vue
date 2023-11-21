@@ -89,7 +89,7 @@ onMounted(() => {
    </div>
     <div v-else class="card px-3 py-1">
       <div class="d-flex flex-row py-2">
-      This site has no agents.
+      this workspace has no agents
       </div>
     </div>
 

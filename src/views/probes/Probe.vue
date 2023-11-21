@@ -307,7 +307,7 @@ function submit() {
       </div>
     </Title>
 
-    <div class="row" v-if="state.pingData.length > 0">
+    <div class="row" >
 <!--      <div class="col-sm-4">
         <div class="card">
           <div class="card-body">
@@ -316,7 +316,7 @@ function submit() {
           </div>
         </div>
       </div>-->
-      <div class="col-sm-12">
+      <div class="col-sm-12" v-if="state.pingData.length > 0">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">latency graph</h5>
@@ -326,13 +326,10 @@ function submit() {
           </div>
         </div>
       </div>
-    </div>
-    <hr>
-    <div class="row" v-if="state.mtrData.length > 0">
-      <div class="col-sm-12">
+      <div class="col-sm-12" v-if="state.mtrData.length > 0">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">traceroutes</h5>
+            <h5 class="card-title">trace routes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
             <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>
@@ -363,9 +360,9 @@ function submit() {
               <!-- Add more accordion items here if needed -->
             </div>
 
-          </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
