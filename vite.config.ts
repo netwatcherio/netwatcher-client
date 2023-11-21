@@ -12,11 +12,11 @@ export default defineConfig({
         }
     },
         server: {
+            host: "0.0.0.0",
+            port: 3000,
             hmr: {
-                // Use the public host and port of your reverse proxy
-                host: 'app.netwatcher.io',
                 port: 443,
-                protocol: 'wss'
+                clientPort: 443,
             },
             strictPort: false
         }
