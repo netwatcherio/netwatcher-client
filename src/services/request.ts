@@ -13,7 +13,7 @@ let headers = {
 }
 
 function host(): string {
-    let ctrl = '0.0.0.0:8080'
+    let ctrl = 'https://api.netwatcher.io'
     if (ctrl) {
         return ctrl
     } else {
@@ -24,7 +24,7 @@ function host(): string {
 
 export default {
     async post(url: string, data?: {} | undefined): Promise<any> {
-        const response = await axios.post(`http://${host()}${url}`, data, headers)
+        const response = await axios.post(`${host()}${url}`, data, headers)
         let resp = response.data
         if (response.status !== 200) {
 
@@ -32,7 +32,7 @@ export default {
         return response
     },
     async get(url: string, data?: {} | undefined): Promise<any> {
-        return axios.get(`http://${host()}${url}`, headers)
+        return axios.get(`${host()}${url}`, headers)
     }
 }
 
