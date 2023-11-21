@@ -13,7 +13,7 @@ let headers = {
 }
 
 function host(): string {
-    let ctrl = 'https://app.netwatcher.io'
+    let ctrl = 'https://api.netwatcher.io'
     if (ctrl) {
         return ctrl
     } else {
