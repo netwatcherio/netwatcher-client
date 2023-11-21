@@ -153,9 +153,8 @@ function reloadData(id: string) {
   state.probes = [] as Probe[]
   state.organizedProbes = [] as OrganizedProbe[];
 
+  state.ready = false
 
-  agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
 
     probeService.getSystemInfo(state.agent.id).then(res => {
       state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
@@ -167,15 +166,11 @@ function reloadData(id: string) {
       //console.log(state.networkInfo)
     })
 
-    siteService.getSite(state.agent.site).then(res => {
-      state.site = res.data as Site
-
       siteService.getAgentGroups(state.agent.site).then(res => {
         state.agentGroups = res.data as AgentGroup[]
 
         probeService.getAgentProbes(state.agent.id).then(res => {
           state.probes = res.data as Probe[]
-          state.ready = true
           //console.log("probes ", res.data)
 
           let organizedProbesMap = new Map<string, Probe[]>();
@@ -206,10 +201,9 @@ function reloadData(id: string) {
           }
 
           state.organizedProbes = Array.from(organizedProbesMap, ([key, probes]) => ({key, probes}));
+          state.ready = true
         })
-      })
     })
-  })
 }
 
 
@@ -220,10 +214,28 @@ onMounted(() => {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  reloadData(id);
-  setInterval(() => {
+  agentService.getAgent(id).then(res => {
+    state.agent = res.data as Agent
+
+    probeService.getSystemInfo(state.agent.id).then(res => {
+      state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
+      //console.log(state.systemInfoComplete)
+    })
+
+    probeService.getNetworkInfo(state.agent.id).then(res => {
+      state.networkInfo = res.data as ProbeData
+      //console.log(state.networkInfo)
+    })
+
+    siteService.getSite(state.agent.site).then(res => {
+      state.site = res.data as Site
+
+      reloadData(id);
+    })
+  })
+  /*setInterval(() => {
     reloadData(id);
-  }, 1000 * 15);
+  }, 1000 * 15);*/
 })
 const router = core.router()
 
@@ -252,7 +264,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
 </script>
 
 <template>
-  <div v-if="state.ready" class="container-fluid">
+  <div class="container-fluid">
     <Title :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]" :title="state.agent.name"
            subtitle="information about this agent">
       <div class="d-flex gap-1">
@@ -291,10 +303,6 @@ function getRandomProbeId(list: Probe[]): string | undefined {
                   state.systemInfoComplete.hostInfo.os.build}}</code></li>
               <li class="list-group-item">kernel: <code>{{ state.systemInfoComplete.hostInfo.kernelVersion }}</code></li>
               <li class="list-group-item">architecture: <code>{{ state.systemInfoComplete.hostInfo.architecture }}</code></li>
-<!--
-              <li class="list-group-item">boot time: <code>{{ state.systemInfoComplete.hostInfo.bootTime }}</code></li>
--->
-
 
               <br>
               <li class="list-group-item">last seen: <code>{{state.agent.updatedAt}}</code></li>
@@ -373,10 +381,17 @@ function getRandomProbeId(list: Probe[]): string | undefined {
                       </tbody>
                     </table>
                   </div>
-
-
-
           </div>
+        </div>
+      </div>
+    </div>
+    <div v-else>
+      <div class="col-lg-12">
+        <div class="error-body text-center">
+          <h1 class="error-title text-danger">no data</h1>
+          <h3 class="text-error-subtitle">please check back later</h3>
+          <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
+           <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
         </div>
       </div>
     </div>
