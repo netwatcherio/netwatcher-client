@@ -178,7 +178,7 @@ function reloadData(id: string) {
           let organizedProbesMap = new Map<string, Probe[]>();
 
           for (let probe of state.probes) {
-            if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType || (probe.type == "RPERF" as ProbeType && probe.config.server)){
+            if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType /*|| /*(probe.type == "RPERF" as ProbeType && probe.config.server)*/){
               continue
             }
 
@@ -187,6 +187,10 @@ function reloadData(id: string) {
 
               for (let target of probe.config.target) {
                 let key = target.target;
+                if(probe.type == "RPERF" && !probe.config.server) {
+                  key = target.target.split(':')[0]
+                }
+
                 if (target.group && target.group !== "000000000000000000000000") {
                   // Prefix group ID to differentiate
                   key = `group:${target.group}`;
@@ -259,6 +263,10 @@ function getRandomProbeId(list: Probe[]): string | undefined {
   return list[randomIndex].id; // Return the ID of the randomly selected probe
 }
 
+function formatDate(timestamp: Date): string {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+}
 
 </script>
 
@@ -304,7 +312,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
               <li class="list-group-item">architecture: <code>{{ state.systemInfoComplete.hostInfo.architecture }}</code></li>
 
               <br>
-              <li class="list-group-item">last seen: <code>{{state.agent.updatedAt}}</code></li>
+              <li class="list-group-item">last seen: <code>{{formatDate(state.agent.updatedAt)}}</code></li>
             </ul>
             <br>
             <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" style="width: 100%" class="btn btn-primary">
@@ -360,15 +368,22 @@ function getRandomProbeId(list: Probe[]): string | undefined {
                           <span class="badge bg-dark" v-if="organized.key.startsWith('group:')">
             {{ getGroupName(organized.key.replace('group:', '')) }}
           </span>
+<!--                          <span class="badge bg-success" v-else-if="organized.probes[0].type == `RPERF`">
+             {{ organized.probes[0].type == "RPERF" ? "RPERF SERVER" : organized.key}}
+          </span>-->
                           <code v-else>
-                            {{ organized.key }}
+                            {{ organized.key}}
                           </code>
                         </td>
                         <td class="px-0">
+                          <span class="badge bg-success" v-if="(organized.probes[0].type == `RPERF` && organized.probes[0].config.server)">
+             {{ (organized.probes[0].type == "RPERF" && organized.probes[0].config.server) ? "RPERF SERVER" : organized.key}}
+                        </span>
                           <!-- Generate badges for each probe type in the group -->
-                          <span v-for="probe in organized.probes" :key="probe.id" class="badge bg-secondary me-1">
-            {{ probe.type }}
-          </span>
+                          <span v-else v-for="probe in organized.probes" :key="probe.id" class="badge bg-secondary me-1">
+                            <!-- //todo make this apply for if it's apart of a group and show group/agent name because we will be able to target agents directly -->
+                          {{ (organized.probes[0].type == "RPERF" && organized.probes[0].config.server) ? probe.config.target[0].target : probe.type }}
+                        </span>
                         </td>
                         <td class="px-0 text-end px-3">
                           <!-- Link to view details of the group (adjust as needed) -->
