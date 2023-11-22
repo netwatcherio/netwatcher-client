@@ -10,28 +10,28 @@ export default defineComponent({
 <template>
 
   <div class="container-fluid">
-  <Title title="overview"></Title>
+  <Title title="this is a placeholder"></Title>
     <div class="row">
       <!-- column -->
-      <div class="col-12">
+<!--      <div class="col-12">
         <div class="alert alert-info" role="alert">
           todo: add some sort of overview here
         </div>
         <div class="card">
           <div class="card-body">
-            <!-- title -->
+            &lt;!&ndash; title &ndash;&gt;
             <div class="d-md-flex">
               <div>
                 <h4 class="card-title">sites</h4>
-<!--                <h5 class="card-subtitle">sites</h5>-->
+&lt;!&ndash;                <h5 class="card-subtitle">sites</h5>&ndash;&gt;
               </div>
             </div>
-            <!-- title -->
+            &lt;!&ndash; title &ndash;&gt;
             <div class="table-responsive">
               <table class="table mb-0 table-hover align-middle text-nowrap">
                 <thead>
                 <tr>
-                  <!--TODO make custom icons for this or something to indicate wether it's online or not-->
+                  &lt;!&ndash;TODO make custom icons for this or something to indicate wether it's online or not&ndash;&gt;
                   <th class="border-top-0">Status</th>
                   <th class="border-top-0">Name</th>
                   <th class="border-top-0">Location</th>
@@ -58,7 +58,7 @@ export default defineComponent({
             </div>
           </div>
         </div>
-      </div>
+      </div>-->
     </div>
   </div>
 </template>

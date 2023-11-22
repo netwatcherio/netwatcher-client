@@ -37,6 +37,14 @@ onMounted(() => {
 
 })
 
+function getOnlineStatus(agent: Agent) {
+    let currentTime = new Date();
+    let agentTime = new Date(agent.updatedAt)
+    let timeDifference = (currentTime.getTime() - agentTime.getTime()) / 100000; // Convert to minutes
+    console.log(timeDifference)
+    return timeDifference <= 1;
+}
+
 </script>
 
 <template>
@@ -44,9 +52,10 @@ onMounted(() => {
   <div class="container-fluid">
   <Title :title="state.site.name || 'site'" :history="[{title: 'workspaces', link: '/sites'}]">
     <div class="d-flex gap-1">
-      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-user-plus"></i>&nbsp;invite member</router-link>
-      <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
-      <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;add agent</router-link>
+      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-cog"></i>&nbsp;manage site</router-link>
+      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-users"></i>&nbsp;members</router-link>
+      <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
+      <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create agent</router-link>
     </div>
   </Title>
     <div v-if="state.ready" class="card px-3 py-1">
@@ -54,11 +63,13 @@ onMounted(() => {
        <table class="table">
          <thead>
          <tr>
-           <th class="px-0 text-muted" scope="col">Name</th>
-<!--           <th class="px-0 text-muted" scope="col">Location</th>-->
+           <th class="px-0 text-muted" scope="col">name</th>
+           <th class="px-0 text-muted" scope="col">location</th>
+           <th class="px-0 text-muted" scope="col">online (last 1m)</th>
+           <th class="px-0 text-muted" scope="col">id / secret</th>
            <th class="px-0 text-muted" scope="col">pin</th>
-           <th class="px-0 text-muted" scope="col">secret</th>
            <th class="px-0 text-muted" scope="col">activated</th>
+           <th class="px-0 text-muted" scope="col"></th>
            <th class="px-0 text-muted text-end" scope="col"></th>
          </tr>
          </thead>
@@ -67,20 +78,30 @@ onMounted(() => {
            <td class="px-0">
              {{agent.name}}
            </td>
-<!--           <td class="px-0">
-             {{agent.latitude}}, {{agent.longitude}}
-           </td>-->
            <td class="px-0">
-             <Code :code="agent.pin"></Code>
+             {{agent.location?agent.location:"unknown"}}
            </td>
            <td class="px-0">
-             <Code :code="agent.id"></Code>
+             <span class="badge bg-success" v-if="getOnlineStatus(agent)">Online
+             </span>
+             <span class="badge bg-danger" v-if="!getOnlineStatus(agent)">Offline
+             </span>
+           </td>
+           <td class="px-0">
+             <Code :code="agent.initialized?`************************`:agent.id"></Code>
+           </td>
+           <td class="px-0">
+             <!-- todo make this actually work and initialize on backend -->
+             <Code :code="agent.initialized?`*********`:agent.pin"></Code>
            </td>
            <td class="px-0 fw-bold text-muted">
              {{agent.initialized?"Yes":"No"}}
            </td>
+           <td class="px-0 text-end px-1 gap-1 justify-content-end">
+             <router-link :to="`/agents/reactivate/${agent.id}`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;reactivate</router-link>
+           </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
-             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-gears"></i>&nbsp;view</router-link>
+             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>
            </td>
          </tr>
          </tbody>

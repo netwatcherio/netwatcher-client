@@ -34,16 +34,16 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-  <Title title="New Site" subtitle="create a new site" :history="[{title: 'workspaces', link: '/sites'}]"></Title>
+  <Title title="new workspace" subtitle="create a new site" :history="[{title: 'workspaces', link: '/sites'}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="siteName">new site</label>
+                <label class="col-3 text-end control-label col-form-label" for="siteName">new workspace</label>
                 <div class="col-9 border-start pb-2 pt-2">
-                  <input id="siteName" class="form-control" name="name" v-model="state.name" placeholder="site name" type="text">
+                  <input id="siteName" class="form-control" name="name" v-model="state.name" placeholder="name" type="text">
                   <br>
                   <input id="siteDesc" class="form-control" name="desc" v-model="state.description" placeholder="description" type="text">
                   <br>
@@ -55,7 +55,7 @@ function submit() {
               <div class="form-group mb-0 text-end">
                 <button class="
                           btn btn-primary px-4" type="submit" @click="submit">
-                  Create Site
+                  create
                 </button>
 
               </div>

@@ -115,7 +115,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-    <Title title="Create Probe" :subtitle="`create a probe for an agent '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"></Title>
+    <Title title="new probe" :subtitle="`create a new probe for an agent '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
@@ -202,10 +202,10 @@ function submit() {
                       <label for="pingInterval" class="form-label">Interval (minutes)</label>
                       <input type="number" id="pingInterval" v-model="state.probeConfig.interval" class="form-control">
                     </div>-->
-                    <div class="mb-3">
+<!--                    <div class="mb-3">
                       <label for="pingDuration" class="form-label">Duration (seconds)</label>
                       <input type="number" id="pingDuration" v-model="state.probeConfig.duration" class="form-control">
-                    </div>
+                    </div>-->
                   </div>
 
                   <!-- SPEEDTEST Options -->
