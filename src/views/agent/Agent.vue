@@ -156,12 +156,14 @@ function reloadData(id: string) {
   state.ready = false
 
 
-    probeService.getSystemInfo(state.agent.id).then(res => {
-      state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
+    probeService.getSystemInfo(id).then(res => {
+      let sysInfo = (res.data as ProbeData)
+      state.systemInfoComplete = convertToCompleteSystemInfo(sysInfo.data)
+
       //console.log(state.systemInfoComplete)
     })
 
-    probeService.getNetworkInfo(state.agent.id).then(res => {
+    probeService.getNetworkInfo(id).then(res => {
       state.networkInfo = res.data as ProbeData
       //console.log(state.networkInfo)
     })
@@ -169,14 +171,14 @@ function reloadData(id: string) {
       siteService.getAgentGroups(state.agent.site).then(res => {
         state.agentGroups = res.data as AgentGroup[]
 
-        probeService.getAgentProbes(state.agent.id).then(res => {
+        probeService.getAgentProbes(id).then(res => {
           state.probes = res.data as Probe[]
           //console.log("probes ", res.data)
 
           let organizedProbesMap = new Map<string, Probe[]>();
 
           for (let probe of state.probes) {
-            if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType){
+            if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType || (probe.type == "RPERF" as ProbeType && probe.config.server)){
               continue
             }
 
@@ -217,20 +219,17 @@ onMounted(() => {
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
 
-    probeService.getSystemInfo(state.agent.id).then(res => {
-      state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
-      //console.log(state.systemInfoComplete)
-    })
-
-    probeService.getNetworkInfo(state.agent.id).then(res => {
-      state.networkInfo = res.data as ProbeData
-      //console.log(state.networkInfo)
-    })
-
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
-
-      reloadData(id);
+      probeService.getNetworkInfo(state.agent.id).then(res => {
+        state.networkInfo = res.data as ProbeData
+        //console.log(state.networkInfo)
+        probeService.getSystemInfo(state.agent.id).then(res => {
+          state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
+          //console.log(state.systemInfoComplete)
+          reloadData(id);
+        })
+      })
     })
   })
   /*setInterval(() => {
@@ -338,7 +337,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
           </div>
         </div>
       </div>
-      <div class="col-sm-5">
+      <div class="col-sm-5" v-if="state.organizedProbes.length > 0">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">probes</h5>
@@ -355,7 +354,7 @@ function getRandomProbeId(list: Probe[]): string | undefined {
                       </thead>
                       <tbody>
                       <!-- Iterate over organized probes -->
-                      <tr v-for="(organized, index) in state.organizedProbes" :key="index">
+                      <tr v-for="(organized, index) in state.organizedProbes" v-if="state.organizedProbes.length > 0" :key="index">
                         <td class="px-0">
                           <!-- Display group name or target -->
                           <span class="badge bg-dark" v-if="organized.key.startsWith('group:')">

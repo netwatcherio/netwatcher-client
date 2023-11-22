@@ -38,6 +38,7 @@ const state = reactive({
   pingGraph: {} as any,
   timeRange: {} as [Date, Date],
   mtrData: [] as ProbeData[],
+  rperfData: [] as ProbeData[],
 })
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
@@ -62,7 +63,7 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
 }
 
 function transformMtrDataMulti(dataArray: ProbeData[]): MtrResult[] {
-  console.log(dataArray)
+  //console.log(dataArray)
 
   return dataArray.map(data => {
     // Initialize the report structure
@@ -195,34 +196,42 @@ function reloadData(checkId: string) {
     // it won't be more than 0, lets hope someone doesn't abuse it
     state.title = state.probe[0].config.target[0].target
 
-    probeService.getSimilarProbes(checkId).then(res => {
-      state.similarProbes = res.data as Probe[]
-      for (let p of state.similarProbes) {
-        probeService.getProbeData(p.id, {recent: false, limit: 5000, startTimestamp: state.timeRange[0], endTimestamp: state.timeRange[1]} as ProbeDataRequest).then(res => {
-          for (let d of res.data as ProbeData[]) {
-            state.probeData.push(d)
-
-            if (getProbeType(d.probe) == "PING") {
-              state.pingData.push(d)
-            }
-            if (getProbeType(d.probe) == "MTR") {
-              state.mtrData.push(d)
-            }
-          }
-        })
-      }
-
-      //console.log(state.pingData)
-      });
-
     agentService.getAgent(state.probe[0].agent).then(res => {
       state.agent = res.data as Agent
 
       siteService.getSite(state.agent.site).then(res => {
         state.site = res.data as Site
         state.ready = true
-      })
+
+    probeService.getSimilarProbes(checkId).then(res => {
+      state.similarProbes = res.data as Probe[]
+      for (let p of state.similarProbes) {
+
+        probeService.getProbeData(p.id, {recent: false, limit: 5000, startTimestamp: state.timeRange[0], endTimestamp: state.timeRange[1]} as ProbeDataRequest).then(res => {
+          for (let d of res.data as ProbeData[]) {
+            //state.probeData.push(d)
+
+            let pprober = getProbe(d.probe) as Probe
+
+            if (pprober.type == "PING") {
+              state.pingData.push(d)
+            }
+            if (pprober.type == "MTR") {
+              //console.log(d)
+              state.mtrData.push(d)
+            }
+            if (pprober.type == "RPERF" && !pprober.config.server) {
+              state.rperfData.push(d)
+              console.log(d.data)
+            }
+          }
+        })
+      }
+
+      //console.log(state.pingData)
     })
+  })
+  })
   })
 }
 
@@ -243,9 +252,9 @@ function transformPingData(data: any): PingResult {
 }
 
 
-function getProbeType(probeId: string) {
+function getProbe(probeId: string) {
   let foundProbe = state.similarProbes.find(probe => probe.id === probeId);
-  return foundProbe ? foundProbe.type : null;
+  return foundProbe ? foundProbe : null;
 }
 
 // const site = inject("site") as Site
@@ -269,10 +278,11 @@ onMounted(() => {
 
   //console.log(checkId)
 
-  //reloadData(checkId);
+
   /*setInterval(() => {
     reloadData(checkId);
   }, 1000 * 15);*/
+  /*reloadData(checkId);*/
 })
 const router = core.router()
 
@@ -332,13 +342,13 @@ function submit() {
             <h5 class="card-title">trace routes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
-            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>
+<!--            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>-->
 
             <div id="mtrAccordion" class="accordion">
 
               <div v-for="mtr in state.mtrData" :key="mtr.id">
 
-                <div class="accordion-item" v-if="getProbeType((mtr as ProbeData).probe) == `MTR` as ProbeType">
+                <div class="accordion-item" v-if="getProbe((mtr as ProbeData).probe).type == `MTR` as ProbeType">
                   <h2 :id="'heading' + mtr.id" class="accordion-header">
                     <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" :data-bs-target="'#collapse' + mtr.id"
                             class="accordion-button collapsed" data-bs-toggle="collapse" type="button">

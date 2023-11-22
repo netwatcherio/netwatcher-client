@@ -311,6 +311,27 @@ export interface HostMemoryInfo {
     metrics?: Record<string, number>; // Other memory related metrics
 }
 
+export interface MeanOpinionScore {
+    mosValue: number;
+    jitter: number;
+    latency: number;
+    packetLoss: number;
+}
+
+function calculateMOS(jitter: number, latency: number, packetLoss: number): MeanOpinionScore {
+    // Placeholder for MOS calculation logic
+    // The actual calculation would depend on the specific formula you want to use
+    let mosValue = 5 /*- (jitter * factor1 + latency * factor2 + packetLoss * factor3)*/;
+    mosValue = Math.max(1, Math.min(mosValue, 5)); // MOS is typically between 1 and 5
+
+    return {
+        mosValue,
+        jitter,
+        latency,
+        packetLoss
+    };
+}
+
 
 
 export {}
