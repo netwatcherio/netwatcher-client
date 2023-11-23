@@ -50,7 +50,7 @@ export default {
 
 
 // Define a threshold for the maximum allowed gap (in milliseconds)
-const maxAllowedGap = 1000 * 60; // Example: 5 minutes
+const maxAllowedGap = 1000 * 90; // Example: 5 minutes
 
 function isGapAcceptable(current: RPerfResults, previous: RPerfResults) {
   if (!previous) return true; // Always accept the first point
