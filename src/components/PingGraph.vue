@@ -204,7 +204,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
           .attr('width', packetLossWidth)
           .attr('height', height)
           .attr('fill', packetLossColorScale(d.packetLoss))
-          .attr('opacity', 0.25); // Semi-translucent
+          .attr('opacity', 0.2); // Semi-translucent
     }
   });
 
@@ -251,6 +251,8 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     appendPath(segment, 'line-std', stdDvLine, 'lightblue');
     appendPath(segment, 'line-loss', lossLine, 'red');
   });
+
+  console.log(data)
 
   function appendPath(segment: PingResult[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
     svg.append('path')

@@ -166,6 +166,8 @@ function reloadData(id: string) {
     probeService.getNetworkInfo(id).then(res => {
       state.networkInfo = res.data as ProbeData
       //console.log(state.networkInfo)
+      // todo handle edgecase where probe_data collection is wiped and agents are already running
+
     })
 
       siteService.getAgentGroups(state.agent.site).then(res => {
@@ -174,9 +176,9 @@ function reloadData(id: string) {
         probeService.getAgentProbes(id).then(res => {
           state.probes = res.data as Probe[]
           //console.log("probes ", res.data)
-
           let organizedProbesMap = new Map<string, Probe[]>();
 
+          console.log("1"+state)
           for (let probe of state.probes) {
             if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType /*|| /*(probe.type == "RPERF" as ProbeType && probe.config.server)*/){
               continue
@@ -202,12 +204,14 @@ function reloadData(id: string) {
                   organizedProbesMap.set(key, []);
                 }
                 organizedProbesMap.get(key).push(probe);
+                console.log(state)
               }
             }
           }
 
           state.organizedProbes = Array.from(organizedProbesMap, ([key, probes]) => ({key, probes}));
           state.ready = true
+          state.hasData = true
         })
     })
 }
