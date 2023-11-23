@@ -10,7 +10,7 @@ import type {
   Probe,
   ProbeData,
   ProbeDataRequest,
-  ProbeType,
+  ProbeType, RPerfResults,
   Site
 } from "@/types";
 import core from "@/core";
@@ -22,6 +22,7 @@ import LatencyGraph from "@/components/PingGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 import NetworkMap from "@/components/NetworkMap.vue";
+import RperfGraph from "@/components/RperfGraph.vue";
 
 const state = reactive({
   target: {} as string,
@@ -59,6 +60,72 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
       avgRtt: parseInt(findValueByKey("avg_rtt")),
       stdDevRtt: parseInt(findValueByKey("std_dev_rtt")),
     };
+  });
+}
+
+function camelCase(str: string) {
+  return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+}
+
+function transformToRPerfResults(dataArray: ProbeData[]): RPerfResults[] {
+  return dataArray.map(data => {
+    // Initialize the RPerfResults structure
+    const result: RPerfResults = {
+      startTimestamp: new Date(),
+      stopTimestamp: new Date(),
+      config: {
+        additional: { ipVersion: 0, omitSeconds: 0, reverse: false },
+        common: { family: '', length: 0, streams: 0 },
+        download: {},
+        upload: { bandwidth: 0, duration: 0, sendInterval: 0 }
+      },
+      streams: [], // Assuming you have a way to populate this based on your data
+      success: false,
+      summary: {
+        bytesReceived: 0,
+        bytesSent: 0,
+        durationReceive: 0,
+        durationSend: 0,
+        framedPacketSize: 0,
+        jitterAverage: 0,
+        jitterPacketsConsecutive: 0,
+        packetsDuplicated: 0,
+        packetsLost: 0,
+        packetsOutOfOrder: 0,
+        packetsReceived: 0,
+        packetsSent: 0
+      }
+    };
+
+    // Extract and transform the data
+    data.data.forEach((item: { Key: string; Value: any }) => {
+      switch (item.Key) {
+        case 'start_timestamp':
+          result.startTimestamp = new Date(item.Value);
+          break;
+        case 'stop_timestamp':
+          result.stopTimestamp = new Date(item.Value);
+          break;
+        case 'config':
+          // Map the config data according to RPerfResults structure
+          // Similar to the example in your previous request
+          break;
+        case 'success':
+          result.success = item.Value;
+          break;
+        case 'summary':
+          item.Value.forEach((summaryItem: { Key: string; Value: any }) => {
+            const key = camelCase(summaryItem.Key);
+            if (key in result.summary) {
+              result.summary[key as keyof typeof result.summary] = summaryItem.Value;
+            }
+          });
+          break;
+          // Add other cases as needed
+      }
+    });
+
+    return result;
   });
 }
 
@@ -188,6 +255,7 @@ function reloadData(checkId: string) {
   state.probeData = []
   state.similarProbes = []
   state.mtrData = []
+  state.rperfData = []
 
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
@@ -222,12 +290,13 @@ function reloadData(checkId: string) {
             }
             if (pprober.type == "RPERF" && !pprober.config.server) {
               state.rperfData.push(d)
-              console.log(d.data)
+              //console.log(d.data)
             }
           }
         })
       }
 
+      //console.log(state.rperfData)
       //console.log(state.pingData)
     })
   })
@@ -333,6 +402,15 @@ function submit() {
             <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to
               the target</p>
             <LatencyGraph v-if="state.ready" :pingResults="transformPingDataMulti(state.pingData)"/>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-12" v-if="state.rperfData.length > 0">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">rperf graph</h5>
+            <p class="card-text">this graph displays the rperf data to said target</p>
+            <RperfGraph v-if="state.ready" :rperfResults="transformToRPerfResults(state.rperfData)"/>
           </div>
         </div>
       </div>

@@ -1,11 +1,11 @@
 <template>
-  <div ref="pingGraph"></div>
+  <div ref="rperfGraph"></div>
 </template>
 
 <script lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue';
 import * as d3 from 'd3';
-import type { PingResult, ProbeData } from '@/types'; // Import your PingResult type
+import type {PingResult, ProbeData, RPerfResults} from '@/types'; // Import your PingResult type
 
 // todo
 /*
@@ -15,18 +15,18 @@ latency graph is recalculated when zoomed and just reupdates the time instead??
 
 
 export default {
-  name: 'LatencyGraph',
+  name: 'RperfGraph',
   props: {
-    pingResults: Array as () => PingResult[],
+    rperfResults: Array as () => RPerfResults[],
   },
-  setup(props: { pingResults: PingResult[]; }) {
-    const pingGraph = ref(null);
+  setup(props: { rperfResults: RPerfResults[]; }) {
+    const rperfGraph = ref(null);
 
     const drawGraph = () => {
-      if (!pingGraph.value || !props.pingResults || props.pingResults.length === 0) {
+      if (!rperfGraph.value || !props.rperfResults || props.rperfResults.length === 0) {
         return;
       }
-      createLatencyGraph(props.pingResults, pingGraph.value);
+      createGraph(props.rperfResults, rperfGraph.value);
     };
 
     const resizeListener = () => {
@@ -42,22 +42,22 @@ export default {
       window.removeEventListener('resize', resizeListener);
     });
 
-    watch(() => props.pingResults, drawGraph, { immediate: true });
+    watch(() => props.rperfResults, drawGraph, { immediate: true });
 
-    return { pingGraph };
+    return { rperfGraph };
   },
 };
 
 
 // Define a threshold for the maximum allowed gap (in milliseconds)
-const maxAllowedGap = 1000 * 90; // Example: 90 seconds
+const maxAllowedGap = 1000 * 60; // Example: 5 minutes
 
-function isGapAcceptable(current: PingResult, previous: PingResult) {
+function isGapAcceptable(current: RPerfResults, previous: RPerfResults) {
   if (!previous) return true; // Always accept the first point
   return (current.stopTimestamp.getTime() - previous.stopTimestamp.getTime()) <= maxAllowedGap;
 }
 
-function segmentData(data: PingResult[]) {
+function segmentData(data: RPerfResults[]) {
   // First, sort the data by stopTimestamp
   data.sort((a, b) => new Date(a.stopTimestamp) - new Date(b.stopTimestamp));
 
@@ -92,15 +92,15 @@ function segmentData(data: PingResult[]) {
 
 // Repeat for maxLine, avgLine, and lossLine
 
-function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
-  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+function createGraph(data: RPerfResults[], graphElement: HTMLElement) {
+  const margin = {top: 20, right: 20, bottom: 30, left: 50};
   const width = graphElement.clientWidth - margin.left - margin.right;
   const height = 400 - margin.top - margin.bottom;
 
   d3.select(graphElement).selectAll('*').remove();
 
   const packetLossColorScale = d3.scaleLinear<string>()
-      .domain([1, 50, 100]) // Assuming packet loss is given as a percentage
+      .domain([5, 10, 20]) // Assuming packet loss is given as a percentage
       .range(['yellow', 'orange', 'red'] as any[]); // Cast the color range as any[] to satisfy TypeScript
 
   // Draw packet loss areas
@@ -123,7 +123,20 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000 > 100 ? 200 : d.maxRtt / 1000000)])
+      .domain([0, 20]/*d3.max(data, (d: { summary: {
+          bytesReceived: number;
+          bytesSent: number;
+          durationReceive: number;
+          durationSend: number;
+          framedPacketSize: number;
+          jitterAverage: number;
+          jitterPacketsConsecutive: number;
+          packetsDuplicated: number;
+          packetsLost: number;
+          packetsOutOfOrder: number;
+          packetsReceived: number;
+          packetsSent: number;
+        }}) => d.summary.packetsLost)]*/)
       .range([height, 0]);
 
   svg.append("defs").append("clipPath")
@@ -138,28 +151,11 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .on("end", brushed);
 
   function updateLines() {
-    svg.selectAll(".line-avg").attr("d", avgLine);
-    svg.selectAll(".line-max").attr("d", maxLine);
-    svg.selectAll(".line-std").attr("d", stdDvLine);
     svg.selectAll(".line-loss").attr("d", lossLine);
+    svg.selectAll(".line-ooo").attr("d", outOfOrder);
+    svg.selectAll(".line-packetsduplicate").attr("d", packetsDuplicated);
     // Handle any other lines or elements that need to be updated
   }
-
-  // Define the brushed function
-  /*function brushed(event) {
-    const selection = event.selection;
-    if (selection) {
-      const [x0, x1] = selection.map(xScale.invert);
-      xScale.domain([x0, x1]);
-      svg.select(".x-axis").call(d3.axisBottom(xScale));
-      updateLines();
-    } else {
-      // If no selection (e.g., clicked outside the brush area), reset the zoom
-      xScale.domain(d3.extent(data, d => d.stopTimestamp));
-      svg.select(".x-axis").call(d3.axisBottom(xScale));
-      updateLines();
-    }
-}*/
 
   function brushed(event) {
     const selection = event.selection;
@@ -172,7 +168,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     }
   }
 
-  svg.on("dblclick", function() {
+  svg.on("dblclick", function () {
     xScale.domain(d3.extent(data, d => d.stopTimestamp));
     svg.select(".x-axis").call(d3.axisBottom(xScale));
     updateLines();
@@ -196,14 +192,14 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   const dataSegments = segmentData(data);
 
   data.forEach((d) => {
-    if (d.packetLoss > 0) { // Assuming packetLoss is a property of the data
+    if (d.summary.packetsLost > 0) { // Assuming packetLoss is a property of the data
       const packetLossWidth = 5; // Fixed width for packet loss indicators, adjust as needed
       svg.append('rect')
           .attr('x', xScale(new Date(d.stopTimestamp)) - packetLossWidth / 2)
           .attr('y', 0)
           .attr('width', packetLossWidth)
           .attr('height', height)
-          .attr('fill', packetLossColorScale(d.packetLoss))
+          .attr('fill', packetLossColorScale(d.summary.packetsLost))
           .attr('opacity', 0.5); // Semi-translucent
     }
   });
@@ -213,7 +209,6 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     const currentStopTime = new Date(data[i].stopTimestamp).getTime();
     const nextStopTime = new Date(data[i + 1].stopTimestamp).getTime();
 
-    // Check if there's a gap between consecutive stopTimestamps
     if (nextStopTime - currentStopTime > maxAllowedGap) {
       svg.append('rect')
           .attr('x', xScale(currentStopTime))
@@ -225,34 +220,30 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     }
   }
 
-  //console.log(data)
+  console.log(data)
 
   // Line generator for avgRtt
-  const maxLine = d3.line<PingResult>()
+  const lossLine = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1000000));
-  const stdDvLine = d3.line<PingResult>()
+      .y((d: { summary: { packetsLost: number; } }) => yScale(d.summary.packetsLost));
+  const outOfOrder = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 100000000)));
-  const avgLine = d3.line<PingResult>()
+      .y((d: { summary: { packetsOutOfOrder: number; } }) => yScale(d.summary.packetsOutOfOrder));
+  const packetsDuplicated = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1000000));
-  const lossLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
+      .y((d: { summary: { packetsDuplicated: number; } }) => yScale(d.summary.packetsDuplicated));
   // Repeat for maxLine, avgLine, and lossLine
 
   // Draw each segment separately
   // Draw each segment separately
   dataSegments.forEach(segment => {
     // Append paths for each line (average, maximum, standard deviation, loss)
-    appendPath(segment, 'line-avg', avgLine, 'green');
-    appendPath(segment, 'line-max', maxLine, 'darkblue');
-    appendPath(segment, 'line-std', stdDvLine, 'lightblue');
     appendPath(segment, 'line-loss', lossLine, 'red');
+    appendPath(segment, 'line-ooo', outOfOrder, 'blue');
+    appendPath(segment, 'line-packetsduplicate', packetsDuplicated, 'purple');
   });
 
-  function appendPath(segment: PingResult[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
+  function appendPath(segment: RPerfResults[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
     svg.append('path')
         .datum(segment)
         .attr('class', className)
@@ -268,7 +259,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("class", "brush")
       .call(brush);
 
-  svg.on("dblclick", function() {
+  svg.on("dblclick", function () {
     xScale.domain(d3.extent(data, d => d.stopTimestamp));
     svg.select(".x-axis").call(d3.axisBottom(xScale));
     updateLines();
@@ -285,14 +276,14 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 0)
       .attr("width", 10)
       .attr("height", 10)
-      .style("fill", "green");
+      .style("fill", "purple");
 
   legend.append("text")
       .attr("x", 20)
       .attr("y", 10)
-      .text("Average RTT")
+      .text("Duplicate")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
   // Legend for maxRtt
   legend.append("rect")
@@ -300,14 +291,14 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 20)
       .attr("width", 10)
       .attr("height", 10)
-      .style("fill", "darkblue");
+      .style("fill", "blue");
 
   legend.append("text")
       .attr("x", 20)
       .attr("y", 30)
-      .text("Max RTT")
+      .text("Out of Order")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
   // Legend for packetLoss
   legend.append("rect")
@@ -322,9 +313,9 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 50)
       .text("Packet Loss")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
-  legend.append("rect")
+  /*  legend.append("rect")
       .attr("x", 0)
       .attr("y", 60)
       .attr("width", 10)
@@ -337,5 +328,6 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .text("Standard Deviation")
       .style("font-size", "12px")
       .attr("alignment-baseline","middle");
+}*/
 }
 </script>
