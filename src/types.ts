@@ -38,6 +38,12 @@ export interface SiteMember {
     // ADMINS can regenerate agent pins
 }
 
+export interface SiteMemberUser {
+    user: string; // You can use string for ObjectID in TypeScript
+    role: SiteMemberRole;
+    email: string;
+    name: string;
+}
 
 export interface Agent {
     id: string; // You can use string for ObjectID in TypeScript

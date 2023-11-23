@@ -68,7 +68,6 @@ function getOnlineStatus(agent: Agent) {
            <th class="px-0 text-muted" scope="col">online (last 1m)</th>
            <th class="px-0 text-muted" scope="col">id / secret</th>
            <th class="px-0 text-muted" scope="col">pin</th>
-           <th class="px-0 text-muted" scope="col">activated</th>
            <th class="px-0 text-muted" scope="col"></th>
            <th class="px-0 text-muted text-end" scope="col"></th>
          </tr>
@@ -94,11 +93,8 @@ function getOnlineStatus(agent: Agent) {
              <!-- todo make this actually work and initialize on backend -->
              <Code :code="agent.initialized?`*********`:agent.pin"></Code>
            </td>
-           <td class="px-0 fw-bold text-muted">
-             {{agent.initialized?"Yes":"No"}}
-           </td>
            <td class="px-0 text-end px-1 gap-1 justify-content-end">
-             <router-link :to="`/agents/reactivate/${agent.id}`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;reactivate</router-link>
+             <router-link v-if="agent.initialized" :to="`/agents/deactivate/${agent.id}`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;deactivate</router-link>
            </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
              <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>

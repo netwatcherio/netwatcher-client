@@ -53,10 +53,10 @@ onMounted(() => {
     })
   })
 
-  state.options.push({value: "MTR", text: "MTR"} as SelectOption)
+  state.options.push({value: "MTR", text: "MTR (My Traceroute)"} as SelectOption)
   state.options.push({value: "PING", text: "PING (Packet Internet Groper)"} as SelectOption)
   //state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
-  state.options.push({value: "RPERF", text: "RPERF"} as SelectOption)
+  state.options.push({value: "RPERF", text: "Simulated Traffic (UDP)"} as SelectOption)
 })
 
 const router = core.router()

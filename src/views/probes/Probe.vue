@@ -263,6 +263,10 @@ function reloadData(checkId: string) {
     // todo fix title - chances are when not using a group,
     // it won't be more than 0, lets hope someone doesn't abuse it
     state.title = state.probe[0].config.target[0].target
+    let split = state.probe[0].config.target[0].target.split(":")
+    if (split.length >= 2) {
+      state.title = split[0]
+    }
 
     agentService.getAgent(state.probe[0].agent).then(res => {
       state.agent = res.data as Agent
@@ -398,9 +402,8 @@ function submit() {
       <div class="col-sm-12" v-if="state.pingData.length > 0">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">latency graph</h5>
-            <p class="card-text">this graph displays the overall packet loss, jitter, and latency of the connection to
-              the target</p>
+            <h5 class="card-title">latency</h5>
+            <p class="card-text">displays the stats associated with latency</p>
             <LatencyGraph v-if="state.ready" :pingResults="transformPingDataMulti(state.pingData)"/>
           </div>
         </div>
@@ -408,8 +411,8 @@ function submit() {
       <div class="col-sm-12" v-if="state.rperfData.length > 0">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">rperf graph</h5>
-            <p class="card-text">this graph displays the rperf data to said target</p>
+            <h5 class="card-title">simulated traffic</h5>
+            <p class="card-text">displays the stats for simulated traffic</p>
             <RperfGraph v-if="state.ready" :rperfResults="transformToRPerfResults(state.rperfData)"/>
           </div>
         </div>
@@ -417,7 +420,7 @@ function submit() {
       <div class="col-sm-12" v-if="state.mtrData.length > 0">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">trace routes</h5>
+            <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
 <!--            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>-->
