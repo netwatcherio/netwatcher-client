@@ -200,7 +200,7 @@ function createGraph(data: RPerfResults[], graphElement: HTMLElement) {
           .attr('width', packetLossWidth)
           .attr('height', height)
           .attr('fill', packetLossColorScale(d.summary.packetsLost))
-          .attr('opacity', 0.5); // Semi-translucent
+          .attr('opacity', 0.25); // Semi-translucent
     }
   });
 
@@ -223,13 +223,13 @@ function createGraph(data: RPerfResults[], graphElement: HTMLElement) {
   console.log(data)
 
   // Line generator for avgRtt
-  const lossLine = d3.line<RPerfResults>()
+  const lossLineRperf = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { summary: { packetsLost: number; } }) => yScale(d.summary.packetsLost));
-  const outOfOrder = d3.line<RPerfResults>()
+  const outOfOrderRperf = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { summary: { packetsOutOfOrder: number; } }) => yScale(d.summary.packetsOutOfOrder));
-  const packetsDuplicated = d3.line<RPerfResults>()
+  const packetsDuplicatedRperf = d3.line<RPerfResults>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { summary: { packetsDuplicated: number; } }) => yScale(d.summary.packetsDuplicated));
   // Repeat for maxLine, avgLine, and lossLine
@@ -238,9 +238,9 @@ function createGraph(data: RPerfResults[], graphElement: HTMLElement) {
   // Draw each segment separately
   dataSegments.forEach(segment => {
     // Append paths for each line (average, maximum, standard deviation, loss)
-    appendPath(segment, 'line-loss', lossLine, 'red');
-    appendPath(segment, 'line-ooo', outOfOrder, 'blue');
-    appendPath(segment, 'line-packetsduplicate', packetsDuplicated, 'purple');
+    appendPath(segment, 'line-loss', lossLineRperf, 'red');
+    appendPath(segment, 'line-ooo', outOfOrderRperf, 'blue');
+    appendPath(segment, 'line-packetsduplicate', packetsDuplicatedRperf, 'purple');
   });
 
   function appendPath(segment: RPerfResults[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {

@@ -204,7 +204,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
           .attr('width', packetLossWidth)
           .attr('height', height)
           .attr('fill', packetLossColorScale(d.packetLoss))
-          .attr('opacity', 0.5); // Semi-translucent
+          .attr('opacity', 0.25); // Semi-translucent
     }
   });
 
