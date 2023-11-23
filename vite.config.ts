@@ -11,7 +11,7 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./src', import.meta.url))
         }
     },
-        /*server: {
+        server: {
             host: "0.0.0.0",
             port: 3000,
             hmr: {
@@ -19,6 +19,6 @@ export default defineConfig({
                 clientPort: 443,
             },
             strictPort: false
-        }*/
+        }
 
 })
