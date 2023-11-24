@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 
-import type {AgentGroup, Site, SiteMember} from "@/types";
+import type {AgentGroup, MemberInfo, Site, SiteMember} from "@/types";
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
 import Title from "@/components/Title.vue";
@@ -8,7 +8,7 @@ import core from "@/core";
 import {Agent} from "@/types";
 
 let state = reactive({
-  members: [] as SiteMember[],
+  members: [] as MemberInfo[],
   site: {} as Site,
   ready: false
 })
@@ -21,9 +21,9 @@ onMounted(() => {
     state.site = res.data as Site
   })
 
-  siteService.getMembers(id).then(res => {
+  siteService.getMemberInfos(id).then(res => {
     if(res.data.length > 0) {
-      state.members = res.data as AgentGroup[]
+      state.members = res.data as MemberInfo[]
       state.ready = true
     }
 
@@ -37,8 +37,8 @@ const router = core.router()
 
 <template>
   <div class="container-fluid">
-    <Title title="Agent Groups" subtitle="agent groups associated with current site" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
-      <router-link :to="`/sites/${state.site.id}/groups/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;Create</router-link>
+    <Title title="site members" subtitle="agent groups associated with current site" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
+      <router-link :to="`/site/${state.site.id}/members/invite`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;invite</router-link>
 
       <!--      <div class="d-flex gap-1">
           <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-plus"></i>&nbsp;View Alerts</router-link>
@@ -58,27 +58,32 @@ const router = core.router()
               <thead>
               <tr>
                 <th class="px-0" scope="col">name</th>
-                <th class="px-0" scope="col">description</th>
-                <th class="px-0 text-end" scope="col">edit</th>
+                <th class="px-0" scope="col">email</th>
+                <th class="px-0" scope="col">role</th>
+                <th class="px-0" scope="col"> </th>
+                <th class="px-0 text-end" scope="col"> </th>
               </tr>
               </thead>
               <tbody>
-              <tr v-for="group in state.groups">
+              <tr v-for="group in state.members">
                 <td class="px-0">
-                  <router-link :to="`/sites/${group.id}`" class="">
-                    {{group.name}}
-                  </router-link>
+                  {{group.firstName + " " + group.lastName}}
+                </td>
+                <td class="px-0">
+                  {{ group.email }}
+                </td>
+                <td class="px-0">
+                  {{ group.role }}
+                </td>
 
-                </td>
-                <td class="px-0">
-                  {{ group.description }}
-                </td>
-                <!--                  <td class="px-0">
-                                    <span class="badge bg-dark">{{ site. }}</span>
-                                  </td>-->
                 <td class="px-0 text-end px-3">
-                  <router-link :to="`/sites/${group.site}/groups`" class="">
+                  <router-link :to="`/site/member/${group.id}/edit`" class="">
                     <i class="fa-solid fa-up-right-from-square"></i> edit
+                  </router-link>
+                </td>
+                <td class="px-0 text-end px-3">
+                  <router-link :to="`/site/member/${group.id}/remove`" class="">
+                    <i class="fa-solid fa-up-right-from-square"></i> remove
                   </router-link>
                 </td>
               </tr>
@@ -92,8 +97,8 @@ const router = core.router()
     <div v-else class="row">
       <div class="col-lg-12">
         <div class="error-body text-center">
-          <h1 class="error-title text-danger">no agent groups</h1>
-          <h3 class="text-error-subtitle">please create a new group</h3>
+          <h1 class="error-title text-danger">loading...</h1>
+          <h3 class="text-error-subtitle">please wait...</h3>
           <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
            <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
         </div>

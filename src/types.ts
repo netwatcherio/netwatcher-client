@@ -31,6 +31,15 @@ export interface SelectOption {
 
 export type SiteMemberRole = "READ_ONLY" | "READ_WRITE" | "ADMIN" | "OWNER";
 
+export interface MemberInfo {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: SiteMemberRole;
+    id: string; // MongoDB ObjectID is typically represented as a string in TypeScript
+}
+
+
 export interface SiteMember {
     user: string; // You can use string for ObjectID in TypeScript
     role: SiteMemberRole;

@@ -14,6 +14,9 @@ export default {
     async getSite(id: string): Promise<any> {
         return await request.get(`/sites/${id}`)
     },
+    async getMemberInfos(id: string): Promise<any> {
+        return await request.get(`/sites/${id}/memberinfo`)
+    },
     async getAgentGroups(id: string): Promise<any> {
         return await request.get(`/sites/${id}/groups`)
     },
