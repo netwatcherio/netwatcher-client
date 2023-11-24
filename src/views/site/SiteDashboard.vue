@@ -94,7 +94,7 @@ function getOnlineStatus(agent: Agent) {
              <Code :code="agent.initialized?`*********`:agent.pin"></Code>
            </td>
            <td class="px-0 text-end px-1 gap-1 justify-content-end">
-             <router-link v-if="agent.initialized" :to="`/agents/deactivate/${agent.id}`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;deactivate</router-link>
+             <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;deactivate</router-link>
            </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
              <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>
