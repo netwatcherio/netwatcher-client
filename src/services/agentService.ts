@@ -5,6 +5,9 @@ export default {
     async createAgent(agent: Agent): Promise<any> {
         return await request.post(`/agents/new/${agent.site}`, agent)
     },
+    async updateAgent(agent: Agent): Promise<any> {
+        return await request.post(`/agents/update/${agent.id}`, agent)
+    },
     async deactivateAgent(id: string): Promise<any> {
         return await request.get(`/agents/deactivate/${id}`)
     },

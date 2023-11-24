@@ -288,7 +288,7 @@ function formatDate(timestamp: Date): string {
       </div>
     </Title>
 
-    <div class="row" v-if="state.ready">
+    <div class="row" v-if="state.ready && state.agent.initialized">
       <div class="col-sm-3">
         <div class="card">
           <div class="card-body">

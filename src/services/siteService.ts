@@ -5,6 +5,9 @@ export default {
     async getSites(): Promise<any> {
         return await request.get("/sites")
     },
+    async updateSite(site: Site): Promise<void> {
+        return await request.post(`/sites/update/${site.id}`, site)
+    },
     async createSite(site: Site): Promise<void> {
         return await request.post("/sites", site)
     },

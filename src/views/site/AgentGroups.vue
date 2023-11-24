@@ -26,9 +26,8 @@ onMounted(() => {
       state.groups = res.data as AgentGroup[]
       state.ready = true
     }
-
   }).catch(res => {
-    alert(res)
+    //alert(res)
   })
 })
 const router = core.router()

@@ -52,8 +52,8 @@ function getOnlineStatus(agent: Agent) {
   <div class="container-fluid">
   <Title :title="state.site.name || 'site'" :history="[{title: 'workspaces', link: '/sites'}]">
     <div class="d-flex gap-1">
-      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-cog"></i>&nbsp;manage site</router-link>
-      <router-link :to="`/sites/${state.site.id}/invite`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-users"></i>&nbsp;members</router-link>
+      <router-link :to="`/sites/${state.site.id}/edit`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
+      <router-link :to="`/sites/${state.site.id}/members`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-users"></i>&nbsp;members</router-link>
       <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
       <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create agent</router-link>
     </div>
@@ -69,6 +69,7 @@ function getOnlineStatus(agent: Agent) {
            <th class="px-0 text-muted" scope="col">id / secret</th>
            <th class="px-0 text-muted" scope="col">pin</th>
            <th class="px-0 text-muted" scope="col"></th>
+           <th class="px-0 text-muted" scope="col"></th>
            <th class="px-0 text-muted text-end" scope="col"></th>
          </tr>
          </thead>
@@ -78,7 +79,7 @@ function getOnlineStatus(agent: Agent) {
              {{agent.name}}
            </td>
            <td class="px-0">
-             {{agent.location?agent.location:"unknown"}}
+             {{agent.location?agent.location:agent.location}}
            </td>
            <td class="px-0">
              <span class="badge bg-success" v-if="getOnlineStatus(agent)">Online
@@ -94,7 +95,10 @@ function getOnlineStatus(agent: Agent) {
              <Code :code="agent.initialized?`*********`:agent.pin"></Code>
            </td>
            <td class="px-0 text-end px-1 gap-1 justify-content-end">
-             <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning"><i class="fa-solid fa-cogs"></i>&nbsp;deactivate</router-link>
+             <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning"><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
+           </td>
+           <td class="px-0 text-end px-1 gap-1 justify-content-end">
+             <router-link :to="`/agents/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
            </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
              <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>
