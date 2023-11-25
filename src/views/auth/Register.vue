@@ -31,8 +31,8 @@ function onRegister(response: any) {
     session.token = data.token
     session.data = data.user*/
   // TODO log successful login and let user know they successfully registered / prompt for email verification
-  console.log(response)
-  window.location.href = "/auth/login"
+  // console.log(response)
+  router.push("/auth/login")
 }
 function begin() {
   state.waiting = true

@@ -12,6 +12,8 @@ const state = reactive({
   error: false
 })
 
+const router = core.router();
+
 interface Response {
   token: string
   data: User
@@ -24,7 +26,7 @@ function onLogin(response: any) {
   let data = response.data as Response
   session.token = data.token
   session.data = data.data
-  window.location.href = "/"
+  router.push("/")
 }
 
 function onFailure(error: any) {
