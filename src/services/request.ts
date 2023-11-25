@@ -1,6 +1,3 @@
-// Copyright (c) 2022 Braden Nicholson
-
-
 import axios from "axios";
 import {getSession} from "@/session";
 
