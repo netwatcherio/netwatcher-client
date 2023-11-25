@@ -42,7 +42,7 @@ function begin() {
 function done() {
   if (state.waiting) {
     let delta = Date.now().valueOf() - state.began
-    let minTimeout = 1000
+    let minTimeout = 250
     setTimeout(() => {
       state.waiting = false
       state.began = 0
