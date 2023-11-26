@@ -11,6 +11,8 @@ export default defineConfig({
             '@': fileURLToPath(new URL('./src', import.meta.url))
         }
     },
+    envDir: "./",
+    envPrefix: "NW",
         server: {
             host: "0.0.0.0",
             port: 3000,

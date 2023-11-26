@@ -1,32 +1,24 @@
-# netwatcher
+# Netwatcher Client
 
-This template should help get you started developing with Vue 3 in Vite.
+## Environment Variables
 
-## Recommended IDE Setup
+### Project-level environment variables
+Variables that are used as defaults across all implementations of the service are decalred in the base `.env` file.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar) (
-and disable
-Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.vscode-typescript-vue-plugin).
 
-## Type Support for `.vue` Imports in TS
+**.env**
+```dotenv
+NW_GLOBAL_ENDPOINT=https://api.netwatcher.io:8080
+```
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for
-type checking. In editors, we
-need [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.vscode-typescript-vue-plugin)
-to make the TypeScript language service aware of `.vue` types.
+### Implementation-level environment variables
+Variables intended to override global variables in `.env`, or variables related to the implementattion should be specific in a per-invocation `.env.local` file and should not be pushed to the repository.
 
-If the standalone TypeScript plugin doesn't feel fast enough to you, Volar has also implemented
-a [Take Over Mode](https://github.com/johnsoncodehk/volar/discussions/471#discussioncomment-1361669) that is more
-performant. You can enable it by the following steps:
+**.env.local**
+```dotenv
+NW_ENDPOINT=https://api.myguardianinstance.org:8080
+```
 
-1. Disable the built-in TypeScript Extension
-   1) Run `Extensions: Show Built-in Extensions` from VSCode's command palette
-   2) Find `TypeScript and JavaScript Language Features`, right click and select `Disable (Workspace)`
-2. Reload the VSCode window by running `Developer: Reload Window` from the command palette.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
 
 ## Project Setup
 
