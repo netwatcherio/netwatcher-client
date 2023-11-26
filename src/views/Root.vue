@@ -8,6 +8,7 @@ import core from "@/core";
 import {User} from "@/types";
 
 const session = core.session()
+const router = core.router()
 
 const state = reactive({
   loaded: false,
@@ -15,7 +16,7 @@ const state = reactive({
 
 onMounted(() => {
   if(session.token === "") {
-    document.location.href = "/auth/login"
+    router.push("/auth/login")
     return
   }
   state.loaded = true
