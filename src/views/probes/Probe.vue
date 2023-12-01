@@ -434,7 +434,7 @@ function submit() {
                     <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" :data-bs-target="'#collapse' + mtr.id"
                             class="accordion-button collapsed" data-bs-toggle="collapse" type="button">
                       {{ transformMtrData((mtr as ProbeData).data).stopTimestamp }}
-                      <span v-if="transformMtrData((mtr as ProbeData).data).triggered" class="badge bg-dark">TRIGGERED</span>
+                      <span v-if="(mtr as ProbeData).triggered" class="badge bg-dark">TRIGGERED</span>
                     </button>
 
                   </h2>
