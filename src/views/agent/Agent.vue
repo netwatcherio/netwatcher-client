@@ -115,8 +115,11 @@ function convertToOSInfo(data: any[]): OSInfo {
 function convertToHostMemoryInfo(data: any[]): HostMemoryInfo {
   let memoryInfo: any = { metrics: {} };
 
+  console.log(data)
+
   data.forEach(item => {
     if (item.Key === 'metrics') {
+      if(item.Value == null) return;
       item.Value.forEach((metric: any) => {
         memoryInfo.metrics[metric.Key] = metric.Value;
       });
@@ -325,7 +328,7 @@ function formatDate(timestamp: Date): string {
           </div>
         </div>
       </div>
-      <div class="col-sm-4">
+      <div class="col-sm-4" v-if="state.networkInfo.id">
         <div class="card">
           <div class="card-body">
 
