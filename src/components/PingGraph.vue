@@ -230,13 +230,13 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   // Line generator for avgRtt
   const maxLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1000000));
+      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1e+6));
   const stdDvLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 100000000)));
+      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 1e+6)));
   const avgLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1000000));
+      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1e+6));
   const lossLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
