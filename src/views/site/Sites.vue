@@ -3,6 +3,8 @@
 import type {Site} from "@/types";
 import {onMounted, reactive} from "vue";
 import siteService from "@/services/siteService";
+import Title from "@/components/Title.vue";
+import Element from "@/components/Element.vue";
 
 declare interface AgentCountInfo {
   site_id: string;
@@ -11,24 +13,25 @@ declare interface AgentCountInfo {
 
 declare interface sitesList {
   sites: Site[];
-  agent_counts: AgentCountInfo[];
 }
 
 
 const state = reactive({
   sites: [] as Site[],
-  agent_counts: [] as AgentCountInfo[]
+  agent_counts: [] as AgentCountInfo[],
+  ready: false
 })
 
 onMounted(() => {
   siteService.getSites().then(res => {
-    let data = res.data as sitesList
-    if(!data.sites) return
-    state.sites = data.sites.map(s => {
-      let target = data.agent_counts.find(a => a.site_id === s.id)
-      if (target) s.agents = target.count
+    let data = res.data as Site[]
+    if(!data) return
+    state.sites = data.map(s => {
       return s
     })
+    if(state.sites.length > 0) {
+      state.ready = true
+    }
   }).catch(res => {
     alert(res)
   })
@@ -37,99 +40,72 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-titles">
-    <div class="row">
-      <div class="col-lg-8 col-md-6 col-12 align-self-center">
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb mb-0 d-flex align-items-center">
-            <li class="breadcrumb-item">
-              <a class="link" href="/home"><i class="ri-home-3-line fs-5"></i></a>
-            </li>
-            <li aria-current="page" class="breadcrumb-item active">
-              Sites
-            </li>
-          </ol>
-        </nav>
-        <h1 class="mb-0 fw-bold">Sites</h1>
-      </div>
-
-      <div class="
-                col-lg-4 col-md-6
-                d-none d-md-flex
-                align-items-center
-                justify-content-end
-              ">
-        <a class="btn btn-info d-flex align-items-center ms-2" href="/sites/new">
-          <i class="ri-add-line me-1"></i>
-          new site
-        </a>
-      </div>
-    </div>
-  </div>
-
   <div class="container-fluid">
+    <Title title="workspaces" subtitle="an overview of the workspaces you have access to">
+      <div class="d-flex gap-1">
+      <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-exclamation-triangle"></i>&nbsp;view alerts</router-link>
+      <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create</router-link>
+      </div>
+    </Title>
 
-    <div v-if="state.sites" class="row">
+
+    <div v-if="state.ready" class="row">
       <!-- column -->
       <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <!-- title -->
-            <div class="d-md-flex">
-              <div>
-                <h4 class="card-title">sites</h4>
-                <h5 class="card-subtitle">an overview of the sites you have access to</h5>
-              </div>
-            </div>
+        <div class="d-md-flex px-2">
+        <span class="card-subtitle text-muted"></span>
+      </div>
+        <div class="card px-3 py-1">
             <!-- title -->
             <div class="table-responsive">
-              <div class="table-responsive mt-4">
-                <table id="stats" class="
-                        table
-                        mb-0
-                        text-nowrap
-                        varient-table
-                        align-middle
-                        fs-3
-                      ">
-                  <thead>
-                  <tr>
-                    <th class="px-0 text-muted" scope="col">name</th>
-                    <th class="px-0 text-muted" scope="col">members</th>
-                    <th class="px-0 text-muted" scope="col">agent count</th>
-                    <th class="px-0 text-muted text-end" scope="col">view</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  <tr v-for="site in state.sites">
-                    <td class="px-0">
+              <table class="table">
+                <thead>
+                <tr>
+                  <th class="px-0" scope="col">name</th>
+                  <th class="px-0" scope="col">description</th>
+                  <th class="px-0" scope="col">location</th>
+                  <th class="px-0" scope="col">members</th>
+                  <th class="px-0 text-end" scope="col">view</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="site in state.sites">
+                  <td class="px-0">
+                    <router-link :to="`/sites/${site.id}`" class="">
                       {{site.name}}
-                    </td>
-                    <td class="px-0">
-                      <span class="badge bg-dark">{{ site.members.length }}</span>
-                    </td>
-                    <td class="px-0">
-                      <span class="badge bg-dark">{{ site.agents }}</span>
-                    </td>
-                    <td class="px-0 text-end">
-                      <router-link :to="`/sites/${site.id}`" active-class="selected" class="badge bg-purple">
-                        <i class="fa fa-binoculars"></i> view
-                      </router-link>
-                    </td>
-                  </tr>
-                  </tbody>
-                </table>
-              </div>
+                    </router-link>
+
+                  </td>
+                  <td class="px-0">
+                    {{ site.description }}
+                  </td>
+                  <td class="px-0">
+                    {{ site.location }}
+                  </td>
+                  <td class="px-0">
+                    <span class="badge bg-dark">{{ site.members.length }}</span>
+                  </td>
+<!--                  <td class="px-0">
+                    <span class="badge bg-dark">{{ site. }}</span>
+                  </td>-->
+                  <td class="px-0 text-end px-3">
+                    <router-link :to="`/sites/${site.id}`" class="">
+                      <i class="fa-solid fa-up-right-from-square"></i> view
+                    </router-link>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
             </div>
-          </div>
+
         </div>
       </div>
     </div>
     <div v-else class="row">
       <div class="col-lg-12">
         <div class="error-body text-center">
-          <h1 class="error-title text-danger">no sites</h1>
-          <h3 class="text-error-subtitle">please create or join a new site</h3>
+          <h1 class="error-title text-danger">no workspaces</h1>
+          <h3 class="text-error-subtitle">please create or join a new workspace</h3>
           <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
            <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
         </div>

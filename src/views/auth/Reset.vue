@@ -17,6 +17,7 @@ interface Response {
 }
 
 let session = core.session()
+let router = core.router()
 
 function onLogin(response: any) {
   state.waiting = false
@@ -27,7 +28,7 @@ function onLogin(response: any) {
   }).catch((err) => {
     console.log(err)
   })
-  window.location.href = "/"
+  router.push("/")
 }
 
 function onFailure(error: any) {

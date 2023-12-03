@@ -9,76 +9,42 @@ const session = core.session()
 
 function logout() {
   session.token = ""
-  session.user = {} as User
+  session.data = {} as User
   router.push("/auth/login")
 }
 
 </script>
 
 <template>
-  <aside class="left-sidebar">
-    <div class="scroll-sidebar">
-      <nav class="sidebar-nav">
-        <ul id="sidebarnav">
-          <li class="sidebar-item">
-            <router-link active-class="selected" class="sidebar-item" to="/home">
-            <div class="sidebar-link waves-effect waves-dark">  <i
-                class="mdi mdi-home"></i>home</div>
-            </router-link>
-          </li>
-          <li class="sidebar-item">
-            <router-link active-class="selected" class="sidebar-item" to="/sites">
-              <div class="sidebar-link waves-effect waves-dark"><i
-                  class="mdi mdi-access-point-network"></i>sites</div>
-            </router-link>
-          </li>
-          <li class="nav-small-cap">
-            <span class="hide-menu"><b>sites</b></span>
-          </li>
-          <li class="sidebar-item"><a aria-expanded="false"
-                                      class="sidebar-link waves-effect waves-dark sidebar-link" href="/site/{{.siteId}}"><i
-              class="mdi mdi-view-dashboard"></i><span class="hide-menu">dashboard</span></a></li>
-          <li class="sidebar-item"><a aria-expanded="false"
-                                      class="sidebar-link waves-effect waves-dark sidebar-link" href="/agents/{{.siteId}}"><i
-              class="mdi mdi-server"></i><span
-              class="hide-menu">agents</span></a></li>
-          <li class="sidebar-item"><a aria-expanded="false"
-                                      class="sidebar-link waves-effect waves-dark sidebar-link" href="/alerts/{{.siteId}}"><i
-              class="mdi mdi-alert-circle"></i><span
-              class="hide-menu">alerts</span></a></li>
-          <!-- TODO Check if member has correct role and display correct options -->
-          <li class="nav-small-line">
-            <!--TODO show which site is selected -->
-          </li>
-          <li class="sidebar-item">
-            <a aria-expanded="false" class="sidebar-link has-arrow waves-effect waves-dark"
-               href="javascript:void(0)"><span class="hide-menu"><i class="fa fa-cogs"></i> manage</span></a>
-            <ul aria-expanded="false" class="collapse first-level">
-              <li class="sidebar-item">
-                <a class="sidebar-link" href="/site/{{.siteId}}/settings"><i class="fa fa-cog"></i><span
-                    class="hide-menu">settings</span></a>
-                <a class="sidebar-link" href="/site/{{.siteId}}/members"><i class="fa fa-users"></i><span
-                    class="hide-menu">members</span></a>
-                <!--<a href="/site/delete/{{.siteId}}" class="sidebar-link">
-                        <i class="fa fa-trash"></i><span class="hide-menu text-danger">delete</span></a>-->
-              </li>
-            </ul>
-          </li>
-
-          <li class="nav-devider">
-            <!-- <i class="nav-small-line"></i>
-             <span class="hide-menu">site</span>-->
-            <!--TODO show which site is selected -->
-          </li>
-          <li class="sidebar-item" @click="logout"><a aria-expanded="false"
-                                      class="sidebar-link btn-light waves-effect waves-dark sidebar-link"><i class="mdi mdi-logout"></i><span
-              class="hide-menu">logout</span></a></li>
-        </ul>
-      </nav>
-      <!-- End Sidebar navigation -->
-    </div>
-    <!-- End Sidebar scroll-->
-  </aside>
+  <div class="d-flex flex-column flex-shrink-0 p-3 bg-light h-100 sidebar" style="width: 280px;">
+    <a class="d-flex align-items-center logo navbar-brand gap-2 px-1 mb-3" href="#">
+      <img src="/assets/images/logo-icon.png" alt="Logo" class="d-inline-block align-text-top">
+      netwatcher
+    </a>
+    <ul class="nav nav-pills flex-column gap-1">
+      <li class="nav-item">
+        <router-link active-class="active" class="nav-link" to="/home">
+          <div class="sidebar-link waves-effect waves-dark"><i class="bi bi-house"></i>&nbsp;&nbsp;home
+          </div>
+        </router-link>
+      </li>
+      <li class="nav-item">
+        <router-link active-class="active" class="nav-link" to="/sites">
+          <div class="sidebar-link waves-effect waves-dark"><i class="bi bi-grid"></i>&nbsp;&nbsp;workspaces
+          </div>
+        </router-link>
+      </li>
+    </ul>
+    <div class="flex-fill"></div>
+    <ul class="nav nav-pills flex-column mb-2">
+      <li class="nav-item">
+        <div class="nav-link nav-link-static"  @click="logout">
+          <div><i class="fa-solid fa-right-from-bracket"></i>&nbsp;logout
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <style>

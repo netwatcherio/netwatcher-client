@@ -5,18 +5,17 @@ import profileService from "@/services/profile";
 
 export interface Session {
     token: string
-    user: User
+    data: User
 }
-
-
-let defaults = {
-    token: "",
-    user: {} as User,
-} as Session
 
 function init() {
 
 }
+
+let defaults = {
+    token: "",
+    data: {} as User,
+} as Session
 
 
 // Save the Preferences object to localStorage
@@ -36,6 +35,11 @@ function restore(): Session {
         // Parse the string to the Preferences object
         return JSON.parse(stored)
     } else {
+        let defaults = {
+            token: "",
+            data: {} as User,
+        } as Session
+
         // If the retrieval failed, save the default values to localStorage
         save(defaults)
         // Return the default parameters

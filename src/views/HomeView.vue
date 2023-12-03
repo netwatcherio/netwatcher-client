@@ -1,43 +1,37 @@
-<script lang="ts" setup></script>
+<script>
+import {defineComponent} from "vue";
+import Title from "@/components/Title.vue";
+
+export default defineComponent({
+  components: {Title}
+})
+</script>
 
 <template>
-  <div class="page-titles">
-    <div class="row">
-      <div class="col-lg-8 col-md-6 col-12 align-self-center">
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb mb-0 d-flex align-items-center">
-            <li class="breadcrumb-item">
-              <a class="link" href="/home"><i class="ri-home-3-line fs-5"></i></a>
-            </li>
-            <li aria-current="page" class="breadcrumb-item active">
-              Home
-            </li>
-          </ol>
-        </nav>
-        <h1 class="mb-0 fw-bold">Overview</h1>
-      </div>
-    </div>
-  </div>
 
   <div class="container-fluid">
+  <Title title="this is a placeholder"></Title>
     <div class="row">
       <!-- column -->
-      <div class="col-12">
+<!--      <div class="col-12">
+        <div class="alert alert-info" role="alert">
+          todo: add some sort of overview here
+        </div>
         <div class="card">
           <div class="card-body">
-            <!-- title -->
+            &lt;!&ndash; title &ndash;&gt;
             <div class="d-md-flex">
               <div>
-                <h4 class="card-title">Sites</h4>
-                <h5 class="card-subtitle">Overview of Sites</h5>
+                <h4 class="card-title">sites</h4>
+&lt;!&ndash;                <h5 class="card-subtitle">sites</h5>&ndash;&gt;
               </div>
             </div>
-            <!-- title -->
+            &lt;!&ndash; title &ndash;&gt;
             <div class="table-responsive">
               <table class="table mb-0 table-hover align-middle text-nowrap">
                 <thead>
                 <tr>
-                  <!--TODO make custom icons for this or something to indicate wether it's online or not-->
+                  &lt;!&ndash;TODO make custom icons for this or something to indicate wether it's online or not&ndash;&gt;
                   <th class="border-top-0">Status</th>
                   <th class="border-top-0">Name</th>
                   <th class="border-top-0">Location</th>
@@ -64,7 +58,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div>-->
     </div>
   </div>
 </template>
