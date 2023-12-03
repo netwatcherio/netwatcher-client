@@ -15,8 +15,9 @@ $card-box-shadow: 0 0 4px rgba(29,39,59, 0.04);
 }
 
 .label-code {
-  font-family: "JetBrains Mono";
+  font-family: "JetBrains Mono", monospace;
 }
+
 @import "../../node_modules/bootstrap/scss/bootstrap";
 
 $baseElevation: 24px;

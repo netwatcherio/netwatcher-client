@@ -1,6 +1,6 @@
 @charset "UTF-8";
 .label-code {
-  font-family: "JetBrains Mono";
+  font-family: "JetBrains Mono", monospace;
 }
 
 /*!
