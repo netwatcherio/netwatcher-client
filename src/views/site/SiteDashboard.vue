@@ -59,7 +59,7 @@ function getOnlineStatus(agent: Agent) {
       <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create agent</router-link>
     </div>
   </Title>
-    <div class="site-grid">
+    <div class="site-grid" v-if="state.ready">
       <Element
           v-for="agent in state.agents.sort((a, b) => (getOnlineStatus(b) - getOnlineStatus(a)))"
           :title="agent.name"
@@ -83,7 +83,12 @@ function getOnlineStatus(agent: Agent) {
 
       </Element>
     </div>
-    <div v-if="state.ready" class="card px-3 py-1">
+    <div v-else class="card px-3 py-1">
+      <div class="d-flex flex-row py-2">
+        this workspace has no agents
+      </div>
+    </div>
+    <div v-if="false" class="card px-3 py-1">
      <div class="table-responsive">
        <table class="table">
          <thead>
@@ -133,11 +138,7 @@ function getOnlineStatus(agent: Agent) {
        </table>
      </div>
    </div>
-    <div v-else class="card px-3 py-1">
-      <div class="d-flex flex-row py-2">
-      this workspace has no agents
-      </div>
-    </div>
+
 
   </div>
 </template>
