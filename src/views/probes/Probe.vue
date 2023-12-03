@@ -23,6 +23,7 @@ import LatencyGraph from "@/components/PingGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 import RperfGraph from "@/components/RperfGraph.vue";
+import NetworkMap from "@/components/NetworkMap.vue";
 
 const state = reactive({
   target: {} as string,
@@ -134,7 +135,7 @@ function transformMtrDataMulti(dataArray: ProbeData[]): MtrResult[] {
 }
 
 function transformMtrData(data: any[]): MtrResult {
-  console.log(data);
+  //console.log(data);
 
   const result: MtrResult = {
     startTimestamp: new Date(),  // Default value, to be updated
@@ -217,45 +218,61 @@ function generateTable(probeData: ProbeData) {
   const seenIPs = new Map(); // To track IPs and their occurrences
 
   mtrCalculate.report.hops.forEach((hop, hopIndex) => {
-    hop.hosts.forEach((host, hostIndex) => {
-      const hostDisplay = host.hostname + " (" + host.ip + ")";
-      let hopDisplay = hopIndex.toString();
-      let prefix = '    '; // Default prefix with spaces
-
-      if (seenIPs.has(host.ip)) {
-        // If we have seen this IP before, we might be seeing an ECMP route
-        const occurrences = seenIPs.get(host.ip);
-        prefix = '|   '; // Vertical line for continuation of a seen IP
-        hopDisplay = "+-> " + hopDisplay; // Indicate a branching for a new ECMP route
-        seenIPs.set(host.ip, occurrences + 1); // Increment the occurrence count
-      } else {
-        // If this is the first time we see this IP
-        seenIPs.set(host.ip, 1); // Set the occurrence count to 1
-      }
-
-      // We only apply the prefix if it's not the first host (to align with the first host of this hop)
-      if (hostIndex !== 0) {
-        hopDisplay = prefix + hopDisplay;
-      }
-
+    if (hop.hosts.length === 0) {
+      // Add a row for the hop itself with '*' for the values
       table.addRow(
-          hopDisplay,
-          hostDisplay,
-          hop.loss_pct,
-          hop.sent.toString(),
-          hop.recv.toString(),
-          hop.avg,
-          hop.best,
-          hop.worst,
-          hop.stddev
+          hopIndex.toString(),
+          '*',
+          '*',
+          '*',
+          '*',
+          '*',
+          '*',
+          '*',
+          '*'
       );
-    });
+    } else {
+      hop.hosts.forEach((host, hostIndex) => {
+        const hostDisplay = host.hostname + " (" + host.ip + ")";
+        let hopDisplay = hopIndex.toString();
+        let prefix = '    '; // Default prefix with spaces
+
+        if (seenIPs.has(host.ip)) {
+          // If we have seen this IP before, we might be seeing an ECMP route
+          const occurrences = seenIPs.get(host.ip);
+          prefix = '|   '; // Vertical line for continuation of a seen IP
+          hopDisplay = "+-> " + hopDisplay; // Indicate a branching for a new ECMP route
+          seenIPs.set(host.ip, occurrences + 1); // Increment the occurrence count
+        } else {
+          // If this is the first time we see this IP
+          seenIPs.set(host.ip, 1); // Set the occurrence count to 1
+        }
+
+        // We only apply the prefix if it's not the first host (to align with the first host of this hop)
+        if (hostIndex !== 0) {
+          hopDisplay = prefix + hopDisplay;
+        }
+
+        table.addRow(
+            hopDisplay,
+            hostDisplay,
+            hop.loss_pct,
+            hop.sent.toString(),
+            hop.recv.toString(),
+            hop.avg,
+            hop.best,
+            hop.worst,
+            hop.stddev
+        );
+      });
+    }
   });
 
   table.setStyle("unicode-single");
 
   return table.toString();
 }
+
 
 
 
@@ -440,7 +457,7 @@ function submit() {
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
-            <!--            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>-->
+                        <NetworkMap v-if="state.ready" :mtrResults="transformMtrDataMulti(state.mtrData)"/>
 
             <div id="mtrAccordion" class="accordion">
 

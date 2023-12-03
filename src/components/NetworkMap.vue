@@ -40,80 +40,215 @@ export default {
   },
 };
 
-function createNetworkMap(mtrData: MtrResult[], element: HTMLElement) {
-  const margin = { top: 10, right: 30, bottom: 30, left: 40 },
-      width = 960 - margin.left - margin.right,
-      height = 500 - margin.top - margin.bottom;
+type Node = {
+  id: string;
+  label: string;
+  hopNumber: number;
+};
 
-  console.log(mtrData)
+type Link = {
+  source: string;
+  target: string;
+  latency: number;
+  packetLoss: number;
+};
 
-  // Remove any existing SVG to start fresh
-  d3.select(element).selectAll('svg').remove();
+function createNetworkMap(mtrResults: MtrResult[], graphElement: HTMLElement) {
+  graphElement.style.height = '600px';
 
-  // Append the SVG object to the body of the page
-  const svg = d3.select(element)
+  // Set the dimensions and margins of the graph
+  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+  const width = graphElement.clientWidth - margin.left - margin.right;
+  const height = parseInt(graphElement.style.height) - margin.top - margin.bottom;
+  const nodeRadius = 12;
+  const healthyColor = 'green';
+  const unhealthyColor = 'red';
+  const linkColor = '#999';
+  const unreachableColor = 'gray';
+  const textSize = 8;
+
+  const nodes = [] as Node[];
+  const links = [] as Link[];
+
+  mtrResults.forEach((mtrResult) => {
+    mtrResult.report.hops.forEach((hop, hopIndex) => {
+      if(hop.hosts.length > 0){
+      hop.hosts.forEach((host) => {
+        const nodeId = host.hostname ? `${host.hostname} (${host.ip})` : 'Unreachable #' + (hopIndex + 1);
+        if (!nodes.some(n => n.id === nodeId)) {
+          nodes.push({
+            id: nodeId,
+            label: `Hop ${hopIndex + 1}: ${nodeId}`,
+            hopNumber: hopIndex + 1,
+          });
+        }
+
+        if (hopIndex < mtrResult.report.hops.length - 1) {
+          const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
+          if (nextHopHosts.length > 0) {
+            const nextHop = nextHopHosts[0];
+            const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
+            links.push({
+              source: nodeId,
+              target: nextNodeId,
+              latency: parseFloat(hop.avg),
+              packetLoss: parseFloat(hop.loss_pct),
+            });
+          }else{
+            const nextNodeId = 'Unreachable #' + (hopIndex + 2);
+            links.push({
+              source: nodeId,
+              target: nextNodeId,
+              latency: parseFloat(hop.avg),
+              packetLoss: parseFloat(hop.loss_pct),
+            });
+          }
+      }
+      });
+      }else{
+        const nodeId = 'Unreachable #' + (hopIndex + 1);
+        if (!nodes.some(n => n.id === nodeId)) {
+          nodes.push({
+            id: nodeId,
+            label: `Hop ${hopIndex + 1}: ${nodeId}`,
+            hopNumber: hopIndex + 1,
+          });
+        }
+
+        if (hopIndex < mtrResult.report.hops.length - 1) {
+          const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
+          if (nextHopHosts.length > 0) {
+            const nextHop = nextHopHosts[0];
+            const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
+            links.push({
+              source: nodeId,
+              target: nextNodeId,
+              latency: parseFloat(hop.avg),
+              packetLoss: parseFloat(hop.loss_pct),
+            });
+          }else{
+            const nextNodeId = 'Unreachable #' + (hopIndex + 1);
+            links.push({
+              source: nodeId,
+              target: nextNodeId,
+              latency: parseFloat(hop.avg),
+              packetLoss: parseFloat(hop.loss_pct),
+            });
+          }
+        }
+      }
+    });
+  });
+
+  // Clear any existing SVG
+  d3.select(graphElement).selectAll('svg').remove();
+
+  // Create the outer SVG element
+  const svg = d3.select(graphElement)
       .append('svg')
       .attr('width', width + margin.left + margin.right)
       .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`);
+      .append('g');
 
-  // Process the data here
-  const linksData = mtrData.map(d => d.report.hubs.map((hub, i, arr) => {
-    return i < arr.length - 1 ? { source: hub.host, target: arr[i + 1].host, loss: hub['Loss%'] } : null;
-  }).filter(d => d != null)).reduce((acc, val) => acc.concat(val), []);
+  // Define the zoom behavior
+  const zoom = d3.zoom()
+      .scaleExtent([0.5, 4])
+      .translateExtent([
+        [-100, -100], // Limit the panning to 100px outside the SVG on each side
+        [width + margin.right + 100, height + margin.bottom + 100]
+      ])
+      .on('zoom', (event) => {
+        svg.attr('transform', event.transform);
+      });
 
-  const nodesData = Array.from(new Set(
-      linksData.reduce((acc, val) => acc.concat(val.source, val.target), [])
-  ));
+  // Apply the zoom behavior to the SVG element
+  svg.call(zoom);
 
-  const nodeElements = svg.selectAll('circle')
-      .data(nodesData)
-      .enter()
-      .append('circle')
-      .attr('r', 5)
-      .style('fill', 'green');
+  // Create the links (lines)
+  const link = svg.selectAll('.link')
+      .data(links)
+      .enter().append('line')
+      .attr('class', 'link')
+      .style('stroke-width', 2)
+      .style('stroke', linkColor);
 
-  const linkElements = svg.selectAll('line')
-      .data(linksData)
-      .enter()
-      .append('line')
-      .style('stroke', d => d.loss > 0 ? 'red' : 'green')
-      .style('opacity', d => d.loss > 0 ? 0.6 : 1);
 
-  const simulation = d3.forceSimulation(nodesData as any)
-      .force('link', d3.forceLink(linksData as any).id((d: any) => d.host))
-      .force('charge', d3.forceManyBody().strength(-100))
+
+  // Create the nodes (circles)
+  const node = svg.selectAll('.node')
+      .data(nodes)
+      .enter().append('circle')
+      .attr('class', 'node')
+      .attr('r', nodeRadius)
+      .style('fill', d => d.id.startsWith('Unreachable') ? unreachableColor : getNodeColor(d.id));
+  // Create labels for the nodes
+  const label = svg.selectAll('.label')
+      .data(nodes)
+      .enter().append('text')
+      .attr('class', 'label')
+      .text(d => d.label)
+      .style('font-family', 'Arial')
+      .style('font-size', textSize)
+      .attr('dx', '1em') // Offset the label horizontally
+      .attr('dy', '.35em'); // Offset the label vertically
+
+  // Define the simulation
+  const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+      .force('charge', d3.forceManyBody().strength(-50))
       .force('center', d3.forceCenter(width / 2, height / 2));
 
+  // Update positions on each tick
   simulation.on('tick', () => {
-    nodeElements
-        .attr('cx', (d: any) => d.x)
-        .attr('cy', (d: any) => d.y);
+    link.attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
 
-    linkElements
-        .attr('x1', (d: any) => d.source.x)
-        .attr('y1', (d: any) => d.source.y)
-        .attr('x2', (d: any) => d.target.x)
-        .attr('y2', (d: any) => d.target.y);
+    node.attr('cx', d => d.x)
+        .attr('cy', d => d.y);
+
+    label.attr('x', d => d.x)
+        .attr('y', d => d.y);
   });
 
-  const dragDrop = d3.drag().on('start', (event: any) => {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-  }).on('drag', (event: any) => {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
-  }).on('end', (event: any) => {
-    if (!event.active) {
-      simulation.alphaTarget(0);
+  // Drag behavior for nodes
+  node.call(d3.drag()
+      .on('start', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on('drag', (event, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
+      })
+      .on('end', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }));
+
+  function getNodeColor(sourceNodeId: any) {
+    let link = links.find(link => link.source)
+    // Define thresholds for packet loss and latency
+    const packetLossThreshold = 10; // Adjust this threshold as needed
+    const latencyThreshold = 100;   // Adjust this threshold as needed
+
+    if (link.packetLoss <= packetLossThreshold && link.latency <= latencyThreshold) {
+      // Node is healthy (low packet loss and low latency)
+      return 'green';
+    } else if (link.packetLoss <= packetLossThreshold && link.latency > latencyThreshold) {
+      // Node has high latency but low packet loss
+      return 'yellow';
+    } else {
+      // Node is unhealthy (high packet loss or both high latency and high packet loss)
+      return 'red';
     }
-    event.subject.fx = null;
-    event.subject.fy = null;
-  });
+  }
 
-  nodeElements.call(dragDrop as any);
 }
+
 </script>
 
 <style scoped>
