@@ -210,18 +210,37 @@ function transformMtrData(data: any[]): MtrResult {
 
 function generateTable(probeData: ProbeData) {
   let mtrCalculate = transformMtrData(probeData.data);
-  //console.log(probeData)
 
-  //console.log(mtrCalculate)
-
-  let table = new AsciiTable3(mtrCalculate.report.info.target.hostname + " ("+mtrCalculate.report.info.target.ip+")" + " - " + mtrCalculate.stopTimestamp.toISOString());
+  let table = new AsciiTable3(mtrCalculate.report.info.target.hostname + " (" + mtrCalculate.report.info.target.ip + ")" + " - " + mtrCalculate.stopTimestamp.toISOString());
   table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev');
 
-  mtrCalculate.report.hops.forEach((hop, i) => {
-    hop.hosts.forEach(host => {
+  const seenIPs = new Map(); // To track IPs and their occurrences
+
+  mtrCalculate.report.hops.forEach((hop, hopIndex) => {
+    hop.hosts.forEach((host, hostIndex) => {
+      const hostDisplay = host.hostname + " (" + host.ip + ")";
+      let hopDisplay = hopIndex.toString();
+      let prefix = '    '; // Default prefix with spaces
+
+      if (seenIPs.has(host.ip)) {
+        // If we have seen this IP before, we might be seeing an ECMP route
+        const occurrences = seenIPs.get(host.ip);
+        prefix = '|   '; // Vertical line for continuation of a seen IP
+        hopDisplay = "+-> " + hopDisplay; // Indicate a branching for a new ECMP route
+        seenIPs.set(host.ip, occurrences + 1); // Increment the occurrence count
+      } else {
+        // If this is the first time we see this IP
+        seenIPs.set(host.ip, 1); // Set the occurrence count to 1
+      }
+
+      // We only apply the prefix if it's not the first host (to align with the first host of this hop)
+      if (hostIndex !== 0) {
+        hopDisplay = prefix + hopDisplay;
+      }
+
       table.addRow(
-          i.toString(),
-          host.hostname + " ("+host.ip+")",
+          hopDisplay,
+          hostDisplay,
           hop.loss_pct,
           hop.sent.toString(),
           hop.recv.toString(),
@@ -237,6 +256,8 @@ function generateTable(probeData: ProbeData) {
 
   return table.toString();
 }
+
+
 
 // Other interfaces and transformMtrData function should be defined here as well.
 
