@@ -252,7 +252,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     appendPath(segment, 'line-loss', lossLine, 'red');
   });
 
-  console.log(data)
+  //console.log(data)
 
   function appendPath(segment: PingResult[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
     svg.append('path')

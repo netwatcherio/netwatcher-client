@@ -1,16 +1,17 @@
 <script lang="ts" setup>
 
-import {onMounted, reactive, ref, watch} from "vue";
+import {onMounted, reactive, watch} from "vue";
 import siteService from "@/services/siteService";
 import type {
   Agent,
-  MtrReport,
+  MtrHop,
   MtrResult,
   PingResult,
   Probe,
   ProbeData,
   ProbeDataRequest,
-  ProbeType, RPerfResults,
+  ProbeType,
+  RPerfResults,
   Site
 } from "@/types";
 import core from "@/core";
@@ -21,7 +22,6 @@ import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
 import LatencyGraph from "@/components/PingGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
-import NetworkMap from "@/components/NetworkMap.vue";
 import RperfGraph from "@/components/RperfGraph.vue";
 
 const state = reactive({
@@ -74,10 +74,10 @@ function transformToRPerfResults(dataArray: ProbeData[]): RPerfResults[] {
       startTimestamp: new Date(),
       stopTimestamp: new Date(),
       config: {
-        additional: { ipVersion: 0, omitSeconds: 0, reverse: false },
-        common: { family: '', length: 0, streams: 0 },
+        additional: {ipVersion: 0, omitSeconds: 0, reverse: false},
+        common: {family: '', length: 0, streams: 0},
         download: {},
-        upload: { bandwidth: 0, duration: 0, sendInterval: 0 }
+        upload: {bandwidth: 0, duration: 0, sendInterval: 0}
       },
       streams: [], // Assuming you have a way to populate this based on your data
       success: false,
@@ -130,124 +130,115 @@ function transformToRPerfResults(dataArray: ProbeData[]): RPerfResults[] {
 }
 
 function transformMtrDataMulti(dataArray: ProbeData[]): MtrResult[] {
-  //console.log(dataArray)
-
-  return dataArray.map(data => {
-    // Initialize the report structure
-    const report: MtrReport = {
-      mtr: {
-        src: '',
-        dst: '',
-        tos: 0,
-        tests: 0,
-        psize: '',
-        bitpattern: ''
-      },
-      hubs: []
-    };
-
-    // Extract the report data
-    const reportData = data.data.find((d: { Key: string; }) => d.Key === 'report')?.Value;
-    if (reportData) {
-      reportData.forEach((reportItem: { Key: string; Value: any }) => {
-        if (reportItem.Key === 'mtr') {
-          Object.assign(report.mtr, reportItem.Value);
-        } else if (reportItem.Key === 'hubs') {
-          report.hubs = reportItem.Value.map((hubData: { [s: string]: unknown; } | ArrayLike<unknown>) => {
-            const hub: any = {};
-            Object.entries(hubData).forEach(([key, value]) => {
-              hub[key] = value;
-            });
-            return hub;
-          });
-        }
-      });
-    }
-
-    // Find the values for startTimestamp, stopTimestamp, and triggered
-    const startTimestamp = new Date(data.data.find((d: any) => d.Key === 'start_timestamp')?.Value);
-    const stopTimestamp = new Date(data.data.find((d: any) => d.Key === 'stop_timestamp')?.Value);
-    const triggered = data.data.find((d: any) => d.Key === 'triggered')?.Value;
-
-    // Return the MtrResult object
-    return {
-      startTimestamp,
-      stopTimestamp,
-      triggered,
-      report
-    };
-  });
+  return dataArray.map(data => transformMtrData(data.data));
 }
 
-
 function transformMtrData(data: any[]): MtrResult {
-  let result: MtrResult = {
-    startTimestamp: new Date(),
-    stopTimestamp: new Date(),
-    triggered: false,
+  console.log(data);
+
+  const result: MtrResult = {
+    startTimestamp: new Date(),  // Default value, to be updated
+    stopTimestamp: new Date(),   // Default value, to be updated
     report: {
-      mtr: {
-        src: '',
-        dst: '',
-        tos: 0,
-        tests: 0,
-        psize: '',
-        bitpattern: ''
+      info: {
+        target: {
+          ip: '',
+          hostname: ''
+        }
       },
-      hubs: []
+      hops: []
     }
   };
 
-  data.forEach(item => {
-
-    switch (item.Key) {
-      case 'start_timestamp':
-        result.startTimestamp = new Date(item.Value);
-        break;
-      case 'stop_timestamp':
-        result.stopTimestamp = new Date(item.Value);
-        break;
-      case 'triggered':
-        result.triggered = item.Value;
-        break;
-      case 'report':
-        item.Value.forEach(reportItem => {
-          if (reportItem.Key === 'mtr') {
-            reportItem.Value.forEach(mtrItem => {
-              result.report.mtr[mtrItem.Key] = mtrItem.Value;
-            });
-          } else if (reportItem.Key === 'hubs') {
-            reportItem.Value.forEach(hubArray => {
-              let hub = {};
-              hubArray.forEach(hubItem => {
-                hub[hubItem.Key] = hubItem.Value;
+  const reportData = data.find(d => d.Key === 'report')?.Value;
+  if (reportData) {
+    reportData.forEach((item: any) => {
+      if (item.Key === 'info') {
+        const targetData = item.Value.find((val: any) => val.Key === 'target')?.Value;
+        if (targetData) {
+          targetData.forEach((target: any) => {
+            if (target.Key === 'ip') result.report.info.target.ip = target.Value;
+            if (target.Key === 'hostname') result.report.info.target.hostname = target.Value;
+          });
+        }
+      } else if (item.Key === 'hops') {
+        result.report.hops = item.Value.map((hopArray: any[]) => {
+          const hop: MtrHop = {
+            ttl: 0,
+            hosts: [],
+            extensions: [],
+            loss_pct: '',
+            sent: 0,
+            last: '',
+            recv: 0,
+            avg: '',
+            best: '',
+            worst: '',
+            stddev: ''
+          };
+          hopArray.forEach(hopItem => {
+            if (hopItem.Key === 'ttl') hop.ttl = hopItem.Value;
+            else if (hopItem.Key === 'hosts') {
+              hop.hosts = hopItem.Value.map(hostArray => {
+                const host = {ip: '', hostname: ''};
+                hostArray.forEach(hostItem => {
+                  if (hostItem.Key === 'ip') host.ip = hostItem.Value;
+                  if (hostItem.Key === 'hostname') host.hostname = hostItem.Value;
+                });
+                return host;
               });
-              result.report.hubs.push(hub);
-            });
-          }
+            } else {
+              hop[hopItem.Key] = hopItem.Value;  // For other keys like extensions, lossPct, etc.
+            }
+          });
+          return hop;
         });
-        break;
-        // Add more cases as needed
-    }
-  });
+      }
+    });
+  }
+
+  // Assuming the start and stop timestamps are at the same level as report
+  const startTimestampItem = data.find(d => d.Key === 'start_timestamp');
+  if (startTimestampItem) result.startTimestamp = new Date(startTimestampItem.Value);
+
+  const stopTimestampItem = data.find(d => d.Key === 'stop_timestamp');
+  if (stopTimestampItem) result.stopTimestamp = new Date(stopTimestampItem.Value);
 
   return result;
 }
 
+
 function generateTable(probeData: ProbeData) {
-  let mtrCalculate = transformMtrData(probeData.data)
+  let mtrCalculate = transformMtrData(probeData.data);
+  //console.log(probeData)
 
-  let table = new AsciiTable3(mtrCalculate.report.mtr.dst + " - " + mtrCalculate.stopTimestamp);
-  table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev', 'ASN')
-  for (let i = 0; i < mtrCalculate.report.hubs.length; i++) {
-    let v = mtrCalculate.report.hubs[i]
-    table.addRow(i, v.host, v["Loss%"], v.Snt, v.Rcv, v.Avg, v.Best, v.Wrst, v.StDev, v.ASN)
-  }
-  table.setStyle("unicode-single")
+  //console.log(mtrCalculate)
 
-  //console.log(table.toString());
-  return table.toString()
+  let table = new AsciiTable3(mtrCalculate.report.info.target.hostname + " ("+mtrCalculate.report.info.target.ip+")" + " - " + mtrCalculate.stopTimestamp.toISOString());
+  table.setHeading('Hop', 'Host', 'Loss%', 'Snt', 'Recv', 'Avg', 'Best', 'Worst', 'StDev');
+
+  mtrCalculate.report.hops.forEach((hop, i) => {
+    hop.hosts.forEach(host => {
+      table.addRow(
+          i.toString(),
+          host.hostname + " ("+host.ip+")",
+          hop.loss_pct,
+          hop.sent.toString(),
+          hop.recv.toString(),
+          hop.avg,
+          hop.best,
+          hop.worst,
+          hop.stddev
+      );
+    });
+  });
+
+  table.setStyle("unicode-single");
+
+  return table.toString();
 }
+
+// Other interfaces and transformMtrData function should be defined here as well.
 
 
 function reloadData(checkId: string) {
@@ -275,36 +266,41 @@ function reloadData(checkId: string) {
         state.site = res.data as Site
         state.ready = true
 
-    probeService.getSimilarProbes(checkId).then(res => {
-      state.similarProbes = res.data as Probe[]
-      for (let p of state.similarProbes) {
+        probeService.getSimilarProbes(checkId).then(res => {
+          state.similarProbes = res.data as Probe[]
+          for (let p of state.similarProbes) {
 
-        probeService.getProbeData(p.id, {recent: false, limit: 5000, startTimestamp: state.timeRange[0], endTimestamp: state.timeRange[1]} as ProbeDataRequest).then(res => {
-          for (let d of res.data as ProbeData[]) {
-            //state.probeData.push(d)
+            probeService.getProbeData(p.id, {
+              recent: false,
+              limit: 5000,
+              startTimestamp: state.timeRange[0],
+              endTimestamp: state.timeRange[1]
+            } as ProbeDataRequest).then(res => {
+              for (let d of res.data as ProbeData[]) {
+                //state.probeData.push(d)
 
-            let pprober = getProbe(d.probe) as Probe
+                let pprober = getProbe(d.probe) as Probe
 
-            if (pprober.type == "PING") {
-              state.pingData.push(d)
-            }
-            if (pprober.type == "MTR") {
-              //console.log(d)
-              state.mtrData.push(d)
-            }
-            if (pprober.type == "RPERF" && !pprober.config.server) {
-              state.rperfData.push(d)
-              //console.log(d.data)
-            }
+                if (pprober.type == "PING") {
+                  state.pingData.push(d)
+                }
+                if (pprober.type == "MTR") {
+                  //console.log(d)
+                  state.mtrData.push(d)
+                }
+                if (pprober.type == "RPERF" && !pprober.config.server) {
+                  state.rperfData.push(d)
+                  //console.log(d.data)
+                }
+              }
+            })
           }
-        })
-      }
 
-      //console.log(state.rperfData)
-      //console.log(state.pingData)
+          //console.log(state.rperfData)
+          //console.log(state.pingData)
+        })
+      })
     })
-  })
-  })
   })
 }
 
@@ -338,15 +334,15 @@ watch(() => state.timeRange, (newTimeRange) => {
     reloadData(checkId);
   }
   state.timeRange = newTimeRange
-}, { deep: true });
+}, {deep: true});
 
 onMounted(() => {
   let checkId = router.currentRoute.value.params["probeId"] as string
   if (!checkId) return
 
   state.timeRange = [
-      new Date(new Date().getTime() - 3 * 60 * 60 * 1000), // Current time minus 6 hours
-      new Date() // Current time
+    new Date(new Date().getTime() - 3 * 60 * 60 * 1000), // Current time minus 6 hours
+    new Date() // Current time
   ]
 
   //console.log(checkId)
@@ -379,27 +375,27 @@ function submit() {
         :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
         :title="state.title"
         subtitle="information about this target">
-      <div class="d-flex gap-1" v-if="state.ready">
-<!--        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
-            class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
-        </router-link>
-        <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
-            class="fa-solid fa-plus"></i>&nbsp;add check
-        </router-link>-->
-        <VueDatePicker v-model="state.timeRange" range :partial-range="false" />
+      <div v-if="state.ready" class="d-flex gap-1">
+        <!--        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
+                    class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
+                </router-link>
+                <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
+                    class="fa-solid fa-plus"></i>&nbsp;add check
+                </router-link>-->
+        <VueDatePicker v-model="state.timeRange" :partial-range="false" range/>
       </div>
     </Title>
 
-    <div class="row" >
-<!--      <div class="col-sm-4">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">voice graph</h5>
-            <p class="card-text">this shows the estimated mos score of your target</p>
-          </div>
-        </div>
-      </div>-->
-      <div class="col-sm-12" v-if="state.pingData.length > 0">
+    <div class="row">
+      <!--      <div class="col-sm-4">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">voice graph</h5>
+                  <p class="card-text">this shows the estimated mos score of your target</p>
+                </div>
+              </div>
+            </div>-->
+      <div v-if="state.pingData.length > 0" class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">latency</h5>
@@ -408,7 +404,7 @@ function submit() {
           </div>
         </div>
       </div>
-      <div class="col-sm-12" v-if="state.rperfData.length > 0">
+      <div v-if="state.rperfData.length > 0" class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">simulated traffic</h5>
@@ -417,28 +413,30 @@ function submit() {
           </div>
         </div>
       </div>
-      <div class="col-sm-12" v-if="state.mtrData.length > 0">
+      <div v-if="state.mtrData.length > 0" class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
 
-<!--            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>-->
+            <!--            <NetworkMap v-if="state.ready" :pingResults="transformMtrDataMulti(state.mtrData)"/>-->
 
             <div id="mtrAccordion" class="accordion">
 
               <div v-for="mtr in state.mtrData" :key="mtr.id">
 
-                <div class="accordion-item" v-if="getProbe((mtr as ProbeData).probe).type == `MTR` as ProbeType">
+                <div v-if="getProbe((mtr as ProbeData).probe).type == `MTR` as ProbeType" class="accordion-item">
                   <h2 :id="'heading' + mtr.id" class="accordion-header">
-                    <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false" :data-bs-target="'#collapse' + mtr.id"
+                    <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false"
+                            :data-bs-target="'#collapse' + mtr.id"
                             class="accordion-button collapsed" data-bs-toggle="collapse" type="button">
                       {{ transformMtrData((mtr as ProbeData).data).stopTimestamp }}
                       <span v-if="(mtr as ProbeData).triggered" class="badge bg-dark">TRIGGERED</span>
                     </button>
 
                   </h2>
-                  <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id" class="accordion-collapse collapse"
+                  <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id"
+                       class="accordion-collapse collapse"
                        data-bs-parent="#accordionExample">
                     <div class="accordion-body">
                       <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
@@ -451,9 +449,9 @@ function submit() {
               <!-- Add more accordion items here if needed -->
             </div>
 
+          </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 </template>
