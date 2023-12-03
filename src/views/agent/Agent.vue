@@ -115,7 +115,7 @@ function convertToCompleteSystemInfo(data: any[]): CompleteSystemInfo {
         completeSystemInfo.hostInfo = convertToHostInfo(item.Value);
         break;
       case 'memoryInfo':
-        completeSystemInfo.memoryInfo = convertToHostMemoryInfo(item.Value);
+          completeSystemInfo.memoryInfo = convertToHostMemoryInfo(item.Value);
         break;
       case 'CPUTimes':
         completeSystemInfo.CPUTimes = convertToCPUTimes(item.Value);
@@ -175,7 +175,7 @@ function convertToHostMemoryInfo(data: any[]): HostMemoryInfo {
   let memoryInfo: any = {metrics: {}};
 
   data.forEach(item => {
-    if (item.Key === 'metrics') {
+    if (item.Key === 'metrics' && item.Value != null) {
       item.Value.forEach((metric: any) => {
         memoryInfo.metrics[metric.Key] = metric.Value;
       });
