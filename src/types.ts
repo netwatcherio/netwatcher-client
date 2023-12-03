@@ -121,38 +121,34 @@ export interface Preferences {
 export interface MtrResult {
     startTimestamp: Date;
     stopTimestamp: Date;
-    triggered: boolean;
-    report: MtrReport;
+    report: {
+        info: {
+            target: {
+                ip: string;
+                hostname: string;
+            };
+        };
+        hops: MtrHop[];
+    };
 }
 
-export interface MtrReport {
-    mtr: {
-        src: string;
-        dst: string;
-        tos: number;
-        tests: number;
-        psize: string;
-        bitpattern: string;
-    };
-    hubs: Array<{
-        count: number;
-        host: string;
-        ASN: string;
-        'Loss%': number;
-        Drop: number;
-        Rcv: number;
-        Snt: number;
-        Best: number;
-        Avg: number;
-        Wrst: number;
-        StDev: number;
-        Gmean: number;
-        Jttr: number;
-        Javg: number;
-        Jmax: number;
-        Jint: number;
-    }>;
+export interface MtrHop {
+    ttl: number;
+    hosts: {
+        ip: string;
+        hostname: string;
+    }[];
+    extensions: string[];
+    loss_pct: string;
+    sent: number;
+    last: string;
+    recv: number;
+    avg: string;
+    best: string;
+    worst: string;
+    stddev: string;
 }
+
 
 export interface NetResult {
     localAddress: string;

@@ -3,9 +3,9 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch, onUnmounted } from 'vue';
+import {onMounted, onUnmounted, ref, watch} from 'vue';
 import * as d3 from 'd3';
-import type { PingResult, ProbeData } from '@/types'; // Import your PingResult type
+import type {PingResult} from '@/types'; // Import your PingResult type
 
 // todo
 /*
@@ -42,9 +42,9 @@ export default {
       window.removeEventListener('resize', resizeListener);
     });
 
-    watch(() => props.pingResults, drawGraph, { immediate: true });
+    watch(() => props.pingResults, drawGraph, {immediate: true});
 
-    return { pingGraph };
+    return {pingGraph};
   },
 };
 
@@ -93,7 +93,7 @@ function segmentData(data: PingResult[]) {
 // Repeat for maxLine, avgLine, and lossLine
 
 function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
-  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+  const margin = {top: 20, right: 20, bottom: 30, left: 50};
   const width = graphElement.clientWidth - margin.left - margin.right;
   const height = 400 - margin.top - margin.bottom;
 
@@ -172,7 +172,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     }
   }
 
-  svg.on("dblclick", function() {
+  svg.on("dblclick", function () {
     xScale.domain(d3.extent(data, d => d.stopTimestamp));
     svg.select(".x-axis").call(d3.axisBottom(xScale));
     updateLines();
@@ -230,13 +230,13 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
   // Line generator for avgRtt
   const maxLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1000000));
+      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1e+6));
   const stdDvLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 100000000)));
+      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 1e+6)));
   const avgLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1000000));
+      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1e+6));
   const lossLine = d3.line<PingResult>()
       .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
       .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
@@ -252,7 +252,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     appendPath(segment, 'line-loss', lossLine, 'red');
   });
 
-  console.log(data)
+  //console.log(data)
 
   function appendPath(segment: PingResult[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
     svg.append('path')
@@ -270,7 +270,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("class", "brush")
       .call(brush);
 
-  svg.on("dblclick", function() {
+  svg.on("dblclick", function () {
     xScale.domain(d3.extent(data, d => d.stopTimestamp));
     svg.select(".x-axis").call(d3.axisBottom(xScale));
     updateLines();
@@ -294,7 +294,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 10)
       .text("Average RTT")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
   // Legend for maxRtt
   legend.append("rect")
@@ -309,7 +309,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 30)
       .text("Max RTT")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
   // Legend for packetLoss
   legend.append("rect")
@@ -324,7 +324,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 50)
       .text("Packet Loss")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 
   legend.append("rect")
       .attr("x", 0)
@@ -338,6 +338,6 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .attr("y", 70)
       .text("Standard Deviation")
       .style("font-size", "12px")
-      .attr("alignment-baseline","middle");
+      .attr("alignment-baseline", "middle");
 }
 </script>
