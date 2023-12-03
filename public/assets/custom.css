@@ -1,4 +1,8 @@
 @charset "UTF-8";
+.label-code {
+  font-family: "JetBrains Mono";
+}
+
 /*!
  * Bootstrap  v5.2.3 (https://getbootstrap.com/)
  * Copyright 2011-2022 The Bootstrap Authors
@@ -4337,9 +4341,9 @@ textarea.form-control-lg {
   --bs-card-title-spacer-y: 0.5rem;
   --bs-card-border-width: 1px;
   --bs-card-border-color: #e6e7e9;
-  --bs-card-border-radius: 6px;
+  --bs-card-border-radius: 0.7rem;
   --bs-card-box-shadow: 0 0 4px rgba(29, 39, 59, 0.04);
-  --bs-card-inner-border-radius: 5px;
+  --bs-card-inner-border-radius: calc(0.7rem - 1px);
   --bs-card-cap-padding-y: 0.5rem;
   --bs-card-cap-padding-x: 1rem;
   --bs-card-cap-bg: rgba(0, 0, 0, 0.03);

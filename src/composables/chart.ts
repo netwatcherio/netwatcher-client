@@ -8,7 +8,9 @@ const barSpacing = 4;
 function lerp(a: number, b: number, t: number): number {
     return a + (b - a) * t;
 }
-
+function map_range(value: number, low1: number, high1: number, low2: number, high2: number) {
+    return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+}
 export class Chart {
     element: HTMLCanvasElement;
     style: ChartStyle
@@ -21,23 +23,25 @@ export class Chart {
         this.element = document.getElementById(id) as HTMLCanvasElement || {} as HTMLCanvasElement
         this.style = style
         this.data = data
-        this.ctx = this.element.getContext("2d") || {} as CanvasRenderingContext2D
-        this.w = this.ctx.canvas.width
-        this.h = this.ctx.canvas.height
-        // this.ctx.scale(0.5, 0.5)
+        let ctx = this.element.getContext("2d") || {} as CanvasRenderingContext2D
+        this.w = ctx.canvas.clientWidth*2
+        this.h = ctx.canvas.clientHeight*2
 
+        ctx.scale(0.5,0.5)
+        this.ctx = ctx
         this.draw()
     }
 
     draw() {
         let ctx = this.ctx
-
+        this.w = this.ctx.canvas.width*2
+        this.h = this.ctx.canvas.height*2
         let w = this.w
         let h = this.h
 
         ctx.clearRect(0, 0, w, h);
         ctx.beginPath();
-        ctx.lineWidth = 4
+        ctx.lineWidth = 2
         ctx.lineJoin = "round"
         ctx.strokeStyle = "rgba(32, 107,196, 1)"
         ctx.fillStyle = "rgba(32, 107,196, 0.2)"
@@ -48,17 +52,17 @@ export class Chart {
         let maxY = Math.max(...this.data);
 
         let getX = (index: number): number => {
-            return index * (w / this.data.length);
+            return map_range(index, 0, this.data.length, 0, w);
         }
 
         let getY = (index: number): number => {
-            return h - (this.data[index] - minY) / (maxY - minY) * h/2;
+            return map_range(this.data[index], minY, maxY, h, 0)
         }
-
+        // ctx.strokeRect(2,2, w-4, h-4)
         ctx.moveTo(getX(0), getY(0));
 
         let i;
-        for (i = 1; i < this.data.length - 2; i++) {
+        for (i = 1; i < this.data.length - 1; i++) {
 
             let x = getX(i);
             let y = getY(i);

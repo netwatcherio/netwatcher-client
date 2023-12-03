@@ -60,7 +60,7 @@ export interface Agent {
     site: string; // You can use string for ObjectID in TypeScript
     pin: string;
     initialized: boolean;
-    location: number; // Assuming location is a numeric value
+    location: string; // Assuming location is a numeric value
     createdAt: Date;
     updatedAt: Date;
 }

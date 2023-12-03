@@ -3,11 +3,20 @@
 $body-bg: rgba(241,245,249,1);
 $border-color: rgb(230, 231, 233);
 $card-border-color: rgb(230, 231, 233);
-$card-border-radius: 6px;
+$card-border-radius: 0.7rem;
 $btn-border-radius: 4px;
 $primary: #206bc4;
 $card-box-shadow: 0 0 4px rgba(29,39,59, 0.04);
 
+.element {
+  .list {
+
+  }
+}
+
+.label-code {
+  font-family: "JetBrains Mono";
+}
 @import "../../node_modules/bootstrap/scss/bootstrap";
 
 $baseElevation: 24px;
