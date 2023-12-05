@@ -97,7 +97,7 @@ const router = core.router()
                 </td>
 
                 <td class="px-0 text-end px-3">
-                  <router-link v-if="!(group.type == 'SYSINFO' || group.type == 'NETINFO')" :to="`/agent/probe/${group.id}/remove`" class="">
+                  <router-link v-if="!(group.type == 'SYSINFO' || group.type == 'NETINFO') && !(group.type == 'RPERF' && group.config.server)" :to="`/agent/probe/${group.id}/remove`" class="">
                     <i class="fa-solid fa-up-right-from-square"></i> remove
                   </router-link>
                 </td>
