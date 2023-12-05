@@ -37,8 +37,8 @@ const router = core.router()
 
 <template>
   <div class="container-fluid">
-    <Title title="site members" subtitle="agent groups associated with current site" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
-      <router-link :to="`/site/${state.site.id}/members/invite`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;invite</router-link>
+    <Title title="members" subtitle="agent groups associated with current site" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]">
+      <router-link :to="`/site/${state.site.id}/invite`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;invite</router-link>
 
       <!--      <div class="d-flex gap-1">
           <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-plus"></i>&nbsp;View Alerts</router-link>

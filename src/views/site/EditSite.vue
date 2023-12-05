@@ -40,7 +40,7 @@ function submit() {
 
 <template>
   <div class="container-fluid" v-if="state.ready">
-    <Title title="Edit Site"
+    <Title title="edit workspace"
            subtitle="update site details"
            :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` }]">
     </Title>
@@ -50,13 +50,13 @@ function submit() {
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="siteName">Site Name</label>
+                <label class="col-3 text-end control-label col-form-label" for="siteName">workspace</label>
                 <div class="col-9 border-start pb-2 pt-2">
-                  <input id="siteName" class="form-control" name="name" v-model="state.site.name" placeholder="Enter site name" type="text">
+                  <input id="siteName" class="form-control" name="name" v-model="state.site.name" placeholder="workspace name" type="text">
                   <br>
-                  <input id="siteDesc" class="form-control" name="desc" v-model="state.site.description" placeholder="Enter site description" type="text">
+                  <input id="siteDesc" class="form-control" name="desc" v-model="state.site.description" placeholder="workspace description" type="text">
                   <br>
-                  <input id="siteLocation" class="form-control" name="location" v-model="state.site.location" placeholder="Enter site location" type="text">
+                  <input id="siteLocation" class="form-control" name="location" v-model="state.site.location" placeholder="workspace location" type="text">
                 </div>
               </div>
             </div>

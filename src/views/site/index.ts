@@ -36,7 +36,7 @@ export default {
       component: EditSite,
     },
     {
-      path: '/sites/:siteId/invite',
+      path: '/site/:siteId/invite',
       name: 'siteInvite',
       component: Invite,
     },

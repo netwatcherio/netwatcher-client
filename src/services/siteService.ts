@@ -1,5 +1,5 @@
 import request from "@/services/request";
-import type {AgentGroup, Site} from "@/types";
+import type {AgentGroup, MemberInfo, Site} from "@/types";
 
 export default {
     async getSites(): Promise<any> {
@@ -22,5 +22,8 @@ export default {
     },
     async createAgentGroup(id: string, group: AgentGroup): Promise<any> {
         return await request.post(`/sites/${id}/groups`, group)
+    },
+    async createNewMember(id: string, member: MemberInfo): Promise<any> {
+        return await request.post(`/sites/${id}/invite`, member)
     },
 }
