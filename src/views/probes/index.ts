@@ -2,6 +2,7 @@
 import NewProbe from "@/views/probes/NewProbe.vue";
 import Probe from "@/views/probes/Probe.vue";
 import ProbeView from "@/views/probes/ProbeView.vue";
+import DeleteProbe from "@/views/probes/DeleteProbe.vue";
 
 export default {
     path: '/agents/:agentId/probes',
@@ -17,6 +18,11 @@ export default {
             path: '/probes/:probeId/view',
             name: 'probeView',
             component: Probe,
+        },
+        {
+            path: '/probes/:pId/delete',
+            name: 'deleteProbe',
+            component: DeleteProbe,
         },
     ]
 }

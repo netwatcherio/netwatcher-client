@@ -3,7 +3,7 @@ import Agent from "@/views/agent/Agent.vue";
 import AgentView from "@/views/agent/AgentView.vue";
 import DeactivateAgent from "@/views/agent/DeactivateAgent.vue";
 import EditAgent from "@/views/agent/EditAgent.vue";
-import AgentProbes from "@/views/agent/AgentProbes.vue";
+import ProbesEdit from "@/views/agent/ProbesEdit.vue";
 
 export default {
     path: '/agents',
@@ -33,7 +33,7 @@ export default {
         {
             path: '/agent/:agentId/probes',
             name: 'agentProbes',
-            component: AgentProbes,
+            component: ProbesEdit,
         },
     ]
 }
