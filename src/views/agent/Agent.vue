@@ -519,6 +519,19 @@ function formatSnakeCaseToHumanCase(name: string): string {
             <ElementPair title="Location" code>
               {{ state.netData.lat }},{{ state.netData.long }}
             </ElementPair>
+
+            <ElementExpand title="Media Access Control"  code>
+              + {{Object.keys(state.systemInfoComplete.hostInfo.MACs).length}} values
+              <template v-slot:expanded>
+                <div class="d-flex flex-column gap-2 pt-1 w-100">
+                  <div v-for="entry in Object.keys(state.systemInfoComplete.hostInfo.MACs)" class="d-flex justify-content-between gap-1" style="margin-left: 1rem">
+                    <div class="label-o1 label-w500 label-c5">{{formatSnakeCaseToHumanCase(entry)}}</div>
+                    <div class="label-o4 label-w400 label-c5 label-code">{{state.systemInfoComplete.hostInfo.MACs[entry]}}</div>
+
+                  </div>
+                </div>
+              </template>
+            </ElementExpand>
           </List>
         </Element>
         <Element>
