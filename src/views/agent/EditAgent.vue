@@ -48,7 +48,8 @@ function submit() {
   <div class="container-fluid" v-if="state.ready">
     <Title :title="`edit agent`"
            :subtitle="`update agent details`"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` }]">
+           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` },{ title: state.agent.name, link: `/sites/${state.agent.id}` }]">
+      <router-link :to="`/agents/${state.agent.id}/delete`" active-class="active" class="btn btn-danger"><i class="fa-solid fa-trash"></i>&nbsp;delete</router-link>
     </Title>
     <div class="row">
       <div class="col-12">

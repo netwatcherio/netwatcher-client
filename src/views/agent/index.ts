@@ -4,6 +4,7 @@ import AgentView from "@/views/agent/AgentView.vue";
 import DeactivateAgent from "@/views/agent/DeactivateAgent.vue";
 import EditAgent from "@/views/agent/EditAgent.vue";
 import ProbesEdit from "@/views/agent/ProbesEdit.vue";
+import DeleteAgent from "@/views/agent/DeleteAgent.vue";
 
 export default {
     path: '/agents',
@@ -14,6 +15,11 @@ export default {
             path: '/agents/:siteId/new',
             name: 'agentNew',
             component: NewAgent,
+        },
+        {
+            path: '/agents/:agentId/delete',
+            name: 'deleteAgent',
+            component: DeleteAgent,
         },
         {
             path: '/agents/:agentId/edit',
