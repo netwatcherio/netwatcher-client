@@ -28,6 +28,7 @@ import {since} from "@/time";
 import ElementPair from "@/components/ElementPair.vue";
 import FillChart from "@/components/FillChart.vue";
 import ElementExpand from "@/components/ElementExpand.vue";
+import {OUIEntry} from "@/types";
 
 interface OrganizedProbe {
   key: string;
@@ -80,6 +81,15 @@ function updateSystemData(info: CompleteSystemInfo): SystemData {
   } as SystemData
 }
 
+function getVendorFromMac(macAddress: string) {
+  const normalizedMac = macAddress.replace(/[:-]/g, '').toUpperCase();
+  const oui = normalizedMac.substring(0, 6);
+  console.log(oui + " " + normalizedMac)
+  const entry = state.ouiList.find(item => item.Assignment == oui);
+  console.log(entry)
+  return entry ? (entry as OUIEntry)["Organization Name"] : "Unknown";
+}
+
 let state = reactive({
   site: {} as Site,
   ready: false,
@@ -91,7 +101,8 @@ let state = reactive({
   netData: {} as NetResult,
   systemInfoComplete: {} as CompleteSystemInfo,
   systemData: {} as SystemData,
-  hasData: false
+  hasData: false,
+  ouiList: [] as OUIEntry[]
 })
 
 function transformNetData(data: any): NetResult {
@@ -297,8 +308,14 @@ onMounted(() => {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
+  console.log("oui: "+state.ouiList)
+
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
+
+    fetch('/ouiList.json')
+        .then(response => response.json())
+        .then(data => state.ouiList = data as OUIEntry[]);
 
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
@@ -525,7 +542,7 @@ function formatSnakeCaseToHumanCase(name: string): string {
               <template v-slot:expanded>
                 <div class="d-flex flex-column gap-2 pt-1 w-100">
                   <div v-for="entry in Object.keys(state.systemInfoComplete.hostInfo.MACs)" class="d-flex justify-content-between gap-1" style="margin-left: 1rem">
-                    <div class="label-o1 label-w500 label-c5">{{formatSnakeCaseToHumanCase(entry)}}</div>
+                    <div class="label-o1 label-w500 label-c5">{{getVendorFromMac(state.systemInfoComplete.hostInfo.MACs[entry])}}</div>
                     <div class="label-o4 label-w400 label-c5 label-code">{{state.systemInfoComplete.hostInfo.MACs[entry]}}</div>
 
                   </div>

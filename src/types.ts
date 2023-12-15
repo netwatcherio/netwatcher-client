@@ -90,6 +90,14 @@ interface ProbeConfig {
     interval: number;
     server: boolean;
 }
+
+export interface OUIEntry {
+    Registry: string;
+    Assignment: string;
+    "Organization Name": string;
+    "Organization Address": string;
+}
+
 export interface AgentGroup {
     id: string;
     site: string;
