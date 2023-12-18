@@ -29,4 +29,7 @@ export default {
     async removeMember(id: string, member: MemberInfo): Promise<any> {
         return await request.post(`/sites/${id}/remove`, member)
     },
+    async updateMember(id: string, member: MemberInfo): Promise<any> {
+        return await request.post(`/sites/${id}/update_role`, member)
+    },
 }

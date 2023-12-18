@@ -77,7 +77,7 @@ const router = core.router()
                 </td>
 
                 <td class="px-0 text-end px-3">
-                  <router-link :to="`/site/member/${group.id}/edit`" class="">
+                  <router-link :to="`/site/${state.site.id}/members/edit/${group.id}`" class="">
                     <i class="fa-solid fa-up-right-from-square"></i> edit
                   </router-link>
                 </td>

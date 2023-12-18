@@ -10,6 +10,7 @@ import AgentGroupsNew from "@/views/site/NewAgentGroup.vue";
 import EditSite from "@/views/site/EditSite.vue";
 import Members from "@/views/site/Members.vue";
 import RemoveMember from "@/views/site/RemoveMember.vue";
+import EditMember from "@/views/site/EditMember.vue";
 
 export default {
   path: '/sites',
@@ -45,6 +46,11 @@ export default {
       path: '/site/:siteId/members/remove/:userId',
       name: 'memberRemove',
       component: RemoveMember,
+    },
+    {
+      path: '/site/:siteId/members/edit/:userId',
+      name: 'memberEdit',
+      component: EditMember,
     },
     {
       path: '/sites/:siteId/groups',

@@ -40,7 +40,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-  <Title title="Invite Member" :subtitle="`Invite a member to the site '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: `members`, link: `/sites/${state.site.id}/members`}]"></Title>
+  <Title title="invite member" :subtitle="`Invite a member to the site '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: `members`, link: `/sites/${state.site.id}/members`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
@@ -67,7 +67,7 @@ function submit() {
               <div class="form-group mb-0 text-end">
                 <button class="
                          btn btn-primary px-4" type="submit" @click="submit">
-                  Invite
+                  invite
                 </button>
 
               </div>
