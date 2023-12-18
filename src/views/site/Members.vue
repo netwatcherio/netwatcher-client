@@ -82,7 +82,7 @@ const router = core.router()
                   </router-link>
                 </td>
                 <td class="px-0 text-end px-3">
-                  <router-link :to="`/site/member/${group.id}/remove`" class="">
+                  <router-link :to="`/site/${state.site.id}/members/remove/${group.id}`" class="">
                     <i class="fa-solid fa-up-right-from-square"></i> remove
                   </router-link>
                 </td>

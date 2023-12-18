@@ -9,6 +9,7 @@ import AgentGroups from "@/views/site/AgentGroups.vue";
 import AgentGroupsNew from "@/views/site/NewAgentGroup.vue";
 import EditSite from "@/views/site/EditSite.vue";
 import Members from "@/views/site/Members.vue";
+import RemoveMember from "@/views/site/RemoveMember.vue";
 
 export default {
   path: '/sites',
@@ -39,6 +40,11 @@ export default {
       path: '/site/:siteId/invite',
       name: 'siteInvite',
       component: Invite,
+    },
+    {
+      path: '/site/:siteId/members/remove/:userId',
+      name: 'memberRemove',
+      component: RemoveMember,
     },
     {
       path: '/sites/:siteId/groups',

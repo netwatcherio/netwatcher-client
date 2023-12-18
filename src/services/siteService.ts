@@ -26,4 +26,7 @@ export default {
     async createNewMember(id: string, member: MemberInfo): Promise<any> {
         return await request.post(`/sites/${id}/invite`, member)
     },
+    async removeMember(id: string, member: MemberInfo): Promise<any> {
+        return await request.post(`/sites/${id}/remove`, member)
+    },
 }
