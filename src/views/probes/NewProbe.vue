@@ -21,8 +21,10 @@ let state = reactive({
   probeTarget: {} as ProbeTarget,
   targetGroup: false,
   agentGroupSelected: [] as AgentGroup[],
-  agentGroups: [] as AgentGroup[],
+  agents: [] as Agent[],
   customRperfServer: false,
+  targetAgent: false,
+  targetAgentSelected: {} as Agent
 })
 
 onMounted(() => {
@@ -44,11 +46,25 @@ onMounted(() => {
     siteService.getSite(state.agent.site).then(res => {
       state.site = res.data as Site
       console.log(state.agent)
-      siteService.getAgentGroups(state.agent.site).then(res => {
+      /*siteService.getAgentGroups(state.agent.site).then(res => {
         state.agentGroups = res.data as AgentGroups[]
         state.ready = true
 
         console.log(state.agentGroups)
+      })*/
+      agentService.getSiteAgents(state.agent.site).then(res => {
+        if(res.data.length > 0) {
+          const agents = res.data as Agent[];
+          state.ready = true
+
+          for (let i = 0; i < agents.length; i++) {
+            if (agents[i].id != id) {
+              state.agents.push(agents[i])
+            }
+          }
+        }
+      }).catch(res => {
+        alert(res)
       })
     })
   })
@@ -132,10 +148,18 @@ function submit() {
                   </div>
                 <div class="mb-1 col-lg-4 col-8">
                   <br>
-                  <div v-if="state.selected.value === 'MTR' || 'PING' || 'RPERF' && state.agentGroups.length > 0">
+<!--                  <div v-if="state.selected.value === 'MTR' || 'PING' || 'RPERF' && state.agentGroups.length > 0">
                     <label class="form-label">Use Agent Groups</label>
                     <div class="form-check">
                       <input type="checkbox" id="useAgentGroups" value="Enable" v-model="state.targetGroup" class="form-check-input">
+                      <label for="useAgentGroups" class="form-check-label">Enable</label>
+                    </div>
+                  </div>-->
+
+                  <div v-if="state.selected.value === 'MTR' || 'PING' || 'RPERF' && state.agents.length > 1">
+                    <label class="form-label">Use Agent as Target</label>
+                    <div class="form-check">
+                      <input type="checkbox" id="useAgentGroups" value="Enable" v-model="state.targetAgent" class="form-check-input">
                       <label for="useAgentGroups" class="form-check-label">Enable</label>
                     </div>
                   </div>
@@ -147,7 +171,7 @@ function submit() {
               <div v-if="state.selected && state.selected.value">
                   <h5 class="border-bottom pb-2">Options</h5>
                   <!-- MTR Options -->
-                <div v-if="state.targetGroup">
+<!--                <div v-if="state.targetGroup">
                   <div class="mb-3 col-lg-8 col-12">
                     <label for="agentGroupOptions" class="form-label">Available Agent Groups</label>
                     <select v-model="state.agentGroupSelected" class="form-select" id="agentGroupOptions">
@@ -160,6 +184,20 @@ function submit() {
                       <strong>{{ state.agentGroupSelected }}</strong>
                     </div>
                   </div>
+                </div>-->
+                <div v-if="state.targetAgent">
+                  <div class="mb-3 col-lg-8 col-12">
+                    <label for="targetAgentOptions" class="form-label">Available Agents</label>
+                    <select v-model="state.targetAgentSelected" class="form-select" id="targetAgentOptions">
+                      <option v-for="group in state.agents" :value="group" :key="group.name">
+                        {{ group.name + " (" + group.location + ")" }}
+                      </option>
+                    </select>
+                    <div class="mt-3">
+                      Selected:
+                      <strong>{{ state.targetAgentSelected }}</strong>
+                    </div>
+                  </div>
                 </div>
                   <div v-if="state.selected.value === 'RPERF'">
                     <!-- Fields specific to MTR -->
@@ -167,22 +205,22 @@ function submit() {
                       <label for="rperfTarget" class="form-label">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
                       <input type="text" id="rperfTarget" v-model="state.probeTarget.target" class="form-control">
                     </div>
-                    <div class="mb-3" v-if="!state.targetGroup && state.customRperfServer">
+                    <div class="mb-3" v-if="!state.targetGroup && !state.targetAgent && state.customRperfServer">
                       <label for="rperfTarget" class="form-label">Target <code>(eg. 1.1.1.1:666)</code></label>
                       <input type="text" id="rperfTarget" v-model="state.probeTarget.target" class="form-control">
                     </div>
-                    <div class="mb-3" v-if="state.customRperfServer || state.targetGroup">
+<!--                    <div class="mb-3" v-if="state.customRperfServer && !state.targetGroup && !state.targetAgent ">
                       <label for="mtrInterval" class="form-label">Interval (minutes)</label>
                       <input type="number" id="mtrTarget" v-model="state.probeConfig.interval" class="form-control">
-                    </div>
-                    <div class="mb-3" v-if="!state.probeConfig.server && !state.targetGroup">
+                    </div>-->
+                    <div class="mb-3" v-if="!state.probeConfig.server && !state.targetGroup  && !state.targetAgent">
                       <label class="form-label">Custom Target</label>
                       <div class="form-check">
                         <input type="checkbox" id="customRperfServer" value="Enable" v-model="state.customRperfServer" class="form-check-input">
                         <label for="customRperfServer" class="form-check-label">Enable</label>
                       </div>
                     </div>
-                      <div class="mb-3" v-if="!state.customRperfServer && !state.targetGroup">
+                      <div class="mb-3" v-if="!state.customRperfServer  && !state.targetAgent  && !state.targetGroup">
                       <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
                       <div class="form-check">
                         <input type="checkbox" id="useRperfServer" value="Enable" v-model="state.probeConfig.server" class="form-check-input">
@@ -194,7 +232,7 @@ function submit() {
                   <!-- PING Options -->
                   <div v-if="state.selected.value === 'PING'">
                     <!-- Fields specific to PING -->
-                    <div class="mb-3" v-if="!state.targetGroup">
+                    <div class="mb-3" v-if="!state.targetGroup && !state.targetAgent">
                       <label for="pingTarget" class="form-label">Target <code>(eg. 1.1.1.1)</code></label>
                       <input type="text" id="pingTarget" v-model="state.probeTarget.target" class="form-control">
                     </div>
@@ -213,10 +251,10 @@ function submit() {
                     <!-- Fields specific to SPEEDTEST -->
                   </div>
 
-                  <!-- RPERF Options -->
+                  <!-- MTR Options -->
                   <div v-if="state.selected.value === 'MTR'">
                     <!-- Fields specific to RPERF -->
-                    <div class="mb-3" v-if="!state.targetGroup">
+                    <div class="mb-3" v-if="!state.targetGroup && !state.targetAgent">
                       <label for="mtrTarget" class="form-label">Target <code>(eg. 1.1.1.1)</code></label>
                       <input type="text" id="pingTarget" v-model="state.probeTarget.target" class="form-control">
                     </div>
