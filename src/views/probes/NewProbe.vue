@@ -100,8 +100,12 @@ function submit() {
       tempTargetGroups.push({group: aa.id} as ProbeTarget)
     }
     state.probeConfig.target = tempTargetGroups
-  }else if(state.targetGroup && state.agentGroupSelected.length <= 0){
+  }else if(state.targetGroup && state.agentGroupSelected.length <= 0) {
     return
+  }else if(state.targetAgent && state.targetAgentSelected) {
+    // for the selected agent, build a probe with it as the target
+    state.probeConfig.target = [] as ProbeTarget[]
+    state.probeConfig.target.push({agent: state.targetAgentSelected.id} as ProbeTarget)
   }else{
     // load default/populated target
     state.probeConfig.target = [] as ProbeTarget[]
