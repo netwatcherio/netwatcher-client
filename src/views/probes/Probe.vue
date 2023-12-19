@@ -41,6 +41,7 @@ const state = reactive({
   timeRange: {} as [Date, Date],
   mtrData: [] as ProbeData[],
   rperfData: [] as ProbeData[],
+  probeAgent: {} as Agent
 })
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
@@ -291,10 +292,20 @@ function reloadData(checkId: string) {
 
     // todo fix title - chances are when not using a group,
     // it won't be more than 0, lets hope someone doesn't abuse it
-    state.title = state.probe[0].config.target[0].target
-    let split = state.probe[0].config.target[0].target.split(":")
-    if (split.length >= 2) {
-      state.title = split[0]
+    console.log(state.probe[0].config.target[0].agent)
+    if (state.probe[0].config.target[0].agent != "0000000000000000" && !state.probe[0].config.target[0].target){
+
+      agentService.getAgent(state.probe[0].config.target[0].agent).then(res => {
+        state.probeAgent = res.data as Agent
+        state.title = state.probeAgent.name
+      })
+
+    }else if(state.probe[0].config.target[0].target) {
+      state.title = state.probe[0].config.target[0].target
+      let split = state.probe[0].config.target[0].target.split(":")
+      if (split.length >= 2) {
+        state.title = split[0]
+      }
     }
 
     agentService.getAgent(state.probe[0].agent).then(res => {

@@ -16,6 +16,7 @@ import type {
   ProbeType,
   Site
 } from "@/types";
+import {OUIEntry} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -28,7 +29,6 @@ import {since} from "@/time";
 import ElementPair from "@/components/ElementPair.vue";
 import FillChart from "@/components/FillChart.vue";
 import ElementExpand from "@/components/ElementExpand.vue";
-import {OUIEntry} from "@/types";
 
 interface OrganizedProbe {
   key: string;
@@ -94,6 +94,7 @@ let state = reactive({
   site: {} as Site,
   ready: false,
   agent: {} as Agent,
+  agents: {} as Agent[],
   probes: [] as Probe[],
   organizedProbes: [] as OrganizedProbe[],
   agentGroups: [] as AgentGroup[],
@@ -198,6 +199,18 @@ function convertToHostMemoryInfo(data: any[]): HostMemoryInfo {
   return memoryInfo as HostMemoryInfo;
 }
 
+function getAgentName(id: string) {
+  let name = "Unknown"
+  state.agents.find(a => {
+    if (a.id == id) {
+      name = a.name
+      return name
+    }
+  })
+
+  return name
+}
+
 function convertToCPUTimes(data: any[]): CPUTimes {
   let cpuTimes: any = {};
 
@@ -242,6 +255,11 @@ function reloadData(id: string) {
 
   })
 
+  agentService.getSiteAgents(state.agent.site).then(res => {
+    state.agents = res.data as Agent[]
+    //console.log("agents ", res.data)
+  })
+
   siteService.getAgentGroups(state.agent.site).then(res => {
     state.agentGroups = res.data as AgentGroup[]
 
@@ -270,6 +288,11 @@ function reloadData(id: string) {
               key = `group:${target.group}`;
               // Fetch or determine group information here if necessary
               // e.g., groupInfoMap.get(target.group) or similar
+            }
+            if (target.agent && target.agent !== "000000000000000000000000") {
+              // Prefix group ID to differentiate
+              /*target.agent*/
+              key = `agent:${target.agent}`;
             }
 
             if (!organizedProbesMap.has(key)) {
@@ -398,6 +421,16 @@ function formatSnakeCaseToHumanCase(name: string): string {
   return words.join(" ")
 }
 
+function probeTitle(probeKey: string): string {
+  if (probeKey.startsWith("group:")) {
+    return `group: `+ getGroupName(probeKey.split(":")[1]);
+  } else if (probeKey.startsWith("agent:")) {
+    return `agent: `+getAgentName(probeKey.split(":")[1]);
+  } else {
+    return probeKey;
+  }
+}
+
 </script>
 
 <template>
@@ -441,8 +474,9 @@ function formatSnakeCaseToHumanCase(name: string): string {
             <List>
               <ElementLink v-for="(organized, index) in state.organizedProbes" :key="organized"
                            icon="fa-solid fa-search"
-                           :to="`/probes/${getRandomProbeId(organized.probes)}/view`" :title="organized.key"
-                           :secondary="organized.probes.sort((a, b) => a.type.localeCompare(b.type)).map(p => p.type).join(', ')">
+                           :to="`/probes/${getRandomProbeId(organized.probes)}/view`"
+                           :secondary="organized.probes.sort((a, b) => a.type.localeCompare(b.type)).map(p => p.type).join(', ')"
+                          :title="probeTitle(organized.key)">
                 <Chart></Chart>
               </ElementLink>
             </List>
