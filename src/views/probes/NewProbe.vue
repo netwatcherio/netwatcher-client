@@ -23,7 +23,7 @@ let state = reactive({
   agentGroupSelected: [] as AgentGroup[],
   agents: [] as Agent[],
   customRperfServer: false,
-  targetAgent: false,
+  targetAgent: true,
   targetAgentSelected: {} as Agent
 })
 
