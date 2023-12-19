@@ -423,9 +423,9 @@ function formatSnakeCaseToHumanCase(name: string): string {
 
 function probeTitle(probeKey: string): string {
   if (probeKey.startsWith("group:")) {
-    return `group: `+ getGroupName(probeKey.split(":")[1]);
+    return ``+ getGroupName(probeKey.split(":")[1]);
   } else if (probeKey.startsWith("agent:")) {
-    return `agent: `+getAgentName(probeKey.split(":")[1]);
+    return ``+getAgentName(probeKey.split(":")[1]);
   } else {
     return probeKey;
   }
@@ -473,10 +473,10 @@ function probeTitle(probeKey: string): string {
             </div>
             <List>
               <ElementLink v-for="(organized, index) in state.organizedProbes" :key="organized"
-                           icon="fa-solid fa-search"
+                           :icon="organized.key.startsWith('agent:') ? 'fa-solid fa-robot' : 'fa-solid fa-diagram-project'"
                            :to="`/probes/${getRandomProbeId(organized.probes)}/view`"
                            :secondary="organized.probes.sort((a, b) => a.type.localeCompare(b.type)).map(p => p.type).join(', ')"
-                          :title="probeTitle(organized.key)">
+                           :title="probeTitle(organized.key)">
                 <Chart></Chart>
               </ElementLink>
             </List>
