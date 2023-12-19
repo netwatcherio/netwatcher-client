@@ -89,7 +89,8 @@ const router = core.router()
                 </td>
 
                 <td class="px-0">
-                  <span v-if="group.config.target && (group.config.target[0].agent || group.config.target[0].group)" class="badge bg-info"></span>
+                  <span v-if="group.config.target && (group.config.target[0].agent != `000000000000000000000000`)" class="badge bg-primary">{{group.config.target[0].agent}}</span>
+                  <span v-if="group.config.target && (group.config.target[0].group != `000000000000000000000000`)" class="badge bg-dark">{{group.config.target[0].agent}}</span>
                 </td>
 
                 <td class="px-0">
