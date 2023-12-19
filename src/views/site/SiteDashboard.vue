@@ -55,8 +55,8 @@ function getOnlineStatus(agent: Agent) {
     <div class="d-flex gap-1">
       <router-link :to="`/sites/${state.site.id}/edit`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
       <router-link :to="`/sites/${state.site.id}/members`" active-class="active" class="btn btn-outline-dark"><i class="fa-solid fa-users"></i>&nbsp;members</router-link>
-      <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
-      <router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create agent</router-link>
+<!--      <router-link :to="`/sites/${state.site.id}/groups`" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-object-group"></i>&nbsp;agent groups</router-link>
+      --><router-link :to="`/agents/${state.site.id}/new`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create agent</router-link>
     </div>
   </Title>
     <div class="site-grid" v-if="state.ready">
