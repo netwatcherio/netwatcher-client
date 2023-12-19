@@ -279,21 +279,19 @@ function reloadData(id: string) {
 
           for (let target of probe.config.target) {
             let key = target.target;
-            if (probe.type == "RPERF" && !probe.config.server) {
-              key = target.target.split(':')[0]
-            }
 
-            if (target.group && target.group !== "000000000000000000000000") {
+            if (target.group && target.group != "000000000000000000000000") {
               // Prefix group ID to differentiate
               key = `group:${target.group}`;
               // Fetch or determine group information here if necessary
               // e.g., groupInfoMap.get(target.group) or similar
-            }
-            if (target.agent && target.agent !== "000000000000000000000000") {
+            }else if (target.agent && target.agent != "000000000000000000000000") {
               // Prefix group ID to differentiate
               /*target.agent*/
               key = `agent:${target.agent}`;
-            }
+            }else if (probe.type == "RPERF" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
+                key = target.target.split(':')[0]
+              }
 
             if (!organizedProbesMap.has(key)) {
               organizedProbesMap.set(key, []);
