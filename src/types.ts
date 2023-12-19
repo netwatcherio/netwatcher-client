@@ -63,6 +63,7 @@ export interface Agent {
     location: string; // Assuming location is a numeric value
     createdAt: Date;
     updatedAt: Date;
+    public_ip_override: String;
 }
 
 export interface Probe {

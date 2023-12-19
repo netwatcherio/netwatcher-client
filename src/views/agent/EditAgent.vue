@@ -57,11 +57,13 @@ function submit() {
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="agentName">Agent Name</label>
+                <label class="col-3 text-end control-label col-form-label" for="agentName">{{state.agent.name}}</label>
                 <div class="col-9 border-start pb-2 pt-2">
                   <input id="agentName" class="form-control" name="name" v-model="state.agent.name" placeholder="Enter agent name" type="text">
                   <br>
                   <input id="agentLocation" class="form-control" name="location" v-model="state.agent.location" placeholder="Enter agent location" type="text">
+                  <hr>
+                  <input title="public ip override" id="agentLocation" class="form-control" name="public_address" v-model="state.agent.public_ip_override" placeholder="Public IP Override" type="text">
                 </div>
               </div>
             </div>
