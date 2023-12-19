@@ -13,7 +13,8 @@ let state = reactive({
   probes: [] as Probe[],
   site: {} as Site,
   ready: false,
-  agent: {} as Agent
+  agent: {} as Agent,
+  agents: {} as Agent[]
 })
 
 onMounted(() => {
@@ -23,22 +24,42 @@ onMounted(() => {
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
 
-    siteService.getSite(state.agent.site).then(res => {
-      state.site = res.data as Site
+    agentService.getSiteAgents(state.agent.site).then(res => {
+      state.agents = res.data as Agent[]
 
-      probeService.getAgentProbes(state.agent.id).then(res => {
-        if(res.data.length > 0) {
-          state.probes = res.data as Probe[]
-          state.ready = true
-        }
+      siteService.getSite(state.agent.site).then(res => {
+        state.site = res.data as Site
 
-      }).catch(res => {
-        alert(res)
+        probeService.getAgentProbes(state.agent.id).then(res => {
+          if (res.data.length > 0) {
+            state.probes = res.data as Probe[]
+            state.ready = true
+          }
+
+        }).catch(res => {
+          alert(res)
+        })
       })
     })
   })
 })
 const router = core.router()
+
+function getAgentName(id: string) {
+  let name = "Unknown"
+  state.agents.find(a => {
+    if (a.id == id) {
+      name = a.name
+      return name
+    }
+  })
+
+  return name
+}
+
+function probeTitle(probeKey: string): string {
+  return getAgentName(probeKey);
+}
 
 </script>
 
@@ -89,7 +110,7 @@ const router = core.router()
                 </td>
 
                 <td class="px-0">
-                  <span v-if="group.config.target && (group.config.target[0].agent != `000000000000000000000000`)" class="badge bg-primary">{{group.config.target[0].agent}}</span>
+                  <span v-if="group.config.target && (group.config.target[0].agent != `000000000000000000000000`)" class="badge bg-primary">{{probeTitle(group.config.target[0].agent)}}</span>
                   <span v-if="group.config.target && (group.config.target[0].group != `000000000000000000000000`)" class="badge bg-dark">{{group.config.target[0].agent}}</span>
                 </td>
 

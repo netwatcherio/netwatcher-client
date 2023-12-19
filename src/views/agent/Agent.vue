@@ -199,18 +199,6 @@ function convertToHostMemoryInfo(data: any[]): HostMemoryInfo {
   return memoryInfo as HostMemoryInfo;
 }
 
-function getAgentName(id: string) {
-  let name = "Unknown"
-  state.agents.find(a => {
-    if (a.id == id) {
-      name = a.name
-      return name
-    }
-  })
-
-  return name
-}
-
 function convertToCPUTimes(data: any[]): CPUTimes {
   let cpuTimes: any = {};
 
@@ -224,14 +212,6 @@ function convertToCPUTimes(data: any[]): CPUTimes {
 // Example us
 function formatNumber(value: number): string {
   return value.toFixed(2)
-}
-
-function getGroupName(id: string): string {
-  // Use the 'find' method to locate the group with the matching ID
-  const group = state.agentGroups.find(group => group.id === id);
-
-  // Return the group name if found, otherwise return a default value or empty string
-  return group ? group.name : 'Unknown Group';
 }
 
 function reloadData(id: string) {
@@ -417,6 +397,26 @@ function formatSnakeCaseToHumanCase(name: string): string {
   words = words.map(w => w[0].toUpperCase() + w.substring(1))
 
   return words.join(" ")
+}
+
+function getGroupName(id: string): string {
+  // Use the 'find' method to locate the group with the matching ID
+  const group = state.agentGroups.find(group => group.id === id);
+
+  // Return the group name if found, otherwise return a default value or empty string
+  return group ? group.name : 'Unknown Group';
+}
+
+function getAgentName(id: string) {
+  let name = "Unknown"
+  state.agents.find(a => {
+    if (a.id == id) {
+      name = a.name
+      return name
+    }
+  })
+
+  return name
 }
 
 function probeTitle(probeKey: string): string {
