@@ -112,6 +112,12 @@ function submit() {
     state.probeConfig.target.push(state.probeTarget)
   }
 
+  if(state.selected.value === 'TRAFFICSIM' && state.targetAgent) {
+    if (state.probeConfig.target.length >= 1) {
+      state.probeConfig.server = false
+    }
+  }
+
 
   // set probe config as the config
   state.probe.config = state.probeConfig
