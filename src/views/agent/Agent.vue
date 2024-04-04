@@ -271,7 +271,11 @@ function reloadData(id: string) {
               key = `agent:${target.agent}`;
             }else if (probe.type == "RPERF" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
                 key = target.target.split(':')[0]
-              }
+            }else if (probe.type == "TRAFFICSIM" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
+              key = target.target.split(':')[0]
+            }else if (probe.type == "TRAFFICSIM") {
+              key = probe.type + " SERVER"
+            }
 
             if (!organizedProbesMap.has(key)) {
               organizedProbesMap.set(key, []);

@@ -108,6 +108,12 @@ function probeTitle(probeKey: string): string {
                 <td class="px-0" v-if="(group.type == 'RPERF' && !group.config.server)">
                   <span class="badge bg-warning">RPERF</span>
                 </td>
+                <td class="px-0" v-if="(group.type == 'TRAFFICSIM' && !group.config.server)">
+                  <span class="badge bg-danger">TRAFFIC SIM</span>
+                </td>
+                <td class="px-0" v-if="(group.type == 'TRAFFICSIM' && group.config.server)">
+                  <span class="badge bg-danger">TRAFFIC SIM SERVER</span>
+                </td>
 
                 <td class="px-0">
                   <span v-if="group.config.target && (group.config.target[0].agent != `000000000000000000000000`)" class="badge bg-primary">{{probeTitle(group.config.target[0].agent)}}</span>

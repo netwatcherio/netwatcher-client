@@ -108,7 +108,7 @@ export interface AgentGroup {
 }
 
 // ProbeType
-export type ProbeType = "RPERF" | "MTR" | "PING" | "SPEEDTEST" | "NETINFO";
+export type ProbeType = "RPERF" | "MTR" | "PING" | "SPEEDTEST" | "NETINFO" | "TRAFFICSIM";
 
 // ProbeData
 export interface ProbeData {
