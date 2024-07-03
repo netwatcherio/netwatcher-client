@@ -178,6 +178,17 @@ export interface SpeedTestResult {
     timestamp: Date;
 }
 
+export interface TrafficSimResult {
+    sentPackets: number
+    receivedAcks: number
+    lostPackets: number
+    outOfSequence: number
+    lastReportTime: Date
+    averageRTT: number
+    minRTT: number
+    maxRTT: number
+}
+
 export interface RPerfResults {
     startTimestamp: Date;
     stopTimestamp: Date;

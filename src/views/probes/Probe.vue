@@ -12,7 +12,7 @@ import type {
   ProbeDataRequest,
   ProbeType,
   RPerfResults,
-  Site
+  Site, TrafficSimResult
 } from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
@@ -24,6 +24,7 @@ import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
 import RperfGraph from "@/components/RperfGraph.vue";
 import NetworkMap from "@/components/NetworkMap.vue";
+import TrafficSimGraph from "@/components/TrafficSimGraph.vue";
 
 const state = reactive({
   target: {} as string,
@@ -41,7 +42,8 @@ const state = reactive({
   timeRange: {} as [Date, Date],
   mtrData: [] as ProbeData[],
   rperfData: [] as ProbeData[],
-  probeAgent: {} as Agent
+  probeAgent: {} as Agent,
+  trafficSimData: [] as ProbeData[],
 })
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
@@ -67,6 +69,54 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
 
 function camelCase(str: string) {
   return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+}
+
+function transformToTrafficSimResult(dataArray: ProbeData[]): TrafficSimResult[] {
+  return dataArray.map(data => {
+    // Initialize the RPerfResults structure
+    const result: TrafficSimResult = {
+      sentPackets: 0,
+      receivedAcks: 0,
+      lostPackets: 0,
+      outOfSequence: 0,
+      lastReportTime: new Date(),
+      averageRTT: 0,
+      minRTT: 0,
+      maxRTT: 0,
+    };
+
+    // Extract and transform the data
+    data.data.forEach((item: { Key: string; Value: any }) => {
+      switch (item.Key) {
+        case 'lastReportTime':
+          result.lastReportTime = new Date(item.Value);
+          break;
+          case 'sentPackets':
+          result.sentPackets = item.Value;
+          break;
+          case 'receivedAcks':
+          result.receivedAcks = item.Value;
+          break;
+          case 'lostPackets':
+          result.lostPackets = item.Value;
+          break;
+          case 'outOfSequence':
+          result.outOfSequence = item.Value;
+          break;
+          case 'averageRTT':
+          result.averageRTT = item.Value;
+          break;
+          case 'minRTT':
+          result.minRTT = item.Value;
+          break;
+          case 'maxRTT':
+          result.maxRTT = item.Value;
+          break;
+      }
+    });
+
+    return result;
+  });
 }
 
 function transformToRPerfResults(dataArray: ProbeData[]): RPerfResults[] {
@@ -286,6 +336,7 @@ function reloadData(checkId: string) {
   state.similarProbes = []
   state.mtrData = []
   state.rperfData = []
+  state.trafficSimData = []
 
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
@@ -318,7 +369,7 @@ function reloadData(checkId: string) {
         probeService.getSimilarProbes(checkId).then(res => {
           state.similarProbes = res.data as Probe[]
           for (let p of state.similarProbes) {
-
+            console.log(p)
             probeService.getProbeData(p.id, {
               recent: false,
               limit: 5000,
@@ -329,6 +380,7 @@ function reloadData(checkId: string) {
                 //state.probeData.push(d)
 
                 let pprober = getProbe(d.probe) as Probe
+                //console.log(pprober)
 
                 if (pprober.type == "PING") {
                   state.pingData.push(d)
@@ -340,6 +392,10 @@ function reloadData(checkId: string) {
                 if (pprober.type == "RPERF" && !pprober.config.server) {
                   state.rperfData.push(d)
                   //console.log(d.data)
+                }
+                if (pprober.type == "TRAFFICSIM") {
+                  state.trafficSimData.push(d)
+                  //console.log(state.trafficSimData)
                 }
               }
             })
@@ -453,11 +509,20 @@ function submit() {
           </div>
         </div>
       </div>
-      <div v-if="state.rperfData.length > 0" class="col-sm-12">
+      <div v-if="state.trafficSimData.length > 0" class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">simulated traffic</h5>
             <p class="card-text">displays the stats for simulated traffic</p>
+            <TrafficSimGraph v-if="state.ready" :traffic-results="transformToTrafficSimResult(state.trafficSimData)"/>
+          </div>
+        </div>
+      </div>
+      <div v-if="state.rperfData.length > 0" class="col-sm-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">rperf traffic</h5>
+            <p class="card-text">displays the stats for rperf traffic</p>
             <RperfGraph v-if="state.ready" :rperfResults="transformToRPerfResults(state.rperfData)"/>
           </div>
         </div>
