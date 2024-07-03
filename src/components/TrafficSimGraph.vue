@@ -105,7 +105,7 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: TrafficSimResult) => d.maxRTT > 100 ? 200 : d.maxRTT)])
+      .domain([0, d3.max(data, (d: TrafficSimResult) => d.maxRTT > 100 ? d.maxRTT : 150)])
       .range([height, 0]);
 
   svg.append("defs").append("clipPath")

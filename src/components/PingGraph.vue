@@ -123,7 +123,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000 > 100 ? 200 : d.maxRtt / 1000000)])
+      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000 > 100 ? d.maxRtt / 1000000 : 150)])
       .range([height, 0]);
 
   svg.append("defs").append("clipPath")
