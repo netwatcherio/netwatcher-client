@@ -72,7 +72,7 @@ onMounted(() => {
   state.options.push({value: "PING", text: "PING (Packet Internet Groper)"} as SelectOption)
   state.options.push({value: "TRAFFICSIM", text: "Simulated Traffic (UDP)"} as SelectOption)
   // state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
-  state.options.push({value: "RPERF", text: "RPERF (UDP)"} as SelectOption)
+  // state.options.push({value: "RPERF", text: "RPERF (UDP)"} as SelectOption)
 })
 
 const router = core.router()
@@ -219,7 +219,7 @@ function submit() {
                       <label class="form-label" for="rperfTarget">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
                       <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
                     </div>
-<!--                    <div v-if="!state.customServer  && !state.targetAgent  && !state.targetGroup" class="mb-3">
+                    <div v-if="!state.probeConfig.server  && !state.targetAgent  && !state.targetGroup" class="mb-3">
                       <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
                       <div class="form-check">
                         <input id="useRperfServer" v-model="state.probeConfig.server" class="form-check-input"
@@ -227,7 +227,7 @@ function submit() {
                                value="Enable">
                         <label class="form-check-label" for="useRperfServer">Enable</label>
                       </div>
-                    </div>-->
+                    </div>
                   </div>
                   <div v-if="state.selected.value === 'RPERF'">
                     <!-- Fields specific to MTR -->
