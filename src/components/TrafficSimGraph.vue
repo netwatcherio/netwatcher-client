@@ -52,7 +52,7 @@ const maxAllowedGap = 1000 * 90; // 90 seconds
 function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement) {
   const sortedData = data.sort((a, b) => new Date(a.lastReportTime).getTime() - new Date(b.lastReportTime).getTime());
 
-  var chart = undefined
+  var chart = undefined;
 
   const series = [
     {
@@ -82,34 +82,127 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
     }
   ];
 
-  const annotations = {
-    xaxis: sortedData.reduce((acc, current, index, array) => {
-      if (index > 0) {
-        const prev = array[index - 1];
-        const gap = new Date(current.lastReportTime).getTime() - new Date(prev.lastReportTime).getTime();
-        if (gap > maxAllowedGap) {
-          acc.push({
-            x: new Date(prev.lastReportTime).getTime(),
-            x2: new Date(current.lastReportTime).getTime(),
-            borderColor: '#B3B3B3',
-            strokeDashArray: 5,
-            fillColor: '#B3B3B3',
-            opacity: 0.4,
-            label: {
-              borderColor: '#B3B3B3',
-              style: {
-                fontSize: '10px',
-                color: '#fff',
-                background: '#B3B3B3',
-              },
-              text: 'Gap',
-            }
-          });
-        }
-      }
-      return acc;
-    }, [] as ApexCharts.XAxisAnnotations[])
+  const annotations: ApexAnnotations = {
+    xaxis: [],
+    yaxis: []
   };
+
+  // Gap annotations
+  sortedData.forEach((current, index, array) => {
+    if (index > 0) {
+      const prev = array[index - 1];
+      const gap = new Date(current.lastReportTime).getTime() - new Date(prev.lastReportTime).getTime();
+      if (gap > maxAllowedGap) {
+        annotations.xaxis.push({
+          x: new Date(prev.lastReportTime).getTime(),
+          x2: new Date(current.lastReportTime).getTime(),
+          borderColor: '#B3B3B3',
+          strokeDashArray: 5,
+          fillColor: '#B3B3B3',
+          opacity: 0.4,
+          label: {
+            borderColor: '#B3B3B3',
+            style: {
+              fontSize: '10px',
+              color: '#fff',
+              background: '#B3B3B3',
+            },
+            text: 'Gap',
+          }
+        });
+      }
+    }
+  });
+
+  // Packet loss annotations
+  let currentLossStart: number | null = null;
+  let currentLossColor = '';
+  let currentLossText = '';
+
+  sortedData.forEach((d, index) => {
+    const packetLoss = (d.lostPackets / d.sentPackets) * 100;
+    let color = '';
+    let text = '';
+
+    if (packetLoss >= 5 && packetLoss < 10) {
+      color = '#FFD700'; // Yellow
+      text = 'Moderate Loss';
+    } else if (packetLoss >= 10 && packetLoss < 25) {
+      color = '#FFA500'; // Orange
+      text = 'High Loss';
+    } else if (packetLoss >= 25) {
+      color = '#FF0000'; // Red
+      text = 'Severe Loss';
+    }
+
+    if (color) {
+      if (!currentLossStart) {
+        currentLossStart = new Date(d.lastReportTime).getTime();
+        currentLossColor = color;
+        currentLossText = text;
+      } else if (color !== currentLossColor) {
+        // End the previous annotation and start a new one
+        annotations.xaxis.push({
+          x: currentLossStart,
+          x2: new Date(d.lastReportTime).getTime(),
+          borderColor: currentLossColor,
+          fillColor: currentLossColor,
+          opacity: 0.1,
+          label: {
+            borderColor: currentLossColor,
+            style: {
+              fontSize: '10px',
+              color: '#fff',
+              background: currentLossColor,
+            },
+            text: currentLossText,
+          }
+        });
+        currentLossStart = new Date(d.lastReportTime).getTime();
+        currentLossColor = color;
+        currentLossText = text;
+      }
+    } else if (currentLossStart) {
+      // End the previous annotation
+      annotations.xaxis.push({
+        x: currentLossStart,
+        x2: new Date(d.lastReportTime).getTime(),
+        borderColor: currentLossColor,
+        fillColor: currentLossColor,
+        opacity: 0.1,
+        label: {
+          borderColor: currentLossColor,
+          style: {
+            fontSize: '10px',
+            color: '#fff',
+            background: currentLossColor,
+          },
+          text: currentLossText,
+        }
+      });
+      currentLossStart = null;
+    }
+
+    // Handle the last data point
+    if (index === sortedData.length - 1 && currentLossStart) {
+      annotations.xaxis.push({
+        x: currentLossStart,
+        x2: new Date(d.lastReportTime).getTime(),
+        borderColor: currentLossColor,
+        fillColor: currentLossColor,
+        opacity: 0.1,
+        label: {
+          borderColor: currentLossColor,
+          style: {
+            fontSize: '10px',
+            color: '#fff',
+            background: currentLossColor,
+          },
+          text: currentLossText,
+        }
+      });
+    }
+  });
 
   const options: ApexCharts.ApexOptions = {
     series,
