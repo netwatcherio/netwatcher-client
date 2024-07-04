@@ -1,18 +1,11 @@
 <template>
-  <div ref="pingGraph"></div>
+  <div id="latencyGraph" ref="latencyGraph"></div>
 </template>
 
 <script lang="ts">
-import {onMounted, onUnmounted, ref, watch} from 'vue';
-import * as d3 from 'd3';
-import type {PingResult} from '@/types'; // Import your PingResult type
-
-// todo
-/*
-latency graph is recalculated when zoomed and just reupdates the time instead??
-
- */
-
+import { onMounted, onUnmounted, ref, watch } from 'vue';
+import ApexCharts from 'apexcharts'
+import type { PingResult } from '@/types';
 
 export default {
   name: 'LatencyGraph',
@@ -20,17 +13,20 @@ export default {
     pingResults: Array as () => PingResult[],
   },
   setup(props: { pingResults: PingResult[]; }) {
-    const pingGraph = ref(null);
+    const latencyGraph = ref(null);
+    let chart: ApexCharts | undefined = undefined;
 
     const drawGraph = () => {
-      if (!pingGraph.value || !props.pingResults || props.pingResults.length === 0) {
+      if (!latencyGraph.value || !props.pingResults || props.pingResults.length === 0) {
         return;
       }
-      createLatencyGraph(props.pingResults, pingGraph.value);
+      createLatencyGraph(props.pingResults, latencyGraph.value);
     };
 
     const resizeListener = () => {
-      drawGraph();
+      if (chart) {
+        chart.updateOptions({ chart: { width: latencyGraph.value.clientWidth } });
+      }
     };
 
     onMounted(() => {
@@ -40,304 +36,257 @@ export default {
 
     onUnmounted(() => {
       window.removeEventListener('resize', resizeListener);
+      if (chart) {
+        chart.destroy();
+      }
     });
 
-    watch(() => props.pingResults, drawGraph, {immediate: true});
+    watch(() => props.pingResults, drawGraph, { deep: true });
 
-    return {pingGraph};
+    return { latencyGraph };
   },
 };
 
-
-// Define a threshold for the maximum allowed gap (in milliseconds)
-const maxAllowedGap = 1000 * 90; // Example: 90 seconds
-
-function isGapAcceptable(current: PingResult, previous: PingResult) {
-  if (!previous) return true; // Always accept the first point
-  return (current.stopTimestamp.getTime() - previous.stopTimestamp.getTime()) <= maxAllowedGap;
-}
-
-function segmentData(data: PingResult[]) {
-  // First, sort the data by stopTimestamp
-  data.sort((a, b) => new Date(a.stopTimestamp) - new Date(b.stopTimestamp));
-
-  const segments = [];
-  let segment = [];
-
-  for (let i = 0; i < data.length; i++) {
-    const current = data[i];
-    const next = data[i + 1];
-
-    segment.push(current);
-
-    if (next) {
-      const currentStopTime = new Date(current.stopTimestamp).getTime();
-      const nextStopTime = new Date(next.stopTimestamp).getTime();
-
-      if (nextStopTime - currentStopTime > maxAllowedGap) {
-        segments.push(segment);
-        segment = [];
-      }
-    }
-  }
-
-  // Add the last segment if it has data
-  if (segment.length) {
-    segments.push(segment);
-  }
-
-  return segments;
-}
-
-
-// Repeat for maxLine, avgLine, and lossLine
+const maxAllowedGap = 1000 * 90; // 90 seconds
 
 function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
-  const margin = {top: 20, right: 20, bottom: 30, left: 50};
-  const width = graphElement.clientWidth - margin.left - margin.right;
-  const height = 400 - margin.top - margin.bottom;
+  const sortedData = data.sort((a, b) => a.stopTimestamp.getTime() - b.stopTimestamp.getTime());
 
-  d3.select(graphElement).selectAll('*').remove();
+  var chart = undefined
 
-  const packetLossColorScale = d3.scaleLinear<string>()
-      .domain([1, 50, 100]) // Assuming packet loss is given as a percentage
-      .range(['yellow', 'orange', 'red'] as any[]); // Cast the color range as any[] to satisfy TypeScript
-
-  // Draw packet loss areas
-
-  // Create SVG element
-  const svg = d3.select(graphElement)
-      .append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`);
-
-  const xScaleOrig = d3.scaleTime()
-      .domain(d3.extent(data, (d: { stopTimestamp: any; }) => d.stopTimestamp))
-      .range([0, width]);
-
-  // Define scales
-  let xScale = d3.scaleTime()
-      .domain(d3.extent(data, (d: { stopTimestamp: any; }) => d.stopTimestamp))
-      .range([0, width]);
-
-  const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: { maxRtt: number; }) => d.maxRtt / 1000000 > 100 ? d.maxRtt / 1000000 : 150)])
-      .range([height, 0]);
-
-  svg.append("defs").append("clipPath")
-      .attr("id", "clip")
-      .append("rect")
-      .attr("width", width)
-      .attr("height", height);
-
-  // Define the brush
-  let brush = d3.brushX()
-      .extent([[0, 0], [width, height]])
-      .on("end", brushed);
-
-  function updateLines() {
-    svg.selectAll(".line-avg").attr("d", avgLine);
-    svg.selectAll(".line-max").attr("d", maxLine);
-    svg.selectAll(".line-std").attr("d", stdDvLine);
-    svg.selectAll(".line-loss").attr("d", lossLine);
-    // Handle any other lines or elements that need to be updated
-  }
-
-  // Define the brushed function
-  /*function brushed(event) {
-    const selection = event.selection;
-    if (selection) {
-      const [x0, x1] = selection.map(xScale.invert);
-      xScale.domain([x0, x1]);
-      svg.select(".x-axis").call(d3.axisBottom(xScale));
-      updateLines();
-    } else {
-      // If no selection (e.g., clicked outside the brush area), reset the zoom
-      xScale.domain(d3.extent(data, d => d.stopTimestamp));
-      svg.select(".x-axis").call(d3.axisBottom(xScale));
-      updateLines();
+  const series = [
+    {
+      name: 'Max RTT',
+      type: 'line',
+      data: sortedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.maxRtt / 1e6 }))
+    },
+    {
+      name: 'Avg RTT',
+      type: 'line',
+      data: sortedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.avgRtt / 1e6 }))
+    },
+    {
+      name: 'Std Dev RTT',
+      type: 'line',
+      data: sortedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.stdDevRtt / 1e6 }))
+    },
+    {
+      name: 'Packet Loss %',
+      type: 'column',
+      data: sortedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.packetLoss }))
     }
-}*/
+  ];
 
-  function brushed(event) {
-    const selection = event.selection;
-    if (selection) {
-      const [x0, x1] = selection.map(xScale.invert);
-      xScale.domain([x0, x1]);
-      svg.select(".x-axis").call(d3.axisBottom(xScale));
-      updateLines();
-      svg.select(".brush").call(brush.move, null); // Clear the brush selection
-    }
-  }
+  const annotations: ApexAnnotations = {
+    xaxis: [],
+    yaxis: []
+  };
 
-  svg.on("dblclick", function () {
-    xScale.domain(d3.extent(data, d => d.stopTimestamp));
-    svg.select(".x-axis").call(d3.axisBottom(xScale));
-    updateLines();
-  });
-
-
-  // Add brushing
-  svg.append("g")
-      .attr("class", "brush")
-      .call(brush);
-
-  // Add X axis
-  svg.append('g')
-      .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(xScale));
-
-  // Add Y axis
-  svg.append('g')
-      .call(d3.axisLeft(yScale));
-
-  const dataSegments = segmentData(data);
-
-  data.forEach((d) => {
-    if (d.packetLoss > 0) { // Assuming packetLoss is a property of the data
-      const packetLossWidth = 5; // Fixed width for packet loss indicators, adjust as needed
-      svg.append('rect')
-          .attr('x', xScale(new Date(d.stopTimestamp)) - packetLossWidth / 2)
-          .attr('y', 0)
-          .attr('width', packetLossWidth)
-          .attr('height', height)
-          .attr('fill', packetLossColorScale(d.packetLoss))
-          .attr('opacity', 0.2); // Semi-translucent
+  // Gap annotations
+  sortedData.forEach((current, index, array) => {
+    if (index > 0) {
+      const prev = array[index - 1];
+      const gap = current.stopTimestamp.getTime() - prev.stopTimestamp.getTime();
+      if (gap > maxAllowedGap) {
+        annotations.xaxis.push({
+          x: prev.stopTimestamp.getTime(),
+          x2: current.stopTimestamp.getTime(),
+          borderColor: '#B3B3B3',
+          strokeDashArray: 5,
+          fillColor: '#B3B3B3',
+          opacity: 0.4,
+          label: {
+            borderColor: '#B3B3B3',
+            style: {
+              fontSize: '10px',
+              color: '#fff',
+              background: '#B3B3B3',
+            },
+            text: 'Gap',
+          }
+        });
+      }
     }
   });
 
+  // Packet loss annotations
+  let currentLossStart: number | null = null;
+  let currentLossColor = '';
+  let currentLossText = '';
 
-  for (let i = 0; i < data.length - 1; i++) {
-    const currentStopTime = new Date(data[i].stopTimestamp).getTime();
-    const nextStopTime = new Date(data[i + 1].stopTimestamp).getTime();
+  sortedData.forEach((d, index) => {
+    const packetLoss = d.packetLoss;
+    let color = '';
+    let text = '';
 
-    // Check if there's a gap between consecutive stopTimestamps
-    if (nextStopTime - currentStopTime > maxAllowedGap) {
-      svg.append('rect')
-          .attr('x', xScale(currentStopTime))
-          .attr('y', 0)
-          .attr('width', xScale(nextStopTime) - xScale(currentStopTime))
-          .attr('height', height)
-          .attr('fill', '#ddd') // Light grey color for gaps
-          .attr('opacity', 0.2); // Semi-translucent
+    if (packetLoss >= 5 && packetLoss < 10) {
+      color = '#FFD700'; // Yellow
+      text = 'Moderate Loss';
+    } else if (packetLoss >= 10 && packetLoss < 25) {
+      color = '#FFA500'; // Orange
+      text = 'High Loss';
+    } else if (packetLoss >= 25) {
+      color = '#FF0000'; // Red
+      text = 'Severe Loss';
     }
-  }
 
-  //console.log(data)
+    if (color) {
+      if (!currentLossStart) {
+        currentLossStart = d.stopTimestamp.getTime();
+        currentLossColor = color;
+        currentLossText = text;
+      } else if (color !== currentLossColor) {
+        // End the previous annotation and start a new one
+        annotations.xaxis.push({
+          x: currentLossStart,
+          x2: d.stopTimestamp.getTime(),
+          borderColor: currentLossColor,
+          fillColor: currentLossColor,
+          opacity: 0.1,
+          label: {
+            borderColor: currentLossColor,
+            style: {
+              fontSize: '10px',
+              color: '#fff',
+              background: currentLossColor,
+            },
+            text: currentLossText,
+          }
+        });
+        currentLossStart = d.stopTimestamp.getTime();
+        currentLossColor = color;
+        currentLossText = text;
+      }
+    } else if (currentLossStart) {
+      // End the previous annotation
+      annotations.xaxis.push({
+        x: currentLossStart,
+        x2: d.stopTimestamp.getTime(),
+        borderColor: currentLossColor,
+        fillColor: currentLossColor,
+        opacity: 0.1,
+        label: {
+          borderColor: currentLossColor,
+          style: {
+            fontSize: '10px',
+            color: '#fff',
+            background: currentLossColor,
+          },
+          text: currentLossText,
+        }
+      });
+      currentLossStart = null;
+    }
 
-  // Line generator for avgRtt
-  const maxLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { maxRtt: number; }) => yScale(d.maxRtt / 1e+6));
-  const stdDvLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { stdDevRtt: number; }) => yScale((d.stdDevRtt / 1e+6)));
-  const avgLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { avgRtt: number; }) => yScale(d.avgRtt / 1e+6));
-  const lossLine = d3.line<PingResult>()
-      .x((d: { stopTimestamp: any; }) => xScale(d.stopTimestamp))
-      .y((d: { packetLoss: number; }) => yScale(d.packetLoss));
-  // Repeat for maxLine, avgLine, and lossLine
-
-  // Draw each segment separately
-  // Draw each segment separately
-  dataSegments.forEach(segment => {
-    // Append paths for each line (average, maximum, standard deviation, loss)
-    appendPath(segment, 'line-avg', avgLine, 'green');
-    appendPath(segment, 'line-max', maxLine, 'darkblue');
-    appendPath(segment, 'line-std', stdDvLine, 'lightblue');
-    appendPath(segment, 'line-loss', lossLine, 'red');
+    // Handle the last data point
+    if (index === sortedData.length - 1 && currentLossStart) {
+      annotations.xaxis.push({
+        x: currentLossStart,
+        x2: d.stopTimestamp.getTime(),
+        borderColor: currentLossColor,
+        fillColor: currentLossColor,
+        opacity: 0.1,
+        label: {
+          borderColor: currentLossColor,
+          style: {
+            fontSize: '10px',
+            color: '#fff',
+            background: currentLossColor,
+          },
+          text: currentLossText,
+        }
+      });
+    }
   });
 
-  //console.log(data)
+  const options: ApexCharts.ApexOptions = {
+    series,
+    chart: {
+      height: 350,
+      type: 'line',
+      stacked: false,
+      animations: {
+        enabled: false
+      },
+      zoom: {
+        type: 'x',
+        enabled: true,
+        autoScaleYaxis: true
+      },
+      toolbar: {
+        autoSelected: 'zoom'
+      }
+    },
+    colors: ['#3e5672', '#00E396', '#42aaee', '#FF4560'],
+    stroke: {
+      width: [3, 3, 3, 0],
+      curve: 'straight'
+    },
+    plotOptions: {
+      bar: {
+        columnWidth: '50%'
+      }
+    },
+    fill: {
+      opacity: [1, 1, 1, 0.5],
+    },
+    labels: sortedData.map(d => d.stopTimestamp.getTime()),
+    markers: {
+      size: 0
+    },
+    xaxis: {
+      type: 'datetime',
+    },
+    yaxis: [
+      {
+        title: {
+          text: 'RTT (ms)',
+        },
+        min: 0,
+        max: Math.max(
+            ...sortedData.map(d => Math.max(d.maxRtt, d.avgRtt, d.stdDevRtt) / 1e6)
+        ) * 1.1, // Add 10% headroom
+        labels: {
+          formatter: (val) => val.toFixed(1)
+        }
+      },
+      {
+        opposite: true,
+        title: {
+          text: 'Packet Loss %'
+        },
+        min: 0,
+        max: 100,
+        labels: {
+          formatter: (val) => val.toFixed(1)
+        }
+      }
+    ],
+    tooltip: {
+      shared: true,
+      intersect: false,
+      x: {
+        formatter: function(val: number) {
+          return new Date(val).toLocaleString();
+        }
+      },
+      y: {
+        formatter: function (y, { seriesIndex }) {
+          if (typeof y !== "undefined") {
+            if (seriesIndex <= 2) {
+              return y.toFixed(1) + " ms";
+            } else {
+              return y.toFixed(1) + "%";
+            }
+          }
+          return y;
+        }
+      }
+    },
+    annotations: annotations
+  };
 
-  function appendPath(segment: PingResult[], className: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, lineFunction: string | number | boolean | d3.Line<PingResult> | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null, color: string | number | boolean | readonly (string | number)[] | d3.ValueFn<SVGPathElement, any, string | number | boolean | readonly (string | number)[] | null> | null) {
-    svg.append('path')
-        .datum(segment)
-        .attr('class', className)
-        .attr('fill', 'none')
-        .attr('stroke', color)
-        .attr('stroke-width', 1.5)
-        .attr('d', lineFunction)
-        .attr("clip-path", "url(#clip)");
-  }
-
-  // Adding brushing and zoom out on double click
-  svg.append("g")
-      .attr("class", "brush")
-      .call(brush);
-
-  svg.on("dblclick", function () {
-    xScale.domain(d3.extent(data, d => d.stopTimestamp));
-    svg.select(".x-axis").call(d3.axisBottom(xScale));
-    updateLines();
-  });
-
-  // Adding legend
-  const legend = svg.append("g")
-      .attr("class", "legend")
-      .attr("transform", `translate(${width - 120},${20})`); // Adjust legend position
-
-  // Legend for avgRtt
-  legend.append("rect")
-      .attr("x", 0)
-      .attr("y", 0)
-      .attr("width", 10)
-      .attr("height", 10)
-      .style("fill", "green");
-
-  legend.append("text")
-      .attr("x", 20)
-      .attr("y", 10)
-      .text("Average RTT")
-      .style("font-size", "12px")
-      .attr("alignment-baseline", "middle");
-
-  // Legend for maxRtt
-  legend.append("rect")
-      .attr("x", 0)
-      .attr("y", 20)
-      .attr("width", 10)
-      .attr("height", 10)
-      .style("fill", "darkblue");
-
-  legend.append("text")
-      .attr("x", 20)
-      .attr("y", 30)
-      .text("Max RTT")
-      .style("font-size", "12px")
-      .attr("alignment-baseline", "middle");
-
-  // Legend for packetLoss
-  legend.append("rect")
-      .attr("x", 0)
-      .attr("y", 40)
-      .attr("width", 10)
-      .attr("height", 10)
-      .style("fill", "red");
-
-  legend.append("text")
-      .attr("x", 20)
-      .attr("y", 50)
-      .text("Packet Loss")
-      .style("font-size", "12px")
-      .attr("alignment-baseline", "middle");
-
-  legend.append("rect")
-      .attr("x", 0)
-      .attr("y", 60)
-      .attr("width", 10)
-      .attr("height", 10)
-      .style("fill", "lightblue");
-
-  legend.append("text")
-      .attr("x", 20)
-      .attr("y", 70)
-      .text("Standard Deviation")
-      .style("font-size", "12px")
-      .attr("alignment-baseline", "middle");
+  chart = new ApexCharts(graphElement, options);
+  chart.render();
 }
 </script>

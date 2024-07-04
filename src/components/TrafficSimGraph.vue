@@ -268,6 +268,11 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
     tooltip: {
       shared: true,
       intersect: false,
+      x: {
+        formatter: function(val: number) {
+          return new Date(val).toLocaleString();
+        }
+      },
       y: {
         formatter: function (y, { seriesIndex }) {
           if (typeof y !== "undefined") {
