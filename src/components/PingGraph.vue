@@ -236,6 +236,11 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     },
     xaxis: {
       type: 'datetime',
+      labels: {
+        formatter: function(value, timestamp) {
+          return new Date(timestamp).toLocaleString();
+        }
+      },
     },
     yaxis: [
       {
