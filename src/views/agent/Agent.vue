@@ -485,6 +485,20 @@ function probeTitle(probeKey: string): string {
           </Element>
 
         </div>
+        <div v-else style="grid-column: 1 / span 2">
+          <Element style="height: 100%">
+            <div class="px-2 py-2 pb-1 ">
+              <div class="label-c4 label-o2 label-w500">Probes</div>
+            </div>
+              <div class="error-body text-center">
+              <h1 class="error-title text-danger">no probes</h1>
+              <h3 class="text-error-subtitle">please create a probe</h3>
+              <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
+               <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
+            </div>
+          </Element>
+
+        </div>
 
         <Element>
           <div class="px-2 py-2 pb-1 ">
