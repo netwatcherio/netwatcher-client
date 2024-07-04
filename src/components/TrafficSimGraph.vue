@@ -93,7 +93,7 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
       .range(['yellow', 'orange', 'red'] as any[]);
   const outOfSequenceColorScale = d3.scaleLinear<string>()
       .domain([1, 5, 20])
-      .range(['purple', 'blue', 'black'] as any[]);
+      .range(['green', 'blue', 'black'] as any[]);
 
   // Create SVG element
   const svg = d3.select(graphElement)
@@ -108,7 +108,7 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
       .range([0, width]);
 
   const yScale = d3.scaleLinear()
-      .domain([0, d3.max(data, (d: TrafficSimResult) => d.maxRTT > 100 ? d.maxRTT : 150)])
+      .domain([0, d3.max(data, (d: TrafficSimResult) => d.maxRTT > 500 ? 100 : d.maxRTT < 100 ? d.maxRTT * 1.5 : 100)])
       .range([height, 0]);
 
   svg.append("defs").append("clipPath")
