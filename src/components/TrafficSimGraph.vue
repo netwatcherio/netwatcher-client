@@ -91,6 +91,9 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
   const packetLossColorScale = d3.scaleLinear<string>()
       .domain([1, 50, 100])
       .range(['yellow', 'orange', 'red'] as any[]);
+  const outOfSequenceColorScale = d3.scaleLinear<string>()
+      .domain([1, 5, 20])
+      .range(['purple', 'blue', 'black'] as any[]);
 
   // Create SVG element
   const svg = d3.select(graphElement)
@@ -170,6 +173,20 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
           .attr('width', packetLossWidth)
           .attr('height', height)
           .attr('fill', packetLossColorScale(packetLoss))
+          .attr('opacity', 0.2);
+    }
+  });
+
+  data.forEach((d) => {
+    const packetLoss = (d.outOfSequence / d.sentPackets) * 100;
+    if (packetLoss > 0) {
+      const packetLossWidth = 5;
+      svg.append('rect')
+          .attr('x', xScale(new Date(d.lastReportTime)) - packetLossWidth / 2)
+          .attr('y', 0)
+          .attr('width', packetLossWidth)
+          .attr('height', height)
+          .attr('fill', outOfSequenceColorScale(packetLoss))
           .attr('opacity', 0.2);
     }
   });
