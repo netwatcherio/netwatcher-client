@@ -255,7 +255,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
           formatter: (val) => val.toFixed(1)
         }
       },
-      {
+      /*{
         opposite: true,
         title: {
           text: 'Packet Loss %'
@@ -265,7 +265,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
         labels: {
           formatter: (val) => val.toFixed(1)
         }
-      }
+      }*/
     ],
     tooltip: {
       shared: true,

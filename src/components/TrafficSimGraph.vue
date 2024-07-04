@@ -258,7 +258,7 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
           formatter: (val) => val.toFixed(1)
         }
       },
-      {
+      /*{
         opposite: true,
         title: {
           text: 'Packet Loss % / Out of Sequence'
@@ -266,9 +266,9 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
         min: 0,
         max: 100,
         labels: {
-          formatter: (val) => val.toFixed(1)
+          formatter: (val) => val.toFixed(0)
         }
-      }
+      }*/
     ],
     tooltip: {
       shared: true,
