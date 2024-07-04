@@ -70,105 +70,43 @@ function createNetworkMap(mtrResults: MtrResult[], graphElement: HTMLElement) {
   // Create a map to aggregate packetLoss and latency values for each source
   const aggregationMap = new Map();
 
+  let previousNodeId = null;
   mtrResults.forEach((mtrResult) => {
+    let previousNodeId = null;
     mtrResult.report.hops.forEach((hop, hopIndex) => {
+      let currentNodeId;
+
       if (hop.hosts.length > 0) {
-        hop.hosts.forEach((host) => {
-          const nodeId = host.hostname ? `${host.hostname} (${host.ip})` : 'Unreachable #' + (hopIndex + 1);
-          if (!nodes.some(n => n.id === nodeId)) {
-            nodes.push({
-              id: nodeId,
-              label: `Hop ${hopIndex + 1}: ${nodeId}`,
-              hopNumber: hopIndex + 1,
-            });
-          }
-
-          if (hopIndex < mtrResult.report.hops.length - 1) {
-            const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
-            if (nextHopHosts.length > 0) {
-              const nextHop = nextHopHosts[0];
-              const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
-
-              // Calculate the average packetLoss and latency for this link
-              const sourceNodeId = nodeId;
-              const targetNodeId = nextNodeId;
-              const packetLoss = parseFloat(hop.loss_pct);
-              const latency = parseFloat(hop.avg);
-
-              if (!aggregationMap.has(sourceNodeId)) {
-                aggregationMap.set(sourceNodeId, {
-                  packetLossSum: packetLoss,
-                  latencySum: latency,
-                  count: 1,
-                });
-              } else {
-                const existingData = aggregationMap.get(sourceNodeId);
-                existingData.packetLossSum += packetLoss;
-                existingData.latencySum += latency;
-                existingData.count++;
-              }
-
-              links.push({
-                source: sourceNodeId,
-                target: targetNodeId,
-              });
-            } else {
-              const nextNodeId = 'Unreachable #' + (hopIndex + 2);
-              links.push({
-                source: nodeId,
-                target: nextNodeId,
-              });
-            }
-          }
-        });
+        const host = hop.hosts[0];
+        currentNodeId = host.hostname ? `${host.hostname} (${host.ip})` : `Unreachable #${hopIndex + 1}`;
       } else {
-        const nodeId = 'Unreachable #' + (hopIndex + 1);
-        if (!nodes.some(n => n.id === nodeId)) {
-          nodes.push({
-            id: nodeId,
-            label: `Hop ${hopIndex + 1}: ${nodeId}`,
-            hopNumber: hopIndex + 1,
+        currentNodeId = `Unreachable #${hopIndex + 1}`;
+      }
+
+      if (!nodes.some(n => n.id === currentNodeId)) {
+        nodes.push({
+          id: currentNodeId,
+          label: `Hop ${hopIndex + 1}: ${currentNodeId}`,
+          hopNumber: hopIndex + 1,
+        });
+      }
+
+      if (previousNodeId !== null) {
+        const linkExists = links.some(link =>
+            link.source === previousNodeId && link.target === currentNodeId
+        );
+
+        if (!linkExists) {
+          links.push({
+            source: previousNodeId,
+            target: currentNodeId,
+            packetLoss: parseFloat(hop.loss_pct),
+            latency: parseFloat(hop.avg),
           });
         }
-
-        if (hopIndex < mtrResult.report.hops.length - 1) {
-          const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
-          if (nextHopHosts.length > 0) {
-            const nextHop = nextHopHosts[0];
-            const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
-
-            // Calculate the average packetLoss and latency for this link
-            const sourceNodeId = nodeId;
-            const targetNodeId = nextNodeId;
-            const packetLoss = parseFloat(hop.loss_pct);
-            const latency = parseFloat(hop.avg);
-
-            if (!aggregationMap.has(sourceNodeId)) {
-              aggregationMap.set(sourceNodeId, {
-                packetLossSum: packetLoss,
-                latencySum: latency,
-                count: 1,
-              });
-            } else {
-              const existingData = aggregationMap.get(sourceNodeId);
-              existingData.packetLossSum += packetLoss;
-              existingData.latencySum += latency;
-              existingData.count++;
-            }
-
-            links.push({
-              source: sourceNodeId,
-              target: targetNodeId,
-            });
-          } else {
-            const nextNodeId = 'Unreachable #' + (hopIndex + 1);
-            links.push({
-              source: nodeId,
-              target: nextNodeId,
-            });
-          }
-        }
       }
+
+      previousNodeId = currentNodeId;
     });
   });
 
