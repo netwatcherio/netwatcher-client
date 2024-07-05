@@ -472,6 +472,16 @@ function submit() {
 
 }
 
+// Corrected containsProbeType function
+function containsProbeType(type: ProbeType): boolean {
+  for (const probe of state.similarProbes) {
+    if (probe.type === type) {
+      return true;
+    }
+  }
+  return false;
+}
+
 </script>
 
 <template>
@@ -500,38 +510,87 @@ function submit() {
                 </div>
               </div>
             </div>-->
-      <div v-if="state.pingData.length > 0" class="col-sm-12">
+      <div class="col-sm-12" v-if="containsProbeType('PING')">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">latency</h5>
             <p class="card-text">displays the stats associated with latency</p>
+            <div v-if="state.pingData.length <= 0">
+              <!--        <div class="px-2 py-2 pb-1 ">
+                        <div class="label-c4 label-o2 label-w500">Loading...</div>
+                      </div>-->
+              <div class="error-body text-center">
+                <h1 class="error-title text-warning">Loading...</h1>
+                <h3 class="text-error-subtitle">please wait for data to load</h3>
+              </div>
+
+            </div>
+            <div v-else>
             <LatencyGraph v-if="state.ready" :pingResults="transformPingDataMulti(state.pingData)"/>
+              </div>
           </div>
         </div>
       </div>
-      <div v-if="state.trafficSimData.length > 0" class="col-sm-12">
+      <div class="col-sm-12" v-if="containsProbeType('TRAFFICSIM')">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">simulated traffic</h5>
             <p class="card-text">displays the stats for simulated traffic</p>
+            <div v-if="state.trafficSimData.length <= 0">
+              <!--        <div class="px-2 py-2 pb-1 ">
+                        <div class="label-c4 label-o2 label-w500">Loading...</div>
+                      </div>-->
+              <div class="error-body text-center">
+                <h1 class="error-title text-warning">Loading...</h1>
+                <h3 class="text-error-subtitle">please wait for data to load</h3>
+              </div>
+
+            </div>
+            <div v-else>
             <TrafficSimGraph v-if="state.ready" :traffic-results="transformToTrafficSimResult(state.trafficSimData)"/>
+              </div>
           </div>
         </div>
       </div>
-      <div v-if="state.rperfData.length > 0" class="col-sm-12">
+<!--      <div class="col-sm-12">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">rperf traffic</h5>
             <p class="card-text">displays the stats for rperf traffic</p>
+            <div v-if="state.mtrData.length <= 0">
+              &lt;!&ndash;        <div class="px-2 py-2 pb-1 ">
+                        <div class="label-c4 label-o2 label-w500">Loading...</div>
+                      </div>&ndash;&gt;
+              <div class="error-body text-center">
+                <h1 class="error-title text-warning">Loading...</h1>
+                <h3 class="text-error-subtitle">please wait for data to load</h3>
+              </div>
+
+            </div>
+            <div v-else>
             <RperfGraph v-if="state.ready" :rperfResults="transformToRPerfResults(state.rperfData)"/>
+            </div>
           </div>
         </div>
-      </div>
-      <div v-if="state.mtrData.length > 0" class="col-sm-12">
+      </div>-->
+      <div class="col-sm-12" v-if="containsProbeType('MTR')">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
+
+            <div v-if="state.mtrData.length <= 0">
+              <!--        <div class="px-2 py-2 pb-1 ">
+                        <div class="label-c4 label-o2 label-w500">Loading...</div>
+                      </div>-->
+              <div class="error-body text-center">
+                <h1 class="error-title text-warning">Loading...</h1>
+                <h3 class="text-error-subtitle">please wait for data to load</h3>
+              </div>
+
+            </div>
+            <div v-else>
+
 
                         <NetworkMap v-if="state.ready" :mtrResults="transformMtrDataMulti(state.mtrData)"/>
 
@@ -559,6 +618,7 @@ function submit() {
                 </div>
 
               </div>
+              </div>
 
               <!-- Add more accordion items here if needed -->
             </div>
@@ -566,6 +626,7 @@ function submit() {
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
