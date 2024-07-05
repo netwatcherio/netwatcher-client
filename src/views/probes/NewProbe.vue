@@ -23,7 +23,8 @@ let state = reactive({
   agents: [] as Agent[],
   customServer: false,
   targetAgent: true,
-  targetAgentSelected: {} as Agent
+  targetAgentSelected: {} as Agent,
+  validAgents: [] as Agent[]
 })
 
 onMounted(() => {
@@ -42,7 +43,7 @@ onMounted(() => {
 
   agentService.getAgent(id).then(res => {
     state.agent = res.data as Agent
-    siteService.getSite(state.agent.site).then(res => {
+    siteService.getSite(state.agent.site).then(async res => {
       state.site = res.data as Site
       console.log(state.agent)
       /*siteService.getAgentGroups(state.agent.site).then(res => {
@@ -62,9 +63,12 @@ onMounted(() => {
             }
           }
         }
+        getValidAgents("TRAFFICSIM")
       }).catch(res => {
         alert(res)
       })
+      // todo get all probes for agents for a site, and check which ones have the trafficsim server enabled
+      // if they have the option, only show valid options for traffic sim server
     })
   })
 
@@ -83,6 +87,39 @@ function onCreate(response: any) {
 
 function onError(response: any) {
   alert(response)
+}
+
+async function getValidAgents(probeType: ProbeType){
+  let validAgents: Agent[] = [];
+
+  console.log("getting valid agents for probe type: " + probeType + "...");
+
+  for (let agent of state.agents) {
+    console.log(state.agents);
+    console.log("checking agent: " + agent.id + " for probe type: " + probeType + "...");
+    if (agent.id != state.agent.id) {
+      try {
+        let res = await probeService.getAgentProbes(agent.id);
+        let agentProbes = res.data as Probe[];
+        for (let probe of agentProbes) {
+          console.log(probe);
+          if (probe.type === probeType) {
+            if (probe.type === "TRAFFICSIM" && probe.config.server) {
+              console.log("valid agent: " + agent.id);
+              validAgents.push(agent);
+            } else if (probe.type !== "TRAFFICSIM") {
+              console.log("valid agent: " + agent.id);
+              validAgents.push(agent);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching agent probes: ", error);
+      }
+    }
+  }
+
+  state.validAgents = validAgents;
 }
 
 function submit() {
@@ -199,12 +236,26 @@ function submit() {
                                       </div>
                                     </div>
                                   </div>-->
-                  <div v-if="state.targetAgent">
+                  <div v-if="state.targetAgent && state.selected.value != 'TRAFFICSIM'">
                     <div class="mb-3 col-lg-8 col-12">
                       <label class="form-label" for="targetAgentOptions">Available Agents</label>
                       <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
                         <option v-for="group in state.agents" :key="group.name" :value="group">
                           {{ group.name + " (" + group.location + ")" }}
+                        </option>
+                      </select>
+                      <div class="mt-3">
+                        Selected:
+                        <strong>{{ state.targetAgentSelected }}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="state.targetAgent && state.selected.value == 'TRAFFICSIM'">
+                    <div class="mb-3 col-lg-8 col-12">
+                      <label class="form-label" for="targetAgentOptions">Available Agents</label>
+                      <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
+                        <option v-for="group in state.validAgents" :key="(group as Agent).name" :value="group">
+                          {{ (group as Agent).name + " (" + (group as Agent).location + ")" }}
                         </option>
                       </select>
                       <div class="mt-3">
