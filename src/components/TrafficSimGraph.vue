@@ -52,6 +52,8 @@ const maxAllowedGap = 1000 * 90; // 90 seconds
 function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement) {
   const sortedData = data.sort((a, b) => new Date(a.lastReportTime).getTime() - new Date(b.lastReportTime).getTime());
 
+  var chart = undefined;
+
   const series = [
     {
       name: 'Average RTT',
