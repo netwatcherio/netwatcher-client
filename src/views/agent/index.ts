@@ -5,6 +5,8 @@ import DeactivateAgent from "@/views/agent/DeactivateAgent.vue";
 import EditAgent from "@/views/agent/EditAgent.vue";
 import ProbesEdit from "@/views/agent/ProbesEdit.vue";
 import DeleteAgent from "@/views/agent/DeleteAgent.vue";
+import Speedtests from "@/views/agent/Speedtests.vue";
+import NewSpeedtest from "@/views/agent/NewSpeedtest.vue";
 
 export default {
     path: '/agents',
@@ -40,6 +42,16 @@ export default {
             path: '/agent/:agentId/probes',
             name: 'agentProbes',
             component: ProbesEdit,
+        },
+        {
+            path: '/agent/:agentId/speedtests',
+            name: 'speedTests',
+            component: Speedtests,
+        },
+        {
+            path: '/agent/:agentId/speedtest/new',
+            name: 'newSpeedTest',
+            component: NewSpeedtest,
         },
     ]
 }
