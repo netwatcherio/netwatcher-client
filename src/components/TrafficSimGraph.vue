@@ -14,32 +14,40 @@ export default {
   },
   setup(props: { trafficResults: TrafficSimResult[]; }) {
     const trafficGraph = ref(null);
-    let chart: ApexCharts | undefined = undefined;
+    const chart = ref<ApexCharts | null>(null);
 
     const drawGraph = () => {
       if (!trafficGraph.value || !props.trafficResults || props.trafficResults.length === 0) {
         return;
       }
-      createTrafficGraph(props.trafficResults, trafficGraph.value);
+      if (chart.value) {
+        // Update existing chart
+        chart.value.updateOptions(createChartOptions(props.trafficResults));
+      } else {
+        // Create new chart
+        chart.value = new ApexCharts(trafficGraph.value, createChartOptions(props.trafficResults));
+        chart.value.render();
+      }
     };
 
-    /*const resizeListener = () => {
-      if (chart) {
-        chart.updateOptions({ chart: { width: trafficGraph.value.clientWidth } });
+    const resizeListener = () => {
+      if (chart.value) {
+        chart.value.updateOptions({ chart: { width: trafficGraph.value.clientWidth } });
       }
-    };*/
+    };
 
     onMounted(() => {
       drawGraph();
-      //window.addEventListener('resize', resizeListener);
+      window.addEventListener('resize', resizeListener);
     });
 
-    /*onUnmounted(() => {
+    onUnmounted(() => {
       window.removeEventListener('resize', resizeListener);
-      if (chart) {
-        chart.destroy();
+      if (chart.value) {
+        chart.value.destroy();
+        chart.value = null;
       }
-    });*/
+    });
 
     watch(() => props.trafficResults, drawGraph, { deep: true });
 
@@ -49,10 +57,8 @@ export default {
 
 const maxAllowedGap = 1000 * 90; // 90 seconds
 
-function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement) {
+function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
   const sortedData = data.sort((a, b) => new Date(a.lastReportTime).getTime() - new Date(b.lastReportTime).getTime());
-
-  var chart = undefined;
 
   const series = [
     {
@@ -204,7 +210,7 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
     }
   });
 
-  const options: ApexCharts.ApexOptions = {
+  return {
     series,
     chart: {
       height: 350,
@@ -258,17 +264,6 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
           formatter: (val) => val.toFixed(1)
         }
       },
-      /*{
-        opposite: true,
-        title: {
-          text: 'Packet Loss % / Out of Sequence'
-        },
-        min: 0,
-        max: 100,
-        labels: {
-          formatter: (val) => val.toFixed(0)
-        }
-      }*/
     ],
     tooltip: {
       shared: true,
@@ -295,8 +290,5 @@ function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement)
     },
     annotations: annotations
   };
-
-  chart = new ApexCharts(graphElement, options);
-  chart.render();
 }
 </script>

@@ -14,33 +14,40 @@ export default {
   },
   setup(props: { pingResults: PingResult[]; }) {
     const latencyGraph = ref(null);
-    let chart: ApexCharts | undefined = undefined;
+    const chart = ref<ApexCharts | null>(null);
 
     const drawGraph = () => {
       if (!latencyGraph.value || !props.pingResults || props.pingResults.length === 0) {
         return;
       }
-      console.log("drawing graph")
-      createLatencyGraph(props.pingResults, latencyGraph.value);
+      console.log("drawing graph");
+      if (chart.value) {
+        // Update existing chart
+        chart.value.updateOptions(createChartOptions(props.pingResults));
+      } else {
+        // Create new chart
+        chart.value = new ApexCharts(latencyGraph.value, createChartOptions(props.pingResults));
+        chart.value.render();
+      }
     };
 
-    /*const resizeListener = () => {
-      if (chart) {
-        chart.updateOptions({ chart: { width: latencyGraph.value.clientWidth } });
+    const resizeListener = () => {
+      if (chart.value) {
+        chart.value.updateOptions({ chart: { width: latencyGraph.value.clientWidth } });
       }
-    };*/
+    };
 
     onMounted(() => {
       drawGraph();
-      //window.addEventListener('resize', resizeListener);
+      window.addEventListener('resize', resizeListener);
     });
 
     onUnmounted(() => {
-      /*window.removeEventListener('resize', resizeListener);*/
-      /*if (chart) {
-        chart.destroy();
-      }*/
-      //drawGraph();
+      window.removeEventListener('resize', resizeListener);
+      if (chart.value) {
+        chart.value.destroy();
+        chart.value = null;
+      }
     });
 
     watch(() => props.pingResults, drawGraph, { deep: true });
@@ -51,10 +58,8 @@ export default {
 
 const maxAllowedGap = 1000 * 90; // 90 seconds
 
-function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
+function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
   const sortedData = data.sort((a, b) => a.stopTimestamp.getTime() - b.stopTimestamp.getTime());
-
-  var chart = undefined
 
   const series = [
     {
@@ -201,7 +206,7 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     }
   });
 
-  const options: ApexCharts.ApexOptions = {
+  return {
     series,
     chart: {
       height: 350,
@@ -257,17 +262,6 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
           formatter: (val) => val.toFixed(1)
         }
       },
-      /*{
-        opposite: true,
-        title: {
-          text: 'Packet Loss %'
-        },
-        min: 0,
-        max: 100,
-        labels: {
-          formatter: (val) => val.toFixed(1)
-        }
-      }*/
     ],
     tooltip: {
       shared: true,
@@ -292,8 +286,5 @@ function createLatencyGraph(data: PingResult[], graphElement: HTMLElement) {
     },
     annotations: annotations
   };
-
-  chart = new ApexCharts(graphElement, options);
-  chart.render();
 }
 </script>
