@@ -440,6 +440,7 @@ function probeTitle(probeKey: string): string {
     <Title :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"
            :title="state.agent.name"
            subtitle="information about this agent">
+
       <div class="d-flex gap-1">
         <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i
             class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes
@@ -516,8 +517,6 @@ function probeTitle(probeKey: string): string {
             </ElementPair>
           </List>
           <List>
-
-
             <ElementPair title="IPs" code>
               <div v-for="alias in getLocalAddresses(state.systemInfoComplete.hostInfo?.IPs || [])">
                 {{ alias }}
@@ -527,9 +526,10 @@ function probeTitle(probeKey: string): string {
             <ElementPair title="Gateway" code>
               {{ state.netData.defaultGateway }}
             </ElementPair>
-
-
           </List>
+          <router-link :to="`/agent/${state.agent.id}/speedtests`" active-class="active" style="margin: 15px; margin-right: 15px;" class="btn btn-outline-secondary"><i
+              class="fa-solid fa-arrows-turn-to-dots"></i>&nbsp;speedtests
+          </router-link>
         </Element>
 
 
