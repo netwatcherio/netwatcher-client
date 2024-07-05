@@ -23,23 +23,23 @@ export default {
       createTrafficGraph(props.trafficResults, trafficGraph.value);
     };
 
-    const resizeListener = () => {
+    /*const resizeListener = () => {
       if (chart) {
         chart.updateOptions({ chart: { width: trafficGraph.value.clientWidth } });
       }
-    };
+    };*/
 
     onMounted(() => {
       drawGraph();
-      window.addEventListener('resize', resizeListener);
+      //window.addEventListener('resize', resizeListener);
     });
 
-    onUnmounted(() => {
+    /*onUnmounted(() => {
       window.removeEventListener('resize', resizeListener);
       if (chart) {
         chart.destroy();
       }
-    });
+    });*/
 
     watch(() => props.trafficResults, drawGraph, { deep: true });
 
@@ -51,8 +51,6 @@ const maxAllowedGap = 1000 * 90; // 90 seconds
 
 function createTrafficGraph(data: TrafficSimResult[], graphElement: HTMLElement) {
   const sortedData = data.sort((a, b) => new Date(a.lastReportTime).getTime() - new Date(b.lastReportTime).getTime());
-
-  var chart = undefined;
 
   const series = [
     {

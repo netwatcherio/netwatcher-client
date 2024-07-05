@@ -20,25 +20,27 @@ export default {
       if (!latencyGraph.value || !props.pingResults || props.pingResults.length === 0) {
         return;
       }
+      console.log("drawing graph")
       createLatencyGraph(props.pingResults, latencyGraph.value);
     };
 
-    const resizeListener = () => {
+    /*const resizeListener = () => {
       if (chart) {
         chart.updateOptions({ chart: { width: latencyGraph.value.clientWidth } });
       }
-    };
+    };*/
 
     onMounted(() => {
       drawGraph();
-      window.addEventListener('resize', resizeListener);
+      //window.addEventListener('resize', resizeListener);
     });
 
     onUnmounted(() => {
-      window.removeEventListener('resize', resizeListener);
-      if (chart) {
+      /*window.removeEventListener('resize', resizeListener);*/
+      /*if (chart) {
         chart.destroy();
-      }
+      }*/
+      //drawGraph();
     });
 
     watch(() => props.pingResults, drawGraph, { deep: true });
