@@ -58,33 +58,33 @@ export default {
 const maxAllowedGap = 1000 * 90; // 90 seconds
 
 function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
-  const sortedData = data.sort((a, b) => new Date(a.lastReportTime).getTime() - new Date(b.lastReportTime).getTime());
+  const sortedData = data.sort((a, b) => new Date(a.reportTime).getTime() - new Date(b.reportTime).getTime());
 
   const series = [
     {
       name: 'Average RTT',
       type: 'line',
-      data: sortedData.map(d => ({ x: new Date(d.lastReportTime).getTime(), y: d.averageRTT }))
+      data: sortedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.averageRTT }))
     },
     {
       name: 'Max RTT',
       type: 'line',
-      data: sortedData.map(d => ({ x: new Date(d.lastReportTime).getTime(), y: d.maxRTT }))
+      data: sortedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.maxRTT }))
     },
     {
       name: 'Min RTT',
       type: 'line',
-      data: sortedData.map(d => ({ x: new Date(d.lastReportTime).getTime(), y: d.minRTT }))
+      data: sortedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.minRTT }))
     },
     {
       name: 'Packet Loss %',
       type: 'column',
-      data: sortedData.map(d => ({ x: new Date(d.lastReportTime).getTime(), y: (d.lostPackets / d.sentPackets) * 100 }))
+      data: sortedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: (d.lostPackets / d.totalPackets) * 100 }))
     },
     {
       name: 'Out of Sequence',
       type: 'line',
-      data: sortedData.map(d => ({ x: new Date(d.lastReportTime).getTime(), y: d.outOfSequence }))
+      data: sortedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.outOfSequence }))
     }
   ];
 
@@ -97,11 +97,11 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
   sortedData.forEach((current, index, array) => {
     if (index > 0) {
       const prev = array[index - 1];
-      const gap = new Date(current.lastReportTime).getTime() - new Date(prev.lastReportTime).getTime();
+      const gap = new Date(current.reportTime).getTime() - new Date(prev.reportTime).getTime();
       if (gap > maxAllowedGap) {
         annotations.xaxis.push({
-          x: new Date(prev.lastReportTime).getTime(),
-          x2: new Date(current.lastReportTime).getTime(),
+          x: new Date(prev.reportTime).getTime(),
+          x2: new Date(current.reportTime).getTime(),
           borderColor: '#B3B3B3',
           strokeDashArray: 5,
           fillColor: '#B3B3B3',
@@ -126,7 +126,7 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
   let currentLossText = '';
 
   sortedData.forEach((d, index) => {
-    const packetLoss = (d.lostPackets / d.sentPackets) * 100;
+    const packetLoss = (d.lostPackets / d.totalPackets) * 100;
     let color = '';
     let text = '';
 
@@ -143,14 +143,14 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
 
     if (color) {
       if (!currentLossStart) {
-        currentLossStart = new Date(d.lastReportTime).getTime();
+        currentLossStart = new Date(d.reportTime).getTime();
         currentLossColor = color;
         currentLossText = text;
       } else if (color !== currentLossColor) {
         // End the previous annotation and start a new one
         annotations.xaxis.push({
           x: currentLossStart,
-          x2: new Date(d.lastReportTime).getTime(),
+          x2: new Date(d.reportTime).getTime(),
           borderColor: currentLossColor,
           fillColor: currentLossColor,
           opacity: 0.1,
@@ -164,7 +164,7 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
             text: currentLossText,
           }
         });
-        currentLossStart = new Date(d.lastReportTime).getTime();
+        currentLossStart = new Date(d.reportTime).getTime();
         currentLossColor = color;
         currentLossText = text;
       }
@@ -172,7 +172,7 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
       // End the previous annotation
       annotations.xaxis.push({
         x: currentLossStart,
-        x2: new Date(d.lastReportTime).getTime(),
+        x2: new Date(d.reportTime).getTime(),
         borderColor: currentLossColor,
         fillColor: currentLossColor,
         opacity: 0.1,
@@ -193,7 +193,7 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
     if (index === sortedData.length - 1 && currentLossStart) {
       annotations.xaxis.push({
         x: currentLossStart,
-        x2: new Date(d.lastReportTime).getTime(),
+        x2: new Date(d.reportTime).getTime(),
         borderColor: currentLossColor,
         fillColor: currentLossColor,
         opacity: 0.1,
@@ -241,7 +241,7 @@ function createChartOptions(data: TrafficSimResult[]): ApexCharts.ApexOptions {
     fill: {
       opacity: [1, 1, 1, 0.5, 1],
     },
-    labels: sortedData.map(d => new Date(d.lastReportTime).getTime()),
+    labels: sortedData.map(d => new Date(d.reportTime).getTime()),
     markers: {
       size: 0
     },

@@ -179,14 +179,15 @@ export interface SpeedTestResult {
 }
 
 export interface TrafficSimResult {
-    sentPackets: number
-    receivedAcks: number
-    lostPackets: number
-    outOfSequence: number
-    lastReportTime: Date
-    averageRTT: number
-    minRTT: number
-    maxRTT: number
+    averageRTT: number;
+    duplicatePackets: number;
+    lostPackets: number;
+    maxRTT: number;
+    minRTT: number;
+    outOfSequence: number;
+    stdDevRTT: number;
+    totalPackets: number;
+    reportTime: number;
 }
 
 export interface RPerfResults {
