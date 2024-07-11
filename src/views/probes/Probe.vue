@@ -73,44 +73,48 @@ function camelCase(str: string) {
 
 function transformToTrafficSimResult(dataArray: ProbeData[]): TrafficSimResult[] {
   return dataArray.map(data => {
-    // Initialize the RPerfResults structure
+    // Initialize the TrafficSimResult structure
     const result: TrafficSimResult = {
-      sentPackets: 0,
-      receivedAcks: 0,
-      lostPackets: 0,
-      outOfSequence: 0,
-      lastReportTime: new Date(),
       averageRTT: 0,
-      minRTT: 0,
+      duplicatePackets: 0,
+      lostPackets: 0,
       maxRTT: 0,
+      minRTT: 0,
+      outOfSequence: 0,
+      stdDevRTT: 0,
+      totalPackets: 0,
+      reportTime: new Date()
     };
 
     // Extract and transform the data
     data.data.forEach((item: { Key: string; Value: any }) => {
       switch (item.Key) {
-        case 'lastReportTime':
-          result.lastReportTime = new Date(item.Value);
-          break;
-          case 'sentPackets':
-          result.sentPackets = item.Value;
-          break;
-          case 'receivedAcks':
-          result.receivedAcks = item.Value;
-          break;
-          case 'lostPackets':
-          result.lostPackets = item.Value;
-          break;
-          case 'outOfSequence':
-          result.outOfSequence = item.Value;
-          break;
-          case 'averageRTT':
+        case 'averageRTT':
           result.averageRTT = item.Value;
           break;
-          case 'minRTT':
+        case 'duplicatePackets':
+          result.duplicatePackets = item.Value;
+          break;
+        case 'lostPackets':
+          result.lostPackets = item.Value;
+          break;
+        case 'maxRTT':
+          result.maxRTT = item.Value;
+          break;
+        case 'minRTT':
           result.minRTT = item.Value;
           break;
-          case 'maxRTT':
-          result.maxRTT = item.Value;
+        case 'outOfSequence':
+          result.outOfSequence = item.Value;
+          break;
+        case 'stdDevRTT':
+          result.stdDevRTT = item.Value;
+          break;
+        case 'totalPackets':
+          result.totalPackets = item.Value;
+          break;
+        case 'reportTime':
+          result.reportTime = new Date(item.Value);
           break;
       }
     });
