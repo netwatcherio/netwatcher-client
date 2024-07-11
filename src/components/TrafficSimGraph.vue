@@ -16,6 +16,8 @@ export default {
     const trafficGraph = ref(null);
     const chart = ref<ApexCharts | null>(null);
 
+    console.log(props.trafficResults)
+
     const drawGraph = () => {
       if (!trafficGraph.value || !props.trafficResults || props.trafficResults.length === 0) {
         return;

@@ -187,7 +187,7 @@ export interface TrafficSimResult {
     outOfSequence: number;
     stdDevRTT: number;
     totalPackets: number;
-    reportTime: number;
+    reportTime: Date;
 }
 
 export interface RPerfResults {
