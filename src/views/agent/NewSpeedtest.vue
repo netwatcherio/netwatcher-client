@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-
-import {onMounted, reactive} from "vue";
-import type {AgentGroup, Probe, ProbeConfig, ProbeTarget, ProbeType, SelectOption, Site} from "@/types";
-import {Agent} from "@/types";
+import { onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import type { AgentGroup, Probe, ProbeConfig, ProbeTarget, ProbeType, SelectOption, Site } from "@/types";
+import { Agent } from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -27,6 +26,45 @@ let state = reactive({
   validAgents: [] as Agent[]
 })
 
+// New refs for the searchable dropdown
+const searchQuery = ref('');
+const filteredOptions = ref<SelectOption[]>([]);
+const isDropdownOpen = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+
+// Function to filter options based on search query
+function filterOptions() {
+  if (searchQuery.value === '') {
+    filteredOptions.value = state.options;
+  } else {
+    filteredOptions.value = state.options.filter(option =>
+        option.text.toLowerCase().includes(searchQuery.value.toLowerCase())
+    );
+  }
+}
+
+// Watch for changes in the search query
+watch(searchQuery, filterOptions);
+
+// Function to select an option
+function selectOption(option: SelectOption) {
+  state.selected = option;
+  searchQuery.value = option.text;
+  isDropdownOpen.value = false;
+}
+
+// Function to handle clicking outside the dropdown
+function handleClickOutside(event: MouseEvent) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    isDropdownOpen.value = false;
+    if (!state.selected.value) {
+      searchQuery.value = '';
+    }
+  }
+}
+
+const router = core.router()
+
 onMounted(() => {
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
@@ -46,12 +84,6 @@ onMounted(() => {
     siteService.getSite(state.agent.site).then(async res => {
       state.site = res.data as Site
       console.log(state.agent)
-      /*siteService.getAgentGroups(state.agent.site).then(res => {
-        state.agentGroups = res.data as AgentGroups[]
-        state.ready = true
-
-        console.log(state.agentGroups)
-      })*/
       agentService.getSiteAgents(state.agent.site).then(res => {
         if (res.data.length > 0) {
           const agents = res.data as Agent[];
@@ -67,19 +99,24 @@ onMounted(() => {
       }).catch(res => {
         alert(res)
       })
-      // todo get all probes for agents for a site, and check which ones have the trafficsim server enabled
-      // if they have the option, only show valid options for traffic sim server
     })
   })
 
   state.options.push({value: "MTR", text: "MTR (My Traceroute)"} as SelectOption)
   state.options.push({value: "PING", text: "PING (Packet Internet Groper)"} as SelectOption)
   state.options.push({value: "TRAFFICSIM", text: "Simulated Traffic (UDP)"} as SelectOption)
-  // state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
-  // state.options.push({value: "RPERF", text: "RPERF (UDP)"} as SelectOption)
+
+  // Initialize filteredOptions
+  filteredOptions.value = state.options;
+
+  // Add event listener for clicking outside
+  document.addEventListener('click', handleClickOutside);
 })
 
-const router = core.router()
+// Remove event listener on component unmount
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+})
 
 function onCreate(response: any) {
   router.push("/sites")
@@ -123,15 +160,10 @@ async function getValidAgents(probeType: ProbeType){
 }
 
 function submit() {
-
   let id = router.currentRoute.value.params["agentId"] as string
   if (!id) return
 
-  // build probetarget for if groups are enabled for specific types
-
-
   if (state.targetGroup && state.agentGroupSelected.length > 0) {
-    // for the selected groups, build a probe with them as the targets
     let tempTargetGroups = [] as ProbeTarget[]
     for (let aa of state.agentGroupSelected) {
       tempTargetGroups.push({group: aa.id} as ProbeTarget)
@@ -140,11 +172,9 @@ function submit() {
   } else if (state.targetGroup && state.agentGroupSelected.length <= 0) {
     return
   } else if (state.targetAgent && state.targetAgentSelected) {
-    // for the selected agent, build a probe with it as the target
     state.probeConfig.target = [] as ProbeTarget[]
     state.probeConfig.target.push({agent: state.targetAgentSelected.id} as ProbeTarget)
   } else {
-    // load default/populated target
     state.probeConfig.target = [] as ProbeTarget[]
     state.probeConfig.target.push(state.probeTarget)
   }
@@ -155,11 +185,7 @@ function submit() {
     }
   }
 
-
-  // set probe config as the config
   state.probe.config = state.probeConfig
-
-  // update type of the probe
   state.probe.type = state.selected.value as ProbeType
 
   let send = state.probe
@@ -170,10 +196,6 @@ function submit() {
     console.log(err)
   })
 }
-
-
-// Target: 10.0111
-//
 </script>
 
 <template>
@@ -190,174 +212,30 @@ function submit() {
               <div class="row">
                 <div class="mb-3 col-lg-8 col-12">
                   <label class="form-label" for="agentOptions">Server Selection</label>
-                  <select v-model="state.selected" class="form-select">
-                    <option v-for="option in state.options" :value="option">
-                      {{ option.text }}
-                    </option>
-                  </select>
-                </div>
-<!--                <div class="mb-1 col-lg-4 col-8">
-                  <br>
-                  &lt;!&ndash;                  <div v-if="state.selected.value === 'MTR' || 'PING' || 'RPERF' && state.agentGroups.length > 0">
-                                      <label class="form-label">Use Agent Groups</label>
-                                      <div class="form-check">
-                                        <input type="checkbox" id="useAgentGroups" value="Enable" v-model="state.targetGroup" class="form-check-input">
-                                        <label for="useAgentGroups" class="form-check-label">Enable</label>
-                                      </div>
-                                    </div>&ndash;&gt;
-                  <div v-if="state.selected.value == 'MTR' || 'PING' || 'RPERF' && state.agents.length >= 1">
-                    <label class="form-label">Use Agent as Target</label>
-                    <div class="form-check">
-                      <input id="useAgentGroups" v-model="state.targetAgent" class="form-check-input" type="checkbox"
-                             value="Enable">
-                      <label class="form-check-label" for="useAgentGroups">Enable</label>
-                    </div>
+                  <div class="dropdown" ref="dropdownRef">
+                    <input
+                        type="text"
+                        class="form-control"
+                        v-model="searchQuery"
+                        @focus="isDropdownOpen = true"
+                        placeholder="Search for a server..."
+                    >
+                    <ul class="dropdown-menu w-100" :class="{ show: isDropdownOpen }">
+                      <li v-for="option in filteredOptions" :key="option.value">
+                        <a class="dropdown-item" href="#" @click.prevent="selectOption(option)">
+                          {{ option.text }}
+                        </a>
+                      </li>
+                    </ul>
                   </div>
-
-                  &lt;!&ndash;                  <div class="mt-3">Selected: <strong>{{ state.selected }}</strong></div>&ndash;&gt;
-                </div>-->
+                </div>
               </div>
-              <br>
-<!--              <div class="row">
-                <div v-if="state.selected && state.selected.value">
-                  <h5 class="border-bottom pb-2">Options</h5>
-                  &lt;!&ndash; MTR Options &ndash;&gt;
-                  &lt;!&ndash;                <div v-if="state.targetGroup">
-                                    <div class="mb-3 col-lg-8 col-12">
-                                      <label for="agentGroupOptions" class="form-label">Available Agent Groups</label>
-                                      <select v-model="state.agentGroupSelected" class="form-select" id="agentGroupOptions">
-                                        <option v-for="group in state.agentGroups" :value="group" :key="group.name">
-                                          {{ group.name + " (" + group.description + ")" }}
-                                        </option>
-                                      </select>
-                                      <div class="mt-3">
-                                        Selected:
-                                        <strong>{{ state.agentGroupSelected }}</strong>
-                                      </div>
-                                    </div>
-                                  </div>&ndash;&gt;
-                  <div v-if="state.targetAgent && state.selected.value != 'TRAFFICSIM'">
-                    <div class="mb-3 col-lg-8 col-12">
-                      <label class="form-label" for="targetAgentOptions">Available Agents</label>
-                      <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
-                        <option v-for="group in state.agents" :key="group.name" :value="group">
-                          {{ group.name + " (" + group.location + ")" }}
-                        </option>
-                      </select>
-                      <div class="mt-3">
-                        Selected:
-                        <strong>{{ state.targetAgentSelected }}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-else-if="state.targetAgent && state.selected.value == 'TRAFFICSIM'">
-                    <div class="mb-3 col-lg-8 col-12">
-                      <label class="form-label" for="targetAgentOptions">Available Agents</label>
-                      <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
-                        <option v-for="group in state.validAgents" :key="(group as Agent).name" :value="group">
-                          {{ (group as Agent).name + " (" + (group as Agent).location + ")" }}
-                        </option>
-                      </select>
-                      <div class="mt-3">
-                        Selected:
-                        <strong>{{ state.targetAgentSelected }}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="state.selected.value === 'TRAFFICSIM'">
-                    &lt;!&ndash; Fields specific to MTR &ndash;&gt;
-                    <div v-if="state.probeConfig.server && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div v-if="!state.probeConfig.server  && !state.targetAgent  && !state.targetGroup" class="mb-3">
-                      <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
-                      <div class="form-check">
-                        <input id="useRperfServer" v-model="state.probeConfig.server" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="useRperfServer">Enable</label>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="state.selected.value === 'RPERF'">
-                    &lt;!&ndash; Fields specific to MTR &ndash;&gt;
-                    <div v-if="state.probeConfig.server" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div v-if="!state.targetGroup && !state.targetAgent && state.customServer" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Target <code>(eg. 1.1.1.1:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    &lt;!&ndash;                    <div class="mb-3" v-if="state.customRperfServer && !state.targetGroup && !state.targetAgent ">
-                                          <label for="mtrInterval" class="form-label">Interval (minutes)</label>
-                                          <input type="number" id="mtrTarget" v-model="state.probeConfig.interval" class="form-control">
-                                        </div>&ndash;&gt;
-                    <div v-if="!state.probeConfig.server && !state.targetGroup  && !state.targetAgent" class="mb-3">
-                      <label class="form-label">Custom Target</label>
-                      <div class="form-check">
-                        <input id="customRperfServer" v-model="state.customServer" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="customRperfServer">Enable</label>
-                      </div>
-                    </div>
-                    <div v-if="!state.customServer  && !state.targetAgent  && !state.targetGroup" class="mb-3">
-                      <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
-                      <div class="form-check">
-                        <input id="useRperfServer" v-model="state.probeConfig.server" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="useRperfServer">Enable</label>
-                      </div>
-                    </div>
-                  </div>
-
-                  &lt;!&ndash; PING Options &ndash;&gt;
-                  <div v-if="state.selected.value === 'PING'">
-                    &lt;!&ndash; Fields specific to PING &ndash;&gt;
-                    <div v-if="!state.targetGroup && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="pingTarget">Target <code>(eg. 1.1.1.1)</code></label>
-                      <input id="pingTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    &lt;!&ndash;                    <div class="mb-3">
-                                          <label for="pingInterval" class="form-label">Interval (minutes)</label>
-                                          <input type="number" id="pingInterval" v-model="state.probeConfig.interval" class="form-control">
-                                        </div>&ndash;&gt;
-                    &lt;!&ndash;                    <div class="mb-3">
-                                          <label for="pingDuration" class="form-label">Duration (seconds)</label>
-                                          <input type="number" id="pingDuration" v-model="state.probeConfig.duration" class="form-control">
-                                        </div>&ndash;&gt;
-                  </div>
-
-                  &lt;!&ndash; SPEEDTEST Options &ndash;&gt;
-                  <div v-if="state.selected.value === 'SPEEDTEST'">
-                    &lt;!&ndash; Fields specific to SPEEDTEST &ndash;&gt;
-                  </div>
-
-                  &lt;!&ndash; MTR Options &ndash;&gt;
-                  <div v-if="state.selected.value === 'MTR'">
-                    &lt;!&ndash; Fields specific to RPERF &ndash;&gt;
-                    <div v-if="!state.targetGroup && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="mtrTarget">Target <code>(eg. 1.1.1.1)</code></label>
-                      <input id="pingTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label" for="mtrInterval">Interval (minutes)</label>
-                      <input id="mtrInterval" v-model="state.probeConfig.interval" class="form-control" type="number">
-                    </div>
-                  </div>
-                </div>
-              </div>-->
             </div>
             <div class="p-3">
               <div class="form-group mb-0 text-end">
-                <button class="
-                         btn btn-primary px-4" type="submit" @click="submit">
+                <button class="btn btn-primary px-4" type="submit" @click="submit">
                   Create Probe
                 </button>
-
               </div>
             </div>
           </div>
@@ -368,5 +246,8 @@ function submit() {
 </template>
 
 <style>
-
+.dropdown-menu {
+  max-height: 200px;
+  overflow-y: auto;
+}
 </style>
