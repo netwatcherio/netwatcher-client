@@ -64,6 +64,7 @@ export interface Agent {
     createdAt: Date;
     updatedAt: Date;
     public_ip_override: String;
+    version: String;
 }
 
 export interface Probe {

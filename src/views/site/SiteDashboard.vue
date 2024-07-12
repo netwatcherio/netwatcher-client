@@ -9,6 +9,8 @@ import Loader from "@/components/Loader.vue";
 import Code from "@/components/Code.vue";
 import agentService from "@/services/agentService";
 import Element from "@/components/Element.vue";
+import TrafficSimGraph from "@/components/TrafficSimGraph.vue";
+import AgentCard from "@/components/AgentCard.vue";
 
 const state = reactive({
   site: {} as Site,
@@ -30,6 +32,7 @@ onMounted(() => {
       if(res.data.length > 0) {
         state.agents = res.data as Agent[]
         state.ready = true
+        console.log(state.agents)
       }
     })
   })
@@ -60,20 +63,20 @@ function getOnlineStatus(agent: Agent) {
     </div>
   </Title>
     <div class="site-grid" v-if="state.ready">
-      <Element
+      <AgentCard
           v-for="agent in state.agents.sort((a, b) => (getOnlineStatus(b) - getOnlineStatus(a)))"
-          :title="agent.name"
+          :title="agent.name + (agent.version?' <code> v' + agent.version + '</code>':'')"
           :subtitle="agent.location"
           :icon="getOnlineStatus(agent)?'fa-solid fa-circle-check text-success fa-fw':'fa-solid fa-circle-xmark text-danger fa-fw'"
       >
-        <template #secondary>
+<!--        <template #secondary>
 
 
 
-        </template>
+        </template>-->
         <div class="p-2 d-flex flex-column gap-1">
-        <Code title="Id" :visible="!agent.initialized" :code="agent.id"></Code>
-        <Code title="Pin" :visible="!agent.initialized" :code="agent.pin"></Code>
+        <Code title="ID" :visible="!agent.initialized" :code="agent.id"></Code>
+        <Code title="PIN" :visible="!agent.initialized" :code="agent.pin"></Code>
         </div>
         <div class="p-2 d-flex justify-content-end gap-1">
           <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning "><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
@@ -81,7 +84,7 @@ function getOnlineStatus(agent: Agent) {
           <router-link :to="`/agents/${agent.id}`" class="btn btn-primary ">view&nbsp;<i class="fa-solid fa-chevron-right"></i></router-link>
         </div>
 
-      </Element>
+      </AgentCard>
     </div>
     <div v-else class="card px-3 py-1">
       <div class="d-flex flex-row py-2">
