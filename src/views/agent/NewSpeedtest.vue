@@ -29,7 +29,7 @@ let state = reactive({
   speedTestServers: {} as SpeedTestServer[],
   customServerEnable: {} as boolean,
   customServer: {} as String,
-  serverProbe: {} as Probe
+  speedtestProbe: {} as Probe
 })
 
 // New refs for the searchable dropdown
@@ -101,18 +101,18 @@ onMounted(() => {
         state.ready = true
       })
 
-      /*probeService.getAgentProbes(state.agent.id).then( res => {
+      probeService.getAgentProbes(state.agent.id).then( res => {
         let probes = res.data as Probe[]
         for(let item in probes){
-          if(probes[item].type == "SPEEDTEST_SERVERS"){
-            state.serverProbe = probes[item]
+          if(probes[item].type == "SPEEDTEST"){
+            state.speedtestProbe = probes[item]
             // get the all the agents and cycle through them to get the speedtest type instead of the server on
 
 
             break
           }
         }
-      })*/
+      })
     })
   })
 
@@ -184,7 +184,7 @@ onUnmounted(() => {
 })
 
 function onCreate(response: any) {
-  router.push("/agents/" + state.agent.id)
+  router.push("/agent/" + state.agent.id + "/speedtests")
 }
 
 function onError(response: any) {
@@ -194,7 +194,7 @@ function onError(response: any) {
 function submit() {
 
   if (state.customServerEnable) {
-    probeService.updateFirstProbeTarget(state.probe.id, state.customServer.toString()).then(onCreate).catch(onError)
+    probeService.updateFirstProbeTarget(state.speedtestProbe.id, state.customServer.toString()).then(onCreate).catch(onError)
     return
   }
 
