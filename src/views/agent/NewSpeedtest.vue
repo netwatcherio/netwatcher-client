@@ -87,29 +87,32 @@ onMounted(() => {
         state.site = res.data as Site
       })
 
-      probeService.getAgentProbes(state.agent.id).then( res => {
+      let req = {limit: 1, recent: true} as ProbeDataRequest
+      probeService.getProbeData(state.probe.id, req).then(res => {
+        let probeData = res.data as ProbeData[]
+
+        for(let item in probeData[0].data){
+          let srv = convertToSpeedTestServer(probeData[0].data[item])
+
+          let displayText = srv.distance + "km - " + srv.sponsor + " (" + srv.name + ", " + srv.country + ") "
+
+          state.options.push({value: srv.id, text: displayText} as SelectOption)
+        }
+        state.ready = true
+      })
+
+      /*probeService.getAgentProbes(state.agent.id).then( res => {
         let probes = res.data as Probe[]
         for(let item in probes){
           if(probes[item].type == "SPEEDTEST_SERVERS"){
             state.serverProbe = probes[item]
             // get the all the agents and cycle through them to get the speedtest type instead of the server on
-            let req = {limit: 1, recent: true} as ProbeDataRequest
-            probeService.getProbeData(state.serverProbe.id, req).then(res => {
-              let probeData = res.data as ProbeData[]
 
-              for(let item in probeData[0].data){
-                let srv = convertToSpeedTestServer(probeData[0].data[item])
 
-                let displayText = srv.distance + "km - " + srv.sponsor + " (" + srv.name + ", " + srv.country + ") "
-
-                state.options.push({value: srv.id, text: displayText} as SelectOption)
-              }
-              state.ready = true
-            })
             break
           }
         }
-      })
+      })*/
     })
   })
 
@@ -199,7 +202,7 @@ function submit() {
 <template>
   <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}, {title: `Speedtests`, link: `/agent/${state.agent.id}/speedtests`}]"
         :subtitle="`start a speedtest on '${state.site.name}'`"
         title="new speedtest"></Title>
     <div class="row">
