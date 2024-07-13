@@ -9,12 +9,12 @@ export default {
         return await request.get(`/probes/agent/${id}`)
     },
     async updateFirstProbeTarget(id: string, target: string): Promise<any> {
-        let config = {} as ProbeConfig
-        config.target[0] = {target: target, agent: id, group: ""} as ProbeTarget
-        
+        let config = {target: [{target: target, agent: "", group: ""}] as ProbeTarget[]} as ProbeConfig
         let probe = {id: id, config} as Probe
 
-        return await request.get(`/first_probe_target_update/${id}`)
+        console.log(probe)
+
+        return await request.post(`/first_probe_target_update/${id}`, probe)
     },
     async deleteProbe(id: string): Promise<any> {
         return await request.get(`/probe/delete/${id}`)

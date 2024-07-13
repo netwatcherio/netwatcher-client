@@ -28,7 +28,8 @@ let state = reactive({
   probeTarget: {} as ProbeTarget,
   speedTestServers: {} as SpeedTestServer[],
   customServerEnable: {} as boolean,
-  customServer: {} as String
+  customServer: {} as String,
+  serverProbe: {} as Probe
 })
 
 // New refs for the searchable dropdown
@@ -89,12 +90,11 @@ onMounted(() => {
       probeService.getAgentProbes(state.agent.id).then( res => {
         let probes = res.data as Probe[]
         for(let item in probes){
-          if(probes[item].type == "SPEEDTEST"){
-            state.probe = probes[item]
-
+          if(probes[item].type == "SPEEDTEST_SERVERS"){
+            state.serverProbe = probes[item]
             // get the all the agents and cycle through them to get the speedtest type instead of the server on
             let req = {limit: 1, recent: true} as ProbeDataRequest
-            probeService.getProbeData(state.probe.id, req).then(res => {
+            probeService.getProbeData(state.serverProbe.id, req).then(res => {
               let probeData = res.data as ProbeData[]
 
               for(let item in probeData[0].data){
@@ -191,6 +191,7 @@ function onError(response: any) {
 function submit() {
 
   // todo do not create probe, update id??
+  probeService.updateFirstProbeTarget(state.probe.id, state.selected.value).then(onCreate).catch(onError)
 
 }
 </script>
