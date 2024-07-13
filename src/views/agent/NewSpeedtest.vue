@@ -193,6 +193,11 @@ function onError(response: any) {
 
 function submit() {
 
+  if (state.customServerEnable) {
+    probeService.updateFirstProbeTarget(state.probe.id, state.customServer.toString()).then(onCreate).catch(onError)
+    return
+  }
+
   // todo do not create probe, update id??
   probeService.updateFirstProbeTarget(state.probe.id, state.selected.value).then(onCreate).catch(onError)
 
