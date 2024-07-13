@@ -181,7 +181,7 @@ onUnmounted(() => {
 })
 
 function onCreate(response: any) {
-  router.push("/sites")
+  router.push("/agents/" + state.agent.id)
 }
 
 function onError(response: any) {
