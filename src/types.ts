@@ -109,7 +109,47 @@ export interface AgentGroup {
 }
 
 // ProbeType
-export type ProbeType = "RPERF" | "MTR" | "PING" | "SPEEDTEST" | "NETINFO" | "TRAFFICSIM";
+export type ProbeType = "RPERF" | "MTR" | "PING" | "SPEEDTEST" | "NETINFO" | "TRAFFICSIM" | "SPEEDTEST_SERVERS";
+
+export interface SpeedTestResult {
+    test_data: SpeedTestServer[];
+    timestamp: Date;
+}
+
+export interface SpeedTestServer {
+    url?: string;
+    lat?: string;
+    lon?: string;
+    name?: string;
+    country?: string;
+    sponsor?: string;
+    id?: string;
+    host?: string;
+    distance?: number;
+    latency?: number; // TypeScript doesn't have a built-in Duration type, so we use number
+    max_latency?: number;
+    min_latency?: number;
+    jitter?: number;
+    dl_speed?: SpeedTestByteRate;
+    ul_speed?: SpeedTestByteRate;
+    test_duration?: SpeedTestTestDuration;
+    packet_loss?: SpeedTestPLoss;
+}
+
+export type SpeedTestByteRate = number;
+
+export interface SpeedTestTestDuration {
+    ping?: number; // Using number instead of Duration
+    download?: number;
+    upload?: number;
+    total?: number;
+}
+
+export interface SpeedTestPLoss {
+    sent: number;
+    dup: number;
+    max: number;
+}
 
 // ProbeData
 export interface ProbeData {
@@ -167,15 +207,6 @@ export interface NetResult {
     internetProvider: string;
     lat: string;
     long: string;
-    timestamp: Date;
-}
-
-export interface SpeedTestResult {
-    latency: number; // TypeScript doesn't have a specific type for time.Duration, so you might use number (milliseconds)
-    dlSpeed: number;
-    ulSpeed: number;
-    server: string;
-    host: string;
     timestamp: Date;
 }
 

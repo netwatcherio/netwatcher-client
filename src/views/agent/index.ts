@@ -49,7 +49,7 @@ export default {
             component: Speedtests,
         },
         {
-            path: '/agent/:agentId/speedtest/new',
+            path: '/agent/:probeId/speedtest/new',
             name: 'newSpeedTest',
             component: NewSpeedtest,
         },

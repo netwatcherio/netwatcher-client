@@ -1,7 +1,16 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import type { AgentGroup, Probe, ProbeConfig, ProbeTarget, ProbeType, SelectOption, Site } from "@/types";
-import { Agent } from "@/types";
+import type {
+  Agent,
+  AgentGroup,
+  Probe,
+  ProbeConfig, ProbeData, ProbeDataRequest,
+  ProbeTarget,
+  ProbeType,
+  SelectOption,
+  Site, SpeedTestPLoss,
+  SpeedTestServer, SpeedTestTestDuration
+} from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
@@ -17,13 +26,9 @@ let state = reactive({
   probe: {} as Probe,
   probeConfig: {} as ProbeConfig,
   probeTarget: {} as ProbeTarget,
-  targetGroup: false,
-  agentGroupSelected: [] as AgentGroup[],
-  agents: [] as Agent[],
-  customServer: false,
-  targetAgent: true,
-  targetAgentSelected: {} as Agent,
-  validAgents: [] as Agent[]
+  speedTestServers: {} as SpeedTestServer[],
+  customServerEnable: {} as boolean,
+  customServer: {} as String
 })
 
 // New refs for the searchable dropdown
@@ -66,45 +71,38 @@ function handleClickOutside(event: MouseEvent) {
 const router = core.router()
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["probeId"] as string
   if (!id) return
 
-  state.probeConfig = {
-    duration: 60,
-    count: 60,
-    interval: 5,
-    server: false,
-  } as ProbeConfig
-  state.probeTarget = {
-    target: ""
-  } as ProbeTarget
+  probeService.getProbe(id).then(res => {
+    let pps = res.data as Probe[]
+    state.probe = pps[0]
 
-  agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
-    siteService.getSite(state.agent.site).then(async res => {
-      state.site = res.data as Site
-      console.log(state.agent)
-      agentService.getSiteAgents(state.agent.site).then(res => {
-        if (res.data.length > 0) {
-          const agents = res.data as Agent[];
-          state.ready = true
+    agentService.getAgent(pps[0].agent).then(res => {
+      state.agent = res.data as Agent
 
-          for (let i = 0; i < agents.length; i++) {
-            if (agents[i].id != id) {
-              state.agents.push(agents[i])
-            }
-          }
-        }
-        getValidAgents("TRAFFICSIM")
-      }).catch(res => {
-        alert(res)
+      siteService.getSite(state.agent.site).then(res => {
+        state.site = res.data as Site
       })
-    })
-  })
 
-  state.options.push({value: "MTR", text: "MTR (My Traceroute)"} as SelectOption)
-  state.options.push({value: "PING", text: "PING (Packet Internet Groper)"} as SelectOption)
-  state.options.push({value: "TRAFFICSIM", text: "Simulated Traffic (UDP)"} as SelectOption)
+            let req = {limit: 1, recent: true} as ProbeDataRequest
+              probeService.getProbeData(state.probe.id, req).then(res => {
+                let probeData = res.data as ProbeData[]
+
+                for(let item in probeData[0].data){
+                  let srv = convertToSpeedTestServer(probeData[0].data[item])
+
+                  let displayText = srv.distance + "km - " + srv.sponsor + " (" + srv.name + ", " + srv.country + ") "
+
+                  state.options.push({value: srv.id, text: displayText} as SelectOption)
+                }
+                state.ready = true
+              })
+          })
+        })
+
+  state.customServerEnable = false
+  state.customServer = ""
 
   // Initialize filteredOptions
   filteredOptions.value = state.options;
@@ -112,6 +110,58 @@ onMounted(() => {
   // Add event listener for clicking outside
   document.addEventListener('click', handleClickOutside);
 })
+
+function convertToSpeedTestServer(data: Array<{ Key: string; Value: any }>): SpeedTestServer {
+  const result: Partial<SpeedTestServer> = {};
+
+  for (const item of data) {
+    switch (item.Key) {
+      case 'url':
+      case 'lat':
+      case 'lon':
+      case 'name':
+      case 'country':
+      case 'sponsor':
+      case 'id':
+      case 'host':
+        result[item.Key] = item.Value as string;
+        break;
+      case 'distance':
+      case 'latency':
+      case 'max_latency':
+      case 'min_latency':
+      case 'jitter':
+      case 'dl_speed':
+      case 'ul_speed':
+        result[item.Key] = Number(item.Value);
+        break;
+      case 'test_duration':
+        result.test_duration = convertTestDuration(item.Value);
+        break;
+      case 'packet_loss':
+        result.packet_loss = convertPacketLoss(item.Value);
+        break;
+    }
+  }
+
+  return result as SpeedTestServer;
+}
+
+function convertTestDuration(data: Array<{ Key: string; Value: number | null }>): SpeedTestTestDuration {
+  const result: SpeedTestTestDuration = {};
+  for (const item of data) {
+    result[item.Key as keyof SpeedTestTestDuration] = item.Value !== null ? Number(item.Value) : undefined;
+  }
+  return result;
+}
+
+function convertPacketLoss(data: Array<{ Key: string; Value: number }>): SpeedTestPLoss {
+  const result: SpeedTestPLoss = { sent: 0, dup: 0, max: 0 };
+  for (const item of data) {
+    result[item.Key as keyof SpeedTestPLoss] = Number(item.Value);
+  }
+  return result;
+}
 
 // Remove event listener on component unmount
 onUnmounted(() => {
@@ -126,75 +176,10 @@ function onError(response: any) {
   alert(response)
 }
 
-async function getValidAgents(probeType: ProbeType){
-  let validAgents: Agent[] = [];
-
-  console.log("getting valid agents for probe type: " + probeType + "...");
-
-  for (let agent of state.agents) {
-    console.log(state.agents);
-    console.log("checking agent: " + agent.id + " for probe type: " + probeType + "...");
-    if (agent.id != state.agent.id) {
-      try {
-        let res = await probeService.getAgentProbes(agent.id);
-        let agentProbes = res.data as Probe[];
-        for (let probe of agentProbes) {
-          console.log(probe);
-          if (probe.type === probeType) {
-            if (probe.type === "TRAFFICSIM" && probe.config.server) {
-              console.log("valid agent: " + agent.id);
-              validAgents.push(agent);
-            } else if (probe.type !== "TRAFFICSIM") {
-              console.log("valid agent: " + agent.id);
-              validAgents.push(agent);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching agent probes: ", error);
-      }
-    }
-  }
-
-  state.validAgents = validAgents;
-}
-
 function submit() {
-  let id = router.currentRoute.value.params["agentId"] as string
-  if (!id) return
 
-  if (state.targetGroup && state.agentGroupSelected.length > 0) {
-    let tempTargetGroups = [] as ProbeTarget[]
-    for (let aa of state.agentGroupSelected) {
-      tempTargetGroups.push({group: aa.id} as ProbeTarget)
-    }
-    state.probeConfig.target = tempTargetGroups
-  } else if (state.targetGroup && state.agentGroupSelected.length <= 0) {
-    return
-  } else if (state.targetAgent && state.targetAgentSelected) {
-    state.probeConfig.target = [] as ProbeTarget[]
-    state.probeConfig.target.push({agent: state.targetAgentSelected.id} as ProbeTarget)
-  } else {
-    state.probeConfig.target = [] as ProbeTarget[]
-    state.probeConfig.target.push(state.probeTarget)
-  }
+  // todo do not create probe, update id??
 
-  if(state.selected.value === 'TRAFFICSIM' && state.targetAgent) {
-    if (state.probeConfig.target.length >= 1) {
-      state.probeConfig.server = false
-    }
-  }
-
-  state.probe.config = state.probeConfig
-  state.probe.type = state.selected.value as ProbeType
-
-  let send = state.probe
-
-  probeService.createProbe(id, send).then((res) => {
-    router.push(`/agents/${id}`)
-  }).catch(err => {
-    console.log(err)
-  })
 }
 </script>
 
@@ -210,7 +195,7 @@ function submit() {
           <div class="form-horizontal">
             <div class="card-body">
               <div class="row">
-                <div class="mb-3 col-lg-8 col-12">
+                <div class="mb-3 col-lg-8 col-12" v-if="!state.customServerEnable">
                   <label class="form-label" for="agentOptions">Server Selection</label>
                   <div class="dropdown" ref="dropdownRef">
                     <input
@@ -229,19 +214,29 @@ function submit() {
                     </ul>
                   </div>
                 </div>
+                <div class="col-9 border-start pb-2 pt-2">
+                    <label class="form-label">Custom Server</label>
+                    <div class="form-check">
+                      <input id="customServerEnable" v-model="state.customServerEnable" class="form-check-input"
+                             type="checkbox"
+                             value="Enable">
+                      <label class="form-check-label" for="customServerEnable">Enable</label>
+                    </div>
+                  <hr v-if="state.customServerEnable">
+                  <input v-if="state.customServerEnable" id="serverID" class="form-control" name="name" v-model="state.customServer" placeholder="Server ID (SpeedTest.net)" type="text"></div>
+              </div>
               </div>
             </div>
             <div class="p-3">
               <div class="form-group mb-0 text-end">
                 <button class="btn btn-primary px-4" type="submit" @click="submit">
-                  Create Probe
+                  Run SpeedTest
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
   </div>
 </template>
 
