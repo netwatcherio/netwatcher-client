@@ -78,28 +78,40 @@ onMounted(() => {
     let pps = res.data as Probe[]
     state.probe = pps[0]
 
-    agentService.getAgent(pps[0].agent).then(res => {
+    // this is the speedtest probe id that was created by default we then get the agent from it's agent id
+    agentService.getAgent(state.probe.agent).then(res => {
       state.agent = res.data as Agent
 
       siteService.getSite(state.agent.site).then(res => {
         state.site = res.data as Site
       })
 
+      probeService.getAgentProbes(state.agent.id).then( res => {
+        let probes = res.data as Probe[]
+        for(let item in probes){
+          if(probes[item].type == "SPEEDTEST"){
+            state.probe = probes[item]
+
+            // get the all the agents and cycle through them to get the speedtest type instead of the server on
             let req = {limit: 1, recent: true} as ProbeDataRequest
-              probeService.getProbeData(state.probe.id, req).then(res => {
-                let probeData = res.data as ProbeData[]
+            probeService.getProbeData(state.probe.id, req).then(res => {
+              let probeData = res.data as ProbeData[]
 
-                for(let item in probeData[0].data){
-                  let srv = convertToSpeedTestServer(probeData[0].data[item])
+              for(let item in probeData[0].data){
+                let srv = convertToSpeedTestServer(probeData[0].data[item])
 
-                  let displayText = srv.distance + "km - " + srv.sponsor + " (" + srv.name + ", " + srv.country + ") "
+                let displayText = srv.distance + "km - " + srv.sponsor + " (" + srv.name + ", " + srv.country + ") "
 
-                  state.options.push({value: srv.id, text: displayText} as SelectOption)
-                }
-                state.ready = true
-              })
-          })
-        })
+                state.options.push({value: srv.id, text: displayText} as SelectOption)
+              }
+              state.ready = true
+            })
+            break
+          }
+        }
+      })
+    })
+  })
 
   state.customServerEnable = false
   state.customServer = ""
