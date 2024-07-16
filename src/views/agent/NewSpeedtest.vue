@@ -199,7 +199,7 @@ function submit() {
   }
 
   // todo do not create probe, update id??
-  probeService.updateFirstProbeTarget(state.probe.id, state.selected.value).then(onCreate).catch(onError)
+  probeService.updateFirstProbeTarget(state.speedtestProbe.id, state.selected.value).then(onCreate).catch(onError)
 
 }
 </script>

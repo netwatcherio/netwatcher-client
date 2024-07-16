@@ -14,7 +14,7 @@ export default {
 
         console.log(probe)
 
-        return await request.post(`/first_probe_target_update/${id}`, probe)
+        return await request.post(`/probe/first_target_update/${id}`, probe)
     },
     async deleteProbe(id: string): Promise<any> {
         return await request.get(`/probe/delete/${id}`)
