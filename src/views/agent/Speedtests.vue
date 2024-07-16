@@ -250,7 +250,7 @@ function submit() {
             <h5 class="card-title">speedtests</h5>
             <p class="card-text">last 25 speedtests</p>
 
-            <div v-if="state.speedtestData.length <= 0">
+            <div v-if="!state.ready && state.speedtestData.length <= 0">
               <!--        <div class="px-2 py-2 pb-1 ">
                         <div class="label-c4 label-o2 label-w500">Loading...</div>
                       </div>-->
@@ -260,6 +260,12 @@ function submit() {
               </div>
 
             </div>
+            <div v-else-if="state.ready && state.speedtestData.length <= 0">
+              <div class="error-body text-center">
+                <h1 class="error-title text-danger">no data</h1>
+                <h3 class="text-error-subtitle">please run a speedtest</h3>
+              </div>
+            </div>
             <div v-else>
               <div id="mtrAccordion" class="accordion">
 
@@ -267,15 +273,21 @@ function submit() {
 
                   <div class="accordion-item">
                     <h2 :id="'heading' + state.speedtestProbe.id + mtr.timestamp.getTime()" class="accordion-header">
-                      <button :aria-controls="'collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()" :aria-expanded="false"
+                      <button :aria-controls="'collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()"
+                              :aria-expanded="false"
                               :data-bs-target="'#collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()"
-                              class="accordion-button collapsed" data-bs-toggle="collapse" type="button">
+                              class="accordion-button collapsed d-flex align-items-center"
+                              data-bs-toggle="collapse"
+                              type="button">
 
-                        {{mtr.test_data[0].sponsor}} ({{mtr.test_data[0].country}}, {{mtr.test_data[0].name}}) - ({{mtr.test_data[0].distance}}km)
-                        <b>{{mtr.timestamp}}</b>
-
+  <span class="me-3">
+    <i class="fa-regular fa-clock me-2"></i>
+    <b>{{mtr.timestamp}}</b>
+  </span>
+                        <span>
+    {{mtr.test_data[0].sponsor}} ({{mtr.test_data[0].country}}, {{mtr.test_data[0].name}}) - ({{mtr.test_data[0].distance}}km)
+  </span>
                       </button>
-<!--                      {{server.sponsor} (${server.name}, ${server.country}) - {{mtr.test}}-->
                     </h2>
                     <div :id="'collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()" :aria-labelledby="'heading' + state.probe.id + mtr.timestamp"
                          class="accordion-collapse collapse"
