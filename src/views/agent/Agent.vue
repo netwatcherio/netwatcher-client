@@ -260,6 +260,10 @@ function reloadData(id: string) {
           for (let target of probe.config.target) {
             let key = target.target;
 
+            if (probe.type == "SPEEDTEST") {
+              continue
+            }
+
             if (target.group && target.group != "000000000000000000000000") {
               // Prefix group ID to differentiate
               key = `group:${target.group}`;
@@ -280,6 +284,7 @@ function reloadData(id: string) {
             if (!organizedProbesMap.has(key)) {
               organizedProbesMap.set(key, []);
             }
+
             organizedProbesMap.get(key).push(probe);
             console.log(state)
           }
