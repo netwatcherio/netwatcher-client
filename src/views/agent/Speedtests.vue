@@ -146,8 +146,8 @@ function generateTable(speedTestResult: any) {
   let table = new AsciiTable3(displayText + " - " + speedTestResult.timestamp.toISOString());
   table.setHeading('Metric', 'Value', 'Unit');
 
-  table.addRow('Download Speed', (server.dl_speed / 1000000).toFixed(2), 'Mbps');
-  table.addRow('Upload Speed', (server.ul_speed / 1000000).toFixed(2), 'Mbps');
+  table.addRow('Download Speed', (server.dl_speed / 1000000).toFixed(2) * 8, 'Mbps');
+  table.addRow('Upload Speed', (server.ul_speed / 1000000).toFixed(2) * 8, 'Mbps');
   table.addRow('Latency', (server.latency / 1000000).toFixed(2), 'ms');
   table.addRow('Jitter', (server.jitter / 1000000).toFixed(2), 'ms');
 
