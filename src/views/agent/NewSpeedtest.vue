@@ -196,11 +196,11 @@ function submit() {
   if (state.customServerEnable) {
     probeService.updateFirstProbeTarget(state.speedtestProbe.id, state.customServer.toString()).then(onCreate).catch(onError)
     return
+  }else {
+
+    // todo do not create probe, update id??
+    probeService.updateFirstProbeTarget(state.speedtestProbe.id, state.selected.value).then(onCreate).catch(onError)
   }
-
-  // todo do not create probe, update id??
-  probeService.updateFirstProbeTarget(state.speedtestProbe.id, state.selected.value).then(onCreate).catch(onError)
-
 }
 </script>
 
