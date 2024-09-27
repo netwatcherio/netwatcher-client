@@ -5,14 +5,17 @@
 <script lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue';
 import * as d3 from 'd3';
-import type { MtrResult } from '@/types'; // Import your MtrResult type
+import type { MtrResult } from '@/types'; // Import your MtrResult and MtrHop types
 
 export default {
   name: 'NetworkMap',
   props: {
-    mtrResults: Array as () => MtrResult[],
+    mtrResults: {
+      type: Array as () => MtrResult[],
+      required: true,
+    },
   },
-  setup(props: { mtrResults: MtrResult[]; }) {
+  setup(props) {
     const mtrGraph = ref<HTMLElement | null>(null);
 
     const drawGraph = () => {
@@ -44,280 +47,408 @@ type Node = {
   id: string;
   label: string;
   hopNumber: number;
+  paths: Set<number>;
+  packetLoss?: number;
+  latency?: number;
+  hostname?: string;
+  ip?: string;
+  isUnknown?: boolean;
 };
 
 type Link = {
-  source: string;
-  target: string;
-  latency: number;
-  packetLoss: number;
+  source: Node;
+  target: Node;
+  packetLoss?: number;
+  latency?: number;
+  paths: Set<number>;
 };
 
 function createNetworkMap(mtrResults: MtrResult[], graphElement: HTMLElement) {
+  // Set up dimensions
   graphElement.style.height = '600px';
-  // Set the dimensions and margins of the graph
-  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+  const margin = { top: 50, right: 20, bottom: 70, left: 50 };
   const width = graphElement.clientWidth - margin.left - margin.right;
   const height = graphElement.clientHeight - margin.top - margin.bottom;
-  const nodeRadius = 18;
-  const linkColor = '#999';
-  const unreachableColor = 'gray';
-  const textSize = 8;
+  const nodeRadius = 20; // Node size
 
-  const nodes = [] as Node[];
-  const links = [] as Link[];
+  // Initialize data structures
+  const nodesMap: Map<string, Node> = new Map();
+  const links: Link[] = [];
 
-  // Create a map to aggregate packetLoss and latency values for each source
-  const aggregationMap = new Map();
+  // Process data
+  mtrResults.forEach((mtrResult, pathIndex) => {
+    let previousNode: Node | null = null;
 
-  let previousNodeId = null;
-  mtrResults.forEach((mtrResult) => {
-    let previousNodeId = null;
     mtrResult.report.hops.forEach((hop, hopIndex) => {
-      let currentNodeId;
+      const hopNumber = hopIndex + 1;
+      let currentNodeId: string;
+      let hostname: string | undefined;
+      let ip: string | undefined;
+      let isUnknown = false;
 
       if (hop.hosts.length > 0) {
         const host = hop.hosts[0];
-        currentNodeId = host.hostname ? `${host.hostname} (${host.ip})` : `Unreachable #${hopIndex + 1}`;
+        hostname = host.hostname;
+        ip = host.ip;
+        currentNodeId = hostname ? `${hostname} (${ip})` : `Hop #${hopNumber}`;
       } else {
-        currentNodeId = `Unreachable #${hopIndex + 1}`;
+        // Unknown host with 100% packet loss
+        currentNodeId = `Hop #${hopNumber}`;
+        isUnknown = true;
       }
 
-      if (!nodes.some(n => n.id === currentNodeId)) {
-        nodes.push({
+      // If node doesn't exist, create it
+      let currentNode = nodesMap.get(currentNodeId);
+      if (!currentNode) {
+        currentNode = {
           id: currentNodeId,
-          label: `Hop ${hopIndex + 1}: ${currentNodeId}`,
-          hopNumber: hopIndex + 1,
-        });
+          label: isUnknown && parseFloat(hop.loss_pct) === 100 ? '?' : `${hopNumber}`,
+          hopNumber: hopNumber,
+          paths: new Set([pathIndex]),
+          packetLoss: parseFloat(hop.loss_pct),
+          latency: parseFloat(hop.avg),
+          hostname: hostname,
+          ip: ip,
+          isUnknown: isUnknown,
+        };
+        nodesMap.set(currentNodeId, currentNode);
+      } else {
+        // If node exists, add the path index and update packet loss and latency if necessary
+        currentNode.paths.add(pathIndex);
+        currentNode.packetLoss = parseFloat(hop.loss_pct);
+        currentNode.latency = parseFloat(hop.avg);
       }
 
-      if (previousNodeId !== null) {
-        const linkExists = links.some(link =>
-            link.source === previousNodeId && link.target === currentNodeId
-        );
-
-        if (!linkExists) {
-          links.push({
-            source: previousNodeId,
-            target: currentNodeId,
-            packetLoss: parseFloat(hop.loss_pct),
-            latency: parseFloat(hop.avg),
-          });
-        }
+      // Create links
+      if (previousNode !== null) {
+        const link: Link = {
+          source: previousNode,
+          target: currentNode,
+          packetLoss: currentNode.packetLoss,
+          latency: currentNode.latency,
+          paths: new Set([pathIndex]),
+        };
+        links.push(link);
       }
 
-      previousNodeId = currentNodeId;
+      previousNode = currentNode;
     });
   });
 
-  // Calculate the average packetLoss and latency for each source
-  aggregationMap.forEach((data, sourceNodeId) => {
-    const averagePacketLoss = data.packetLossSum / data.count;
-    const averageLatency = data.latencySum / data.count;
+  // Convert nodes map to array
+  const nodes: Node[] = Array.from(nodesMap.values());
 
-    // Find the link corresponding to the sourceNodeId
-    const link = links.find(link => link.source === sourceNodeId);
+  // Clear existing SVG
+  d3.select(graphElement).selectAll('*').remove();
 
-    if (link) {
-      link.packetLoss = averagePacketLoss;
-      link.latency = averageLatency;
-    }
-  });
-
-  // Clear any existing SVG
-  d3.select(graphElement).selectAll('svg').remove();
-
-  // Create the outer SVG element
-  const svg = d3.select(graphElement)
+  // Create SVG
+  const svg = d3
+      .select(graphElement)
       .append('svg')
       .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`); // Translate to include margins
+      .attr('height', height + margin.top + margin.bottom);
 
-  // Define the zoom behavior
-  const zoom = d3.zoom()
-      .scaleExtent([0.5, 4])
-      .translateExtent([
-        [-100, -100], // Limit the panning to 100px outside the SVG on each side
-        [width + margin.right + 100, height + margin.bottom + 100]
-      ])
-      .on('zoom', (event) => {
-        svg.attr('transform', event.transform);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Scales for positioning
+  const xScale = d3
+      .scaleLinear()
+      .domain([1, d3.max(nodes, (d) => d.hopNumber)!])
+      .range([0, width]);
+
+  const yScale = d3
+      .scaleLinear()
+      .domain([0, mtrResults.length - 1])
+      .range([0, height - 70]); // Adjusted for legend space
+
+  // Initialize force simulation
+  const simulation = d3
+      .forceSimulation<Node>(nodes)
+      .force('x', d3.forceX<Node>((d) => xScale(d.hopNumber)).strength(1))
+      .force(
+          'y',
+          d3.forceY<Node>((d) => {
+            const avgPathIndex =
+                Array.from(d.paths).reduce((sum, idx) => sum + idx, 0) / d.paths.size;
+            return yScale(avgPathIndex);
+          }).strength(1)
+      )
+      .force('collision', d3.forceCollide(nodeRadius + 30)) // Increased collision radius to account for bubbles
+      .force('link', d3.forceLink<Node, Link>(links).id((d) => d.id).distance(150))
+      .stop();
+
+  // Run simulation
+  simulation.tick(300);
+
+  // Define color scales
+  const packetLossColorScale = d3
+      .scaleLinear<string>()
+      .domain([0, 100])
+      .range(['#4E8A7D', '#FB5561']); // Green to Red
+
+  const latencyColorScale = d3
+      .scaleLinear<string>()
+      .domain([0, 200])
+      .range(['#83DCA1', '#FB5561']); // Light Green to Red
+
+  // Draw links
+  g.selectAll('.link')
+      .data(links)
+      .enter()
+      .append('path')
+      .attr('class', 'link')
+      .attr('d', (d) => {
+        return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+      })
+      .style('stroke', (d) => getLinkColor(d))
+      .style('stroke-width', 2);
+
+  let activeNode: Node | null = null;
+
+  // Draw nodes
+  const node = g
+      .selectAll<SVGGElement, Node>('.node')
+      .data(nodes)
+      .enter()
+      .append('g')
+      .attr('class', 'node')
+      .attr('transform', (d) => `translate(${d.x},${d.y})`)
+      .on('click', function (event, d) {
+        // Stop propagation to prevent the SVG click handler from closing the bubble immediately
+        event.stopPropagation();
+
+        if (activeNode === d) {
+          // Clicked the same node; close the bubble
+          d3.selectAll('.info-bubble').remove();
+          activeNode = null;
+        } else {
+          // Remove any existing info bubbles
+          d3.selectAll('.info-bubble').remove();
+          activeNode = d;
+
+          const bubbleGroup = g.append('g').attr('class', 'info-bubble');
+
+          // Calculate the position of the bubble (above the node)
+          const bubbleX = d.x;
+          const bubbleY = d.y - nodeRadius - 10; // Adjust as needed
+
+          // Create text elements to measure their size
+          const hostnameText = bubbleGroup
+              .append('text')
+              .attr('class', 'hostname')
+              .attr('x', 0)
+              .attr('y', 0)
+              .attr('text-anchor', 'middle')
+              .style('font-family', 'Arial')
+              .style('font-size', '10px')
+              .style('fill', '#000')
+              .text(d.hostname ? d.hostname : 'Unknown');
+
+          const ipText = bubbleGroup
+              .append('text')
+              .attr('class', 'ip')
+              .attr('x', 0)
+              .attr('y', 15)
+              .attr('text-anchor', 'middle')
+              .style('font-family', 'Arial')
+              .style('font-size', '10px')
+              .style('fill', '#000')
+              .text(d.ip ? d.ip : '');
+
+          // Measure the text widths
+          const hostnameWidth = hostnameText.node()?.getBBox().width || 0;
+          const ipWidth = ipText.node()?.getBBox().width || 0;
+          const bubbleWidth = Math.max(hostnameWidth, ipWidth) + 20; // Add padding
+
+          // Calculate bubble height
+          const bubbleHeight = 40; // Adjust as needed
+
+          // Draw a rounded rectangle as the bubble background
+          bubbleGroup
+              .insert('rect', ':first-child') // Insert before the text
+              .attr('x', -bubbleWidth / 2)
+              .attr('y', -20)
+              .attr('width', bubbleWidth)
+              .attr('height', bubbleHeight)
+              .attr('rx', 10)
+              .attr('ry', 10)
+              .style('fill', '#f0f0f0')
+              .style('stroke', '#ccc')
+              .style('stroke-width', 1);
+
+          // Position the bubble group
+          bubbleGroup.attr('transform', `translate(${bubbleX},${bubbleY})`);
+
+          // Add a line connecting the node to the info bubble
+          bubbleGroup
+              .append('line')
+              .attr('class', 'bubble-line')
+              .attr('x1', 0)
+              .attr('y1', bubbleHeight - 20)
+              .attr('x2', 0)
+              .attr('y2', bubbleHeight - 10 + nodeRadius)
+              .style('stroke', '#ccc')
+              .style('stroke-width', 1);
+        }
       });
 
-  // Apply the zoom behavior to the SVG element
-  svg.call(zoom);
-
-  // Create the links (lines)
-  const link = svg.selectAll('.link')
-      .data(links)
-      .enter().append('line')
-      .attr('class', 'link')
-      .style('stroke-width', 2)
-      .style('stroke', linkColor);
-
-  // Create the nodes (circles)
-  const node = svg.selectAll('.node')
-      .data(nodes)
-      .enter().append('circle')
-      .attr('class', 'node')
-      .attr('r', nodeRadius)
-      .style('fill', d => d.id.startsWith('Unreachable') ? unreachableColor : getNodeColor(d.id));
-
-  // Create labels for the nodes
-  const label = svg.selectAll('.label')
-      .data(nodes)
-      .enter().append('text')
-      .attr('class', 'label')
-      .text(d => d.label)
-      .style('font-family', 'Arial')
-      .style('font-size', textSize)
-      .attr('dx', '1em') // Offset the label horizontally
-      .attr('dy', '.35em'); // Offset the label vertically
-
-  // Define the simulation
-  const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-      .force('charge', d3.forceManyBody().strength(-50))
-      .force('center', d3.forceCenter(width / 2, height / 2));
-
-  // Update positions on each tick
-  simulation.on('tick', () => {
-    link.attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
-
-    node.attr('cx', d => d.x)
-        .attr('cy', d => d.y);
-
-    label.attr('x', d => d.x)
-        .attr('y', d => d.y);
+  // Handle clicks on the SVG background to close info bubbles
+  svg.on('click', function () {
+    d3.selectAll('.info-bubble').remove();
+    activeNode = null;
   });
 
-  // Drag behavior for nodes
-  node.call(d3.drag()
-      .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
+  node
+      .append('circle')
+      .attr('r', nodeRadius)
+      .style('fill', (d) => getNodeColor(d))
+      .style('stroke', '#fff')
+      .style('stroke-width', 1.5);
+
+  // Add hop number labels inside the node
+  node
+      .append('text')
+      .attr('class', 'hop-number')
+      .attr('dy', 5) // Centered vertically within the node
+      .attr('text-anchor', 'middle')
+      .text((d) => d.label)
+      .style('font-family', 'Arial')
+      .style('font-size', '12px')
+      .style('font-weight', 'bold')
+      .style('fill', '#fff');
+
+  // Add latency and packet loss below the node
+  node
+      .append('text')
+      .attr('class', 'metrics')
+      .attr('dy', nodeRadius + 15)
+      .attr('text-anchor', 'middle')
+      .text((d) => {
+        const latency = d.latency !== undefined ? `${d.latency} ms` : 'N/A';
+        const packetLoss = d.packetLoss !== undefined ? `${d.packetLoss}% loss` : 'N/A';
+        return `${latency}, ${packetLoss}`;
       })
-      .on('drag', (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      })
-      .on('end', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }));
+      .style('font-family', 'Arial')
+      .style('font-size', '10px');
 
-  function getNodeColor(sourceNodeId) {
-    let link = links.find(link => link.source == sourceNodeId);
+  // Add legend
+  const legendData = [
+    { color: '#4E8A7D', label: 'Good' },
+    { color: '#83DCA1', label: 'Moderate' },
+    { color: '#E8E598', label: 'Poor' },
+    { color: '#ED937B', label: 'Critical' },
+    { color: '#FB5561', label: 'Severe' },
+    { color: '#999999', label: 'Unknown' },
+  ];
 
-    if (link === undefined) {
-      return '#FB5561'; // Default color for undefined link, using the last color in the provided palette
-    } else {
-      // Define thresholds
-      const packetLossThreshold = 10; // Adjust as needed
-      const latencyThreshold = 100;   // Adjust as needed
+  const legend = svg
+      .append('g')
+      .attr('class', 'legend')
+      .attr('transform', `translate(${margin.left},${height + margin.top})`);
 
-      if (link.packetLoss == undefined || link.latency == undefined) {
-        return '#FB5561'; // Default color for undefined link, using the last color in the provided palette
-      }
+  const legendItem = legend
+      .selectAll('.legend-item')
+      .data(legendData)
+      .enter()
+      .append('g')
+      .attr('class', 'legend-item')
+      .attr('transform', (d, i) => `translate(${i * 100},0)`);
 
-      // Calculate a score based on packet loss and latency
-      const score = (link.packetLoss / packetLossThreshold) + (link.latency / latencyThreshold);
+  legendItem
+      .append('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', 18)
+      .attr('height', 18)
+      .style('fill', (d) => d.color);
 
-      // Normalize the score to the range of [0, 1] for color interpolation
-      const normalizedScore = Math.min(Math.max(score, 0), 1);
+  legendItem
+      .append('text')
+      .attr('x', 24)
+      .attr('y', 14)
+      .text((d) => d.label)
+      .style('font-family', 'Arial')
+      .style('font-size', '12px');
 
-      let color = interpolateColor(normalizedScore);
+  // Add zoom functionality
+  const zoom = d3
+      .zoom()
+      .scaleExtent([0.5, 5])
+      .on('zoom', (event) => {
+        g.attr('transform', event.transform);
+      });
 
-      if (color == undefined) {
-        return '#FB5561';
-      }
+  svg.call(zoom);
 
-      // Interpolate color based on normalized score
-      return color;
+  // Helper functions
+  function getNodeColor(node: Node): string {
+    if (node.isUnknown && node.packetLoss === 100) {
+      return '#999999'; // Gray color for unknown nodes with 100% packet loss
     }
+
+    if (node.packetLoss === undefined || node.latency === undefined) {
+      return '#999999'; // Gray color if data is missing
+    }
+
+    // More vibrant colors using color scales
+    const packetLossColor = packetLossColorScale(node.packetLoss!);
+    const latencyColor = latencyColorScale(node.latency!);
+
+    // Interpolate between packet loss color and latency color
+    return d3.interpolateRgb(packetLossColor, latencyColor)(0.5);
   }
 
-  function interpolateColor(fraction) {
-    // Define the color palette from the provided image
-    const palette = [
-      '#4E8A7D', // Color 1
-      '#83DCA1', // Color 2
-      '#E8E598', // Color 3
-      '#ED937B', // Color 4
-      '#FB5561'  // Color 5
-    ];
+  function getLinkColor(link: Link): string {
+    if (link.packetLoss === undefined || link.latency === undefined) {
+      return '#999999'; // Gray color if data is missing
+    }
 
-    // Determine the section width in the palette
-    const sectionWidth = 1 / (palette.length - 1);
-    let sectionIndex = Math.floor(fraction / sectionWidth);
+    // More vibrant colors using color scales
+    const packetLossColor = packetLossColorScale(link.packetLoss!);
+    const latencyColor = latencyColorScale(link.latency!);
 
-    // Cap sectionIndex to the second to last item to avoid going out of bounds
-    sectionIndex = Math.min(sectionIndex, palette.length - 2);
-
-    // Calculate the local fraction (how far along the section the score is)
-    const localFraction = (fraction - sectionWidth * sectionIndex) / sectionWidth;
-
-    let color2Max = sectionIndex + 1 < palette.length ? palette[sectionIndex + 1] : palette[sectionIndex]
-
-    // Interpolate between the two closest colors in the palette
-    return interpolateHexColor(palette[sectionIndex], color2Max, localFraction);
+    // Interpolate between packetLossColor and latencyColor
+    return d3.interpolateRgb(packetLossColor, latencyColor)(0.5);
   }
-
-  function interpolateHexColor(color1, color2, fraction) {
-    // Convert hex to RGB
-    const color1Rgb = hexToRgb(color1);
-    const color2Rgb = hexToRgb(color2);
-
-    // Calculate interpolated color in RGB
-    const resultRgb = {
-      r: interpolateValue(color1Rgb.r, color2Rgb.r, fraction),
-      g: interpolateValue(color1Rgb.g, color2Rgb.g, fraction),
-      b: interpolateValue(color1Rgb.b, color2Rgb.b, fraction)
-    };
-
-    // Convert back to hex and return
-    return rgbToHex(resultRgb.r, resultRgb.g, resultRgb.b);
-  }
-
-  function hexToRgb(hex) {
-    // Strip the hash if present and convert 3-digit hex to 6-digit hex
-    hex = hex.replace(/^#/, '');
-    hex = hex.length === 3 ? hex.split('').map(char => char + char).join('') : hex;
-
-    // Parse the hexadecimal color
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    console.log(hex)
-
-    return { r, g, b };
-  }
-
-  function rgbToHex(r, g, b) {
-    // Convert each color component to a hexadecimal string
-    const toHex = c => ('0' + c.toString(16)).slice(-2);
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-  }
-
-  function interpolateValue(value1, value2, fraction) {
-    // Linear interpolation
-    return Math.round(value1 + (value2 - value1) * fraction);
-  }
-
 }
-
 </script>
 
 <style scoped>
 .network-map {
-  /* Add your styles here */
+  position: relative;
+}
+
+.link {
+  stroke: #999;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.hop-number {
+  fill: #fff;
+}
+
+.info-bubble rect {
+  fill: #f0f0f0;
+  stroke: #ccc;
+}
+
+.info-bubble text {
+  fill: #000;
+}
+
+.metrics {
+  fill: #000;
+}
+
+.legend {
+  font-family: Arial, sans-serif;
+}
+
+.legend-item rect {
+  stroke: #fff;
+  stroke-width: 1px;
 }
 </style>
