@@ -78,7 +78,7 @@ function getOnlineStatus(agent: Agent) {
         <Code title="ID" :visible="!agent.initialized" :code="agent.id"></Code>
         <Code title="PIN" :visible="!agent.initialized" :code="agent.pin"></Code>
         </div>
-        <div class="p-2 d-flex justify-content-end gap-1">
+        <div class="p-2 d-flex flex-column flex-sm-row justify-content-end gap-1">
           <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning "><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
           <router-link :to="`/agents/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
           <router-link :to="`/agents/${agent.id}`" class="btn btn-primary ">view&nbsp;<i class="fa-solid fa-chevron-right"></i></router-link>
