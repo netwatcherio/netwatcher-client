@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-
-import {onMounted, reactive, watch} from "vue";
+import { onMounted, reactive, watch } from "vue";
+import core from "@/core";
 import siteService from "@/services/siteService";
+import agentService from "@/services/agentService";
+import probeService from "@/services/probeService";
 import type {
   Agent,
   MtrHop,
@@ -12,39 +14,41 @@ import type {
   ProbeDataRequest,
   ProbeType,
   RPerfResults,
-  Site, TrafficSimResult
+  Site,
+  TrafficSimResult
 } from "@/types";
-import core from "@/core";
 import Title from "@/components/Title.vue";
-import agentService from "@/services/agentService";
-import probeService from "@/services/probeService";
-import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
+import { AsciiTable3 } from "@/lib/ascii-table3/ascii-table3";
 import LatencyGraph from "@/components/PingGraph.vue";
-import VueDatePicker from '@vuepic/vue-datepicker';
-import '@vuepic/vue-datepicker/dist/main.css'
-import RperfGraph from "@/components/RperfGraph.vue";
-import NetworkMap from "@/components/NetworkMap.vue";
 import TrafficSimGraph from "@/components/TrafficSimGraph.vue";
+import NetworkMap from "@/components/NetworkMap.vue";
+import VueDatePicker from '@vuepic/vue-datepicker';
+import '@vuepic/vue-datepicker/dist/main.css';
 
+// Reactive state to hold parsed groups and UI data
 const state = reactive({
-  target: {} as string,
   site: {} as Site,
-  ready: false,
   agent: {} as Agent,
-  checks: [] as Probe[],
-  table: {} as string, // may need to re-work this...
-  similarProbes: [] as Probe[],
-  probe: {} as Probe[],
-  probeData: [] as ProbeData[],
-  title: {} as string,
+  similarProbes: [] as any[],
+  // Parsed ProbeData by type
   pingData: [] as ProbeData[],
-  pingGraph: {} as any,
-  timeRange: {} as [Date, Date],
+  probe: {} as Probe[],
   mtrData: [] as ProbeData[],
   rperfData: [] as ProbeData[],
-  probeAgent: {} as Agent,
   trafficSimData: [] as ProbeData[],
-})
+  // Additional sections
+  availableTargets: [] as Array<{agent:string,group:string}>,
+  summary: {
+    totalDataPoints: 0,
+    reportingAgents: [] as string[],
+    targetAgents: [] as string[],
+    probeTypes: [] as string[],
+    dataCountByType: {} as Record<string,number>
+  },
+  timeRange: [] as [Date, Date],
+  title: "",
+  ready: false
+});
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
   return dataArray.map(data => {
@@ -65,10 +69,6 @@ function transformPingDataMulti(dataArray: any[]): PingResult[] {
       stdDevRtt: parseInt(findValueByKey("std_dev_rtt")),
     };
   });
-}
-
-function camelCase(str: string) {
-  return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
 }
 
 function transformToTrafficSimResult(dataArray: ProbeData[]): TrafficSimResult[] {
@@ -327,20 +327,12 @@ function generateTable(probeData: ProbeData) {
 
   return table.toString();
 }
-
-
-
-
-// Other interfaces and transformMtrData function should be defined here as well.
-
-
+// Reload using grouped API response
 function reloadData(checkId: string) {
-  state.pingData = []
-  state.probeData = []
-  state.similarProbes = []
-  state.mtrData = []
-  state.rperfData = []
-  state.trafficSimData = []
+  state.pingData = [];
+  state.mtrData = [];
+  state.rperfData = [];
+  state.trafficSimData = [];
 
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[]
@@ -362,133 +354,82 @@ function reloadData(checkId: string) {
         state.title = split[0]
       }
     }
-    
-    // get agent
-    agentService.getAgent(state.probe[0].agent).then(res => {
+
+  agentService.getAgent(state.probe[0].agent).then(res => {
       state.agent = res.data as Agent
 
       // get site
       siteService.getSite(state.agent.site).then(res => {
         state.site = res.data as Site
-        state.ready = true
+      });
 
-        // get similar
-        probeService.getSimilarProbes(checkId).then(res => {
-          state.similarProbes = res.data as Probe[]
-          for (let p of state.similarProbes) {
-            console.log(p)
-            probeService.getProbeData(p.id, {
-              recent: false,
-              limit: 5000,
-              startTimestamp: state.timeRange[0],
-              endTimestamp: state.timeRange[1]
-            } as ProbeDataRequest).then(res => {
-              for (let d of res.data as ProbeData[]) {
-                //state.probeData.push(d)
+  probeService.getProbeData(checkId, {
+    recent: false,
+    limit: 5000,
+    startTimestamp: state.timeRange[0],
+    endTimestamp: state.timeRange[1]
+  } as ProbeDataRequest)
+  .then(res => {
+    const { groups, availableTargets, summary } = res.data;
 
-                let pprober = getProbe(d.probe) as Probe
-                //console.log(pprober)
+    // store availableTargets and summary
+    state.availableTargets = availableTargets;
+    state.summary = summary;
 
-                if (pprober.type == "PING") {
-                  state.pingData.push(d)
-                }
-                if (pprober.type == "MTR") {
-                  //console.log(d)
-                  state.mtrData.push(d)
-                }
-                if (pprober.type == "RPERF" && !pprober.config.server) {
-                  state.rperfData.push(d)
-                  //console.log(d.data)
-                }
-                if (pprober.type == "TRAFFICSIM") {
-                  state.trafficSimData.push(d)
-                  //console.log(state.trafficSimData)
-                }
-              }
-            })
-          }
+    // iterate nested groups → agentID → type → entries
+    Object.values(groups).forEach(agentGroup => {
+      Object.entries(agentGroup).forEach(([agentId, typeMap]) => {
+        Object.entries(typeMap as Record<string, ProbeData[]>).forEach(([type, entries]) => {
+          entries.forEach(entry => {
+            switch (type) {
+              case 'PING':
+                state.pingData.push(entry);
+                break;
+              case 'MTR':
+                state.mtrData.push(entry);
+                break;
+              case 'TRAFFICSIM':
+                state.trafficSimData.push(entry);
+                break;
+            }
+          });
+        });
+      });
+    });
 
-          //console.log(state.rperfData)
-          //console.log(state.pingData)
-        })
-      })
-    })
+    console.log(state.mtrData)
+
+    state.ready = true;
   })
+  .catch(err => console.error('Failed to load grouped data', err));
+    });
+});
 }
 
-function transformPingData(data: any): PingResult {
-  return {
-    startTimestamp: new Date(data.data.find((d: any) => d.Key === "start_timestamp").Value),
-    stopTimestamp: new Date(data.data.find((d: any) => d.Key === "stop_timestamp").Value),
-    packetsRecv: data.data.find((d: any) => d.Key === "packets_recv").Value,
-    packetsSent: data.data.find((d: any) => d.Key === "packets_sent").Value,
-    packetsRecvDuplicates: data.data.find((d: any) => d.Key === "packets_recv_duplicates").Value,
-    packetLoss: data.data.find((d: any) => d.Key === "packet_loss").Value,
-    addr: data.data.find((d: any) => d.Key === "addr").Value,
-    minRtt: data.data.find((d: any) => d.Key === "min_rtt").Value,
-    maxRtt: data.data.find((d: any) => d.Key === "max_rtt").Value,
-    avgRtt: data.data.find((d: any) => d.Key === "avg_rtt").Value,
-    stdDevRtt: data.data.find((d: any) => d.Key === "std_dev_rtt").Value,
-  }
-}
-
-
-function getProbe(probeId: string) {
-  let foundProbe = state.similarProbes.find(probe => probe.id === probeId);
-  return foundProbe ? foundProbe : null;
-}
-
-// const site = inject("site") as Site
-
-watch(() => state.timeRange, (newTimeRange) => {
-  let checkId = router.currentRoute.value.params["idParam"] as string;
-  if (checkId) {
-    reloadData(checkId);
-  }
-  state.timeRange = newTimeRange
-}, {deep: true});
-
+// Initialize on mount
 onMounted(() => {
-  let checkId = router.currentRoute.value.params["idParam"] as string
-  if (!checkId) return
+  const router = core.router();
+  const checkId = router.currentRoute.value.params['idParam'] as string;
+  if (!checkId) return;
 
-  state.timeRange = [
-    new Date(new Date().getTime() - 3 * 60 * 60 * 1000), // Current time minus 6 hours
-    new Date() // Current time
-  ]
+  // default to last 3 hours
+  state.timeRange = [ new Date(Date.now() - 3*60*60*1000), new Date() ];
 
-  //console.log(checkId)
+  // fetch site and agent metadata
+  Promise.all([
+    probeService.getProbe(checkId),
+    agentService.getAgent(checkId)
+  ]).catch(() => {});
 
+  reloadData(checkId);
+});
 
-  /*setInterval(() => {
-    reloadData(checkId);
-  }, 1000 * 15);*/
-  /*reloadData(checkId);*/
-})
-const router = core.router()
-
-function onCreate(response: any) {
-  router.push("/workspaces")
-}
-
-function onError(response: any) {
-  alert(response)
-}
-
-function submit() {
-
-}
-
-// Corrected containsProbeType function
-function containsProbeType(type: ProbeType): boolean {
-  for (const probe of state.similarProbes) {
-    if (probe.type === type) {
-      return true;
-    }
-  }
-  return false;
-}
-
+// Watch for timeRange changes
+watch(() => state.timeRange, (newRange) => {
+  const router = core.router();
+  const checkId = router.currentRoute.value.params['idParam'] as string;
+  if (checkId) reloadData(checkId);
+}, { deep: true });
 </script>
 
 <template>
@@ -508,104 +449,56 @@ function containsProbeType(type: ProbeType): boolean {
       </div>
     </Title>
 
-    <div class="row">
-      <!--      <div class="col-sm-4">
-              <div class="card">
-                <div class="card-body">
-                  <h5 class="card-title">voice graph</h5>
-                  <p class="card-text">this shows the estimated mos score of your target</p>
-                </div>
-              </div>
-            </div>-->
-      <div class="col-sm-12" v-if="containsProbeType('PING')">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">latency</h5>
-            <p class="card-text">displays the stats associated with latency</p>
-            <div v-if="state.pingData.length <= 0">
-              <!--        <div class="px-2 py-2 pb-1 ">
-                        <div class="label-c4 label-o2 label-w500">Loading...</div>
-                      </div>-->
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
-              </div>
-
-            </div>
-            <div v-else>
-            <LatencyGraph v-if="state.ready" :pingResults="transformPingDataMulti(state.pingData)"/>
-              </div>
-          </div>
-        </div>
+    <!-- Summary Card -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Summary</h5>
+        <p>Total Data Points: {{ state.summary.totalDataPoints }}</p>
+        <p>Reporting Agents: {{ state.summary.reportingAgents.join(', ') }}</p>
+        <p>Target Agents: {{ state.summary.targetAgents.join(', ') }}</p>
+        <p>Probe Types: {{ state.summary.probeTypes.join(', ') }}</p>
+        <p>Counts: {{ state.summary.dataCountByType }}</p>
       </div>
-      <div class="col-sm-12" v-if="containsProbeType('TRAFFICSIM')">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">simulated traffic</h5>
-            <p class="card-text">displays the stats for simulated traffic</p>
-            <div v-if="state.trafficSimData.length <= 0">
-              <!--        <div class="px-2 py-2 pb-1 ">
-                        <div class="label-c4 label-o2 label-w500">Loading...</div>
-                      </div>-->
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
-              </div>
+    </div>
 
-            </div>
-            <div v-else>
-            <TrafficSimGraph v-if="state.ready" :traffic-results="transformToTrafficSimResult(state.trafficSimData)"/>
-              </div>
-          </div>
-        </div>
+    <!-- Available Targets -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Available Targets</h5>
+        <ul>
+          <li v-for="t in state.availableTargets" :key="t.agent + '-' + t.group">
+            Agent: {{ t.agent }}, Group: {{ t.group }}
+          </li>
+        </ul>
       </div>
-<!--      <div class="col-sm-12">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">rperf traffic</h5>
-            <p class="card-text">displays the stats for rperf traffic</p>
-            <div v-if="state.mtrData.length <= 0">
-              &lt;!&ndash;        <div class="px-2 py-2 pb-1 ">
-                        <div class="label-c4 label-o2 label-w500">Loading...</div>
-                      </div>&ndash;&gt;
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
-              </div>
+    </div>
 
-            </div>
-            <div v-else>
-            <RperfGraph v-if="state.ready" :rperfResults="transformToRPerfResults(state.rperfData)"/>
-            </div>
-          </div>
-        </div>
-      </div>-->
-      <div class="col-sm-12" v-if="containsProbeType('MTR')">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">traceroutes</h5>
-            <p class="card-text">view the recent trace routes for the selected period of time</p>
+    <!-- Ping Graph -->
+    <div class="card mb-3" v-if="state.pingData.length">
+      <div class="card-body">
+        <h5 class="card-title">Latency</h5>
+        <LatencyGraph :pingResults="transformPingDataMulti(state.pingData)" />
+      </div>
+    </div>
 
-            <div v-if="state.mtrData.length <= 0">
-              <!--        <div class="px-2 py-2 pb-1 ">
-                        <div class="label-c4 label-o2 label-w500">Loading...</div>
-                      </div>-->
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
-              </div>
+    <!-- TrafficSim Graph -->
+    <div class="card mb-3" v-if="state.trafficSimData.length">
+      <div class="card-body">
+        <h5 class="card-title">Simulated Traffic</h5>
+        <TrafficSimGraph :traffic-results="transformToTrafficSimResult(state.trafficSimData)" />
+      </div>
+    </div>
 
-            </div>
-            <div v-else>
-
-
-                        <NetworkMap v-if="state.ready" :mtrResults="transformMtrDataMulti(state.mtrData)"/>
-
-            <div id="mtrAccordion" class="accordion">
+    <!-- MTR Map and Table -->
+    <div class="card mb-3" v-if="state.mtrData.length">
+      <div class="card-body">
+        <h5 class="card-title">Traceroutes</h5>
+        <NetworkMap :mtrResults="transformMtrDataMulti(state.mtrData)" />
+        <div id="mtrAccordion" class="accordion">
 
               <div v-for="mtr in state.mtrData" :key="mtr.id">
 
-                <div v-if="getProbe((mtr as ProbeData).probe).type == `MTR` as ProbeType" class="accordion-item">
+                <div class="accordion-item">
                   <h2 :id="'heading' + mtr.id" class="accordion-header">
                     <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false"
                             :data-bs-target="'#collapse' + mtr.id"
@@ -626,26 +519,20 @@ function containsProbeType(type: ProbeType): boolean {
 
               </div>
               </div>
-
-              <!-- Add more accordion items here if needed -->
-            </div>
-
-          </div>
-        </div>
       </div>
+    </div>
 
+    <!-- RPerf Graph -->
+    <div class="card mb-3" v-if="state.rperfData.length">
+      <div class="card-body">
+        <h5 class="card-title">RPerf Results</h5>
+        <RperfGraph :rperfResults="transformToRPerfResults(state.rperfData)" />
+      </div>
     </div>
   </div>
 </template>
 
-<style lang="scss">
-.check-grid {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(12, minmax(8rem, 1fr));
-  grid-gap: 0.5rem;
-
-}
+<style scoped>
+.container-fluid { padding: 1rem; }
+.mb-3 { margin-bottom: 1rem; }
 </style>

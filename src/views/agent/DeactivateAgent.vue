@@ -15,7 +15,7 @@ const state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   agentService.getAgent(id).then(res => {
