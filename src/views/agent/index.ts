@@ -1,5 +1,7 @@
 import NewAgent from "@/views/agent/NewAgent.vue";
+// @ts-ignore
 import Agent from "@/views/agent/Agent.vue";
+// @ts-ignore
 import AgentView from "@/views/agent/AgentView.vue";
 import DeactivateAgent from "@/views/agent/DeactivateAgent.vue";
 import EditAgent from "@/views/agent/EditAgent.vue";
@@ -39,8 +41,8 @@ export default {
             component: Agent,
         },
         {
-            path: '/agent/:agentId/probes',
-            name: 'agentProbes',
+            path: '/agent/probes/edit/:agentId',
+            name: 'editProbes',
             component: ProbesEdit,
         },
         {

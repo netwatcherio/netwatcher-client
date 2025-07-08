@@ -16,7 +16,7 @@ export default {
         },
         {
             path: '/probes/:probeId/view',
-            name: 'probeView',
+            name: 'viewProbe',
             component: Probe,
         },
         {
