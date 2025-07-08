@@ -146,8 +146,8 @@ function generateTable(speedTestResult: any) {
   let table = new AsciiTable3(displayText + " - " + speedTestResult.timestamp.toISOString());
   table.setHeading('Metric', 'Value', 'Unit');
 
-  table.addRow('Download Speed', (server.dl_speed / 1000000).toFixed(2) * 8, 'Mbps');
-  table.addRow('Upload Speed', (server.ul_speed / 1000000).toFixed(2) * 8, 'Mbps');
+  table.addRow('Download Speed', (server.dl_speed / 1000000).toFixed(2), 'Mbps');
+  table.addRow('Upload Speed', (server.ul_speed / 1000000).toFixed(2), 'Mbps');
   table.addRow('Latency', (server.latency / 1000000).toFixed(2), 'ms');
   table.addRow('Jitter', (server.jitter / 1000000).toFixed(2), 'ms');
 
@@ -172,7 +172,7 @@ function generateTable(speedTestResult: any) {
   return table.toString();
 }
 onMounted(() => {
-  let checkId = router.currentRoute.value.params["agentId"] as string
+  let checkId = router.currentRoute.value.params["idParam"] as string
   if (!checkId) return
 
   agentService.getAgent(checkId).then(res => {
@@ -225,12 +225,12 @@ function submit() {
 </script>
 
 <template>
-  <div v-if="state.ready" class="container-fluid">
+  <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
         :title="state.title"
         subtitle="information about this target">
-      <div v-if="state.ready" class="d-flex gap-1">
+      <div class="d-flex gap-1">
         <!--        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
                     class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
                 </router-link>

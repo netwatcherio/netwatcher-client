@@ -17,7 +17,7 @@ const state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["pId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   probeService.getProbe(id).then(res => {
@@ -36,7 +36,7 @@ onMounted(() => {
 const router = core.router()
 
 function onCreate(response: any) {
-  router.push(`/agent/${state.agent.id}/probes`)
+  router.push(`/agent/${state.agent.id}/edit-probes`)
 }
 
 function onError(response: any) {
@@ -45,7 +45,7 @@ function onError(response: any) {
 
 function submit() {
   probeService.deleteProbe(state.probe.id).then((res) => {
-    router.push(`/agent/${state.agent.id}/probes`)
+    router.push(`/agent/${state.agent.id}/edit-probes`)
     console.log(res)
   }).catch(err => {
     console.log(err)
@@ -53,14 +53,14 @@ function submit() {
 }
 
 function cancel() {
-  router.push(`/agent/${state.agent.id}/probes`)
+  router.push(`/agent/${state.agent.id}/edit-probes`)
 }
 
 </script>
 
 <template>
   <div class="container-fluid" v-if="state.ready">
-    <Title title="delete probe" subtitle="delete a specific probe" :history="[{title: 'workspaces', link: '/sites'},{title: state.site.name, link: `/sites/${state.site.id}`},{title: state.agent.name, link: `/agents/${state.agent.id}`}, {title: `edit probes`, link: `/agent/${state.agent.id}/probes`}]"> </Title>
+    <Title title="delete probe" subtitle="delete a specific probe" :history="[{title: 'workspaces', link: '/workspaces'},{title: state.site.name, link: `/sites/${state.site.id}`},{title: state.agent.name, link: `/agents/${state.agent.id}`}, {title: `edit probes`, link: `/agent/${state.agent.id}/probes`}]"> </Title>
   <div class="row">
       <div class="col-12">
         <div class="card">

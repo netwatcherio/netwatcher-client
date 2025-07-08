@@ -15,7 +15,7 @@ const state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["siteId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   siteService.getSite(id).then(res => {
@@ -36,7 +36,7 @@ function onError(response: any) {
 
 function submit() {
   agentService.createAgent(state.agent).then((res) => {
-    router.push(`/sites/${state.site.id}`)
+    router.push(`/workspace/${state.site.id}`)
     console.log(res)
   }).catch(err => {
     console.log(err)

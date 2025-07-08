@@ -28,7 +28,7 @@ let state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   state.probeConfig = {
@@ -124,7 +124,7 @@ async function getValidAgents(probeType: ProbeType){
 
 function submit() {
 
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   // build probetarget for if groups are enabled for specific types
@@ -165,7 +165,7 @@ function submit() {
   let send = state.probe
 
   probeService.createProbe(id, send).then((res) => {
-    router.push(`/agents/${id}`)
+    router.push(`/agent/${id}`)
   }).catch(err => {
     console.log(err)
   })
@@ -179,7 +179,7 @@ function submit() {
 <template>
   <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
         :subtitle="`create a new probe for an agent '${state.site.name}'`"
         title="new probe"></Title>
     <div class="row">

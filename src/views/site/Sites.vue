@@ -43,8 +43,8 @@ onMounted(() => {
   <div class="container-fluid">
     <Title title="workspaces" subtitle="an overview of the workspaces you have access to">
       <div class="d-flex gap-1">
-      <router-link to="/sites/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-exclamation-triangle"></i>&nbsp;view alerts</router-link>
-      <router-link to="/sites/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create</router-link>
+      <router-link to="/workspaces/alerts" active-class="active" class="btn btn-outline-primary"><i class="fa-solid fa-exclamation-triangle"></i>&nbsp;view alerts</router-link>
+      <router-link to="/workspaces/new" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;create</router-link>
       </div>
     </Title>
 
@@ -71,7 +71,7 @@ onMounted(() => {
                 <tbody>
                 <tr v-for="site in state.sites">
                   <td class="px-0">
-                    <router-link :to="`/sites/${site.id}`" class="">
+                    <router-link :to="`/workspace/${site.id}`" class="">
                       {{site.name}}
                     </router-link>
 
@@ -89,7 +89,7 @@ onMounted(() => {
                     <span class="badge bg-dark">{{ site. }}</span>
                   </td>-->
                   <td class="px-0 text-end px-3">
-                    <router-link :to="`/sites/${site.id}`" class="">
+                    <router-link :to="`/workspace/${site.id}`" class="">
                       <i class="fa-solid fa-up-right-from-square"></i> view
                     </router-link>
                   </td>

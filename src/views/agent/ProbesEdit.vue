@@ -18,7 +18,7 @@ let state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   agentService.getAgent(id).then(res => {
@@ -65,7 +65,7 @@ function probeTitle(probeKey: string): string {
 
 <template>
   <div class="container-fluid">
-    <Title title="edit probes" subtitle="probes associated with current agent" :history="[{title: 'workspaces', link: '/sites'},{title: state.site.name, link: `/sites/${state.site.id}`},{title: state.agent.name, link: `/agents/${state.agent.id}`}]">
+    <Title title="edit probes" subtitle="probes associated with current agent" :history="[{title: 'workspaces', link: '/workspaces'},{title: state.site.name, link: `/workspace/${state.site.id}`},{title: state.agent.name, link: `/agent/${state.agent.id}`}]">
 <!--
       <router-link :to="`/site/${state.site.id}/invite`" active-class="active" class="btn btn-primary"><i class="fa-solid fa-plus"></i>&nbsp;invite</router-link>
 -->

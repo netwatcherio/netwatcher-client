@@ -79,9 +79,9 @@ function getOnlineStatus(agent: Agent) {
         <Code title="PIN" :visible="!agent.initialized" :code="agent.pin"></Code>
         </div>
         <div class="p-2 d-flex flex-column flex-sm-row justify-content-end gap-1">
-          <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning "><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
-          <router-link :to="`/agents/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
-          <router-link :to="`/agents/${agent.id}`" class="btn btn-primary ">view&nbsp;<i class="fa-solid fa-chevron-right"></i></router-link>
+          <router-link v-if="agent.initialized" :to="`/agent/${agent.id}/deactivate`" class="btn btn-outline-warning "><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
+          <router-link :to="`/agent/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
+          <router-link :to="`/agent/${agent.id}`" class="btn btn-primary ">view&nbsp;<i class="fa-solid fa-chevron-right"></i></router-link>
         </div>
 
       </AgentCard>
@@ -128,13 +128,13 @@ function getOnlineStatus(agent: Agent) {
              <Code :code="agent.initialized?`*********`:agent.pin"></Code>
            </td>
            <td class="px-0 text-end px-1 gap-1 justify-content-end">
-             <router-link v-if="agent.initialized" :to="`/agents/${agent.id}/deactivate`" class="btn btn-outline-warning"><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
+             <router-link v-if="agent.initialized" :to="`/agent/${agent.id}/deactivate`" class="btn btn-outline-warning"><i class="fa-solid fa-bed"></i>&nbsp;deactivate</router-link>
            </td>
            <td class="px-0 text-end px-1 gap-1 justify-content-end">
-             <router-link :to="`/agents/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
+             <router-link :to="`/agent/${agent.id}/edit`" class="btn btn-outline-success"><i class="fa-solid fa-pencil-alt"></i>&nbsp;edit</router-link>
            </td>
            <td class="px-0 text-end px-1 d-flex gap-1 justify-content-end">
-             <router-link :to="`/agents/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>
+             <router-link :to="`/agent/${agent.id}`" class="btn btn-primary"><i class="fa-solid fa-search"></i>&nbsp;view</router-link>
            </td>
          </tr>
          </tbody>

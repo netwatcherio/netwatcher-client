@@ -5,22 +5,17 @@ import ProbeView from "@/views/probes/ProbeView.vue";
 import DeleteProbe from "@/views/probes/DeleteProbe.vue";
 
 export default {
-    path: '/agents/:agentId/probes',
+    path: '/probe/:idParam',
     name: 'probeView',
-    component: ProbeView,
+    component: Probe,
     children: [
         {
-            path: '/agents/:agentId/probes/new',
-            name: 'probeNew',
+            path: '/probe/:idParam/new',
+            name: 'newProbe',
             component: NewProbe,
         },
         {
-            path: '/probes/:probeId/view',
-            name: 'viewProbe',
-            component: Probe,
-        },
-        {
-            path: '/probes/:pId/delete',
+            path: '/probe/:idParam/delete',
             name: 'deleteProbe',
             component: DeleteProbe,
         },

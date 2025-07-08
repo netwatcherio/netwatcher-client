@@ -11,47 +11,47 @@ import Speedtests from "@/views/agent/Speedtests.vue";
 import NewSpeedtest from "@/views/agent/NewSpeedtest.vue";
 
 export default {
-    path: '/agents',
+    path: '/agent_view',
     name: 'agentView',
     component: AgentView,
     children: [
         {
-            path: '/agents/:siteId/new',
-            name: 'agentNew',
-            component: NewAgent,
-        },
-        {
-            path: '/agents/:agentId/delete',
-            name: 'deleteAgent',
-            component: DeleteAgent,
-        },
-        {
-            path: '/agents/:agentId/edit',
-            name: 'editAgent',
-            component: EditAgent,
-        },
-        {
-            path: '/agents/:agentId/deactivate',
-            name: 'deactivateAgent',
-            component: DeactivateAgent,
-        },
-        {
-            path: '/agents/:agentId/',
+            path: '/agent/:idParam',
             name: 'agent',
             component: Agent,
         },
         {
-            path: '/agent/probes/edit/:agentId',
+            path: '/agent/:idParam/new',
+            name: 'agentNew',
+            component: NewAgent,
+        },
+        {
+            path: '/agent/:idParam/delete',
+            name: 'deleteAgent',
+            component: DeleteAgent,
+        },
+        {
+            path: '/agent/:idParam/edit-probes',
             name: 'editProbes',
             component: ProbesEdit,
         },
         {
-            path: '/agent/:agentId/speedtests',
+            path: '/agent/:idParam/edit',
+            name: 'editAgent',
+            component: EditAgent,
+        },
+        {
+            path: '/agent/:idParam/deactivate',
+            name: 'deactivateAgent',
+            component: DeactivateAgent,
+        },
+        {
+            path: '/agent/:idParam/speedtests',
             name: 'speedTests',
             component: Speedtests,
         },
         {
-            path: '/agent/:probeId/speedtest/new',
+            path: '/agent/:idParam/speedtest/new',
             name: 'newSpeedTest',
             component: NewSpeedtest,
         },

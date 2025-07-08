@@ -438,7 +438,7 @@ function getProbe(probeId: string) {
 // const site = inject("site") as Site
 
 watch(() => state.timeRange, (newTimeRange) => {
-  let checkId = router.currentRoute.value.params["probeId"] as string;
+  let checkId = router.currentRoute.value.params["idParam"] as string;
   if (checkId) {
     reloadData(checkId);
   }
@@ -446,7 +446,7 @@ watch(() => state.timeRange, (newTimeRange) => {
 }, {deep: true});
 
 onMounted(() => {
-  let checkId = router.currentRoute.value.params["probeId"] as string
+  let checkId = router.currentRoute.value.params["idParam"] as string
   if (!checkId) return
 
   state.timeRange = [
@@ -491,7 +491,7 @@ function containsProbeType(type: ProbeType): boolean {
 <template>
   <div v-if="state.ready" class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}]"
+        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
         :title="state.title"
         subtitle="information about this target">
       <div v-if="state.ready" class="d-flex gap-1">

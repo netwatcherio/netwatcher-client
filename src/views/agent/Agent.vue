@@ -315,7 +315,7 @@ function latestUpdate(list: Probe[]): string {
 
 onMounted(() => {
 
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   console.log("oui: "+state.ouiList)
@@ -442,15 +442,15 @@ function probeTitle(probeKey: string): string {
 
 <template>
   <div class="container-fluid gap-0">
-    <Title :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}]"
+    <Title :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}]"
            :title="state.agent.name"
            subtitle="information about this agent">
 
       <div class="d-flex gap-1">
-        <router-link :to="`/agent/probes/edit/${state.agent.id}`" active-class="active" class="btn btn-outline-primary"><i
+        <router-link :to="`/agent/${state.agent.id}/edit-probes`" active-class="active" class="btn btn-outline-primary"><i
             class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes
         </router-link>
-        <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
+        <router-link :to="`/probe/${state.agent.id}/new`" active-class="active" class="btn btn-primary"><i
             class="fa-solid fa-plus"></i>&nbsp;add probe
         </router-link>
       </div>
@@ -482,7 +482,7 @@ function probeTitle(probeKey: string): string {
             <List>
               <ElementLink v-for="(organized, index) in state.organizedProbes" :key="organized"
                            :icon="organized.key.startsWith('agent:') ? 'fa-solid fa-robot' : 'fa-solid fa-diagram-project'"
-                           :to="`/probes/${getRandomProbeId(organized.probes)}/view`"
+                           :to="`/probe/${getRandomProbeId(organized.probes)}`"
                            :secondary="organized.probes.sort((a, b) => a.type.localeCompare(b.type)).map(p => p.type).join(', ')"
                            :title="probeTitle(organized.key)">
                 <Chart></Chart>

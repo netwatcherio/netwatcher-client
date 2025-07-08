@@ -72,7 +72,7 @@ function handleClickOutside(event: MouseEvent) {
 const router = core.router()
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["probeId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   probeService.getProbe(id).then(res => {
@@ -207,7 +207,7 @@ function submit() {
 <template>
   <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: state.agent.name, link: `/agents/${state.agent.id}`}, {title: `Speedtests`, link: `/agent/${state.agent.id}/speedtests`}]"
+        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}, {title: `Speedtests`, link: `/agent/${state.agent.id}/speedtests`}]"
         :subtitle="`start a speedtest on '${state.site.name}'`"
         title="new speedtest"></Title>
     <div class="row">
