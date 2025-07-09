@@ -447,7 +447,7 @@ function probeTitle(probeKey: string): string {
            subtitle="information about this agent">
 
       <div class="d-flex gap-1">
-        <router-link :to="`/agent/${state.agent.id}/edit-probes`" active-class="active" class="btn btn-outline-primary"><i
+        <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i
             class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes
         </router-link>
         <router-link :to="`/probe/${state.agent.id}/new`" active-class="active" class="btn btn-primary"><i

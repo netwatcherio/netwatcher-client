@@ -15,7 +15,7 @@ const state = reactive({
 })
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   agentService.getAgent(id).then(res => {
@@ -29,7 +29,7 @@ onMounted(() => {
 const router = core.router()
 
 function onCreate(response: any) {
-  router.push("/sites")
+  router.push("/workspaces")
 }
 
 function onError(response: any) {
@@ -38,7 +38,7 @@ function onError(response: any) {
 
 function submit() {
   agentService.deleteAgent(state.agent.id).then((res) => {
-    router.push(`/sites/${state.site.id}`)
+    router.push(`/workspace/${state.site.id}`)
     console.log(res)
   }).catch(err => {
     console.log(err)
@@ -46,7 +46,7 @@ function submit() {
 }
 
 function cancel() {
-  router.push(`/sites/${state.site.id}`)
+  router.push(`/workspace/${state.site.id}`)
 }
 
 </script>
@@ -54,7 +54,7 @@ function cancel() {
 <template>
   <div class="container-fluid" v-if="state.ready">
     <Title :title="`delete agent`"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` },{ title: `edit agent`, link: `/agents/${state.agent.id}/edit` }]">
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` },{ title: `edit agent`, link: `/agent/${state.agent.id}/edit` }]">
     </Title>
     <div class="row">
       <div class="col-12">

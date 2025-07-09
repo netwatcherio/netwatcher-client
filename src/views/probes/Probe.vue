@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, reactive, watch } from "vue";
+import { onMounted, reactive, watch, ref, nextTick } from "vue";
 import core from "@/core";
 import siteService from "@/services/siteService";
 import agentService from "@/services/agentService";
@@ -26,6 +26,9 @@ import RperfGraph from "@/components/RperfGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 
+// Ref for active tab to trigger NetworkMap updates
+const activeTabIndex = ref(0);
+
 // Reactive state to hold parsed groups and UI data
 const state = reactive({
   site: {} as Site,
@@ -50,14 +53,39 @@ const state = reactive({
   timeRange: [] as [Date, Date],
   title: "",
   ready: false,
+  loading: true,
   probeAgent: {} as Agent,
   table: {} as string,
   pingGraph: {} as any,
   target: {} as string,
   checks: [] as Probe[],
+  // New state for agent probe groupings
+  agentPairData: [] as Array<{
+    sourceAgentId: string,
+    targetAgentId: string,
+    sourceAgentName: string,
+    targetAgentName: string,
+    pingData: ProbeData[],
+    mtrData: ProbeData[],
+    trafficSimData: ProbeData[],
+    rperfData: ProbeData[]
+  }>,
+  isAgentProbe: false,
+  rawGroups: {} as any,
 });
 
 const router = core.router();
+
+// Function to handle tab changes
+function onTabChange(index: number) {
+  activeTabIndex.value = index;
+  // Force NetworkMap re-render after tab switch
+  nextTick(() => {
+    // This ensures the NetworkMap component re-initializes with the new data
+    const event = new Event('resize');
+    window.dispatchEvent(event);
+  });
+}
 
 function transformPingDataMulti(dataArray: any[]): PingResult[] {
   return dataArray.map(data => {
@@ -335,14 +363,79 @@ function addProbeDataUnique(targetArray: ProbeData[], newData: ProbeData) {
   }
 }
 
+// Helper function to parse agent pair data from groups
+async function parseAgentPairData(groups: any) {
+  const agentPairs: typeof state.agentPairData = [];
+  const agentNameCache: Record<string, string> = {};
+  
+  // Helper to get agent name with caching
+  const getAgentName = async (agentId: string): Promise<string> => {
+    if (agentNameCache[agentId]) {
+      return agentNameCache[agentId];
+    }
+    try {
+      const res = await agentService.getAgent(agentId);
+      const agent = res.data as Agent;
+      agentNameCache[agentId] = agent.name || agentId;
+      return agent.name || agentId;
+    } catch (error) {
+      console.error(`Failed to get agent name for ${agentId}:`, error);
+      return agentId;
+    }
+  };
+
+  // Parse the nested structure
+  for (const [sourceAgentId, targetAgents] of Object.entries(groups)) {
+    for (const [targetAgentId, probeTypes] of Object.entries(targetAgents as any)) {
+      const sourceAgentName = await getAgentName(sourceAgentId);
+      const targetAgentName = await getAgentName(targetAgentId);
+      
+      const pairData = {
+        sourceAgentId,
+        targetAgentId,
+        sourceAgentName,
+        targetAgentName,
+        pingData: [] as ProbeData[],
+        mtrData: [] as ProbeData[],
+        trafficSimData: [] as ProbeData[],
+        rperfData: [] as ProbeData[]
+      };
+
+      // Sort probe data by type
+      for (const [probeType, probeDataArray] of Object.entries(probeTypes as any)) {
+        switch (probeType) {
+          case 'PING':
+            pairData.pingData = probeDataArray as ProbeData[];
+            break;
+          case 'MTR':
+            pairData.mtrData = probeDataArray as ProbeData[];
+            break;
+          case 'TRAFFICSIM':
+            pairData.trafficSimData = probeDataArray as ProbeData[];
+            break;
+          case 'RPERF':
+            pairData.rperfData = probeDataArray as ProbeData[];
+            break;
+        }
+      }
+
+      agentPairs.push(pairData);
+    }
+  }
+
+  return agentPairs;
+}
+
 // Enhanced reload using grouped API response (from AgentProbe)
 function reloadData(checkId: string) {
+  state.loading = true;
   state.pingData = [];
   state.mtrData = [];
   state.rperfData = [];
   state.trafficSimData = [];
   state.probeData = [];
   state.similarProbes = [];
+  state.agentPairData = [];
 
   probeService.getProbe(checkId).then(res => {
     state.probe = res.data as Probe[];
@@ -381,33 +474,49 @@ function reloadData(checkId: string) {
 
             state.availableTargets = availableTargets || [];
             state.summary = summary || state.summary;
+            state.rawGroups = groups;
 
-            Object.values(groups).forEach(agentGroup => {
-              Object.entries(agentGroup).forEach(([agentId, typeMap]) => {
-                Object.entries(typeMap as Record<string, ProbeData[]>).forEach(([type, entries]) => {
-                  entries.forEach(entry => {
-                    addProbeDataUnique(state.probeData, entry);
-                    switch (type) {
-                      case 'PING':
-                        addProbeDataUnique(state.pingData, entry);
-                        break;
-                      case 'MTR':
-                        addProbeDataUnique(state.mtrData, entry);
-                        break;
-                      case 'TRAFFICSIM':
-                        addProbeDataUnique(state.trafficSimData, entry);
-                        break;
-                      case 'RPERF':
-                        addProbeDataUnique(state.rperfData, entry);
-                        break;
-                    }
+            // Check if this is an AGENT probe type
+            if (state.probe[0] && state.probe[0].type === 'AGENT') {
+              state.isAgentProbe = true;
+              // Parse agent pair data for comparison view
+              parseAgentPairData(groups).then(agentPairs => {
+                state.agentPairData = agentPairs;
+                state.ready = true;
+                state.loading = false;
+                console.log(`Loaded ${agentPairs.length} agent pairs for comparison`);
+              });
+            } else {
+              // Original processing for non-AGENT probes
+              state.isAgentProbe = false;
+              Object.values(groups).forEach(agentGroup => {
+                Object.entries(agentGroup).forEach(([agentId, typeMap]) => {
+                  Object.entries(typeMap as Record<string, ProbeData[]>).forEach(([type, entries]) => {
+                    entries.forEach(entry => {
+                      addProbeDataUnique(state.probeData, entry);
+                      switch (type) {
+                        case 'PING':
+                          addProbeDataUnique(state.pingData, entry);
+                          break;
+                        case 'MTR':
+                          addProbeDataUnique(state.mtrData, entry);
+                          break;
+                        case 'TRAFFICSIM':
+                          addProbeDataUnique(state.trafficSimData, entry);
+                          break;
+                        case 'RPERF':
+                          addProbeDataUnique(state.rperfData, entry);
+                          break;
+                      }
+                    });
                   });
                 });
               });
-            });
 
-            state.ready = true;
-            console.log(`Loaded ${state.mtrData.length} unique MTR entries`);
+              state.ready = true;
+              state.loading = false;
+              console.log(`Loaded ${state.mtrData.length} unique MTR entries`);
+            }
             
             // Also get similar probes for compatibility
             probeService.getSimilarProbes(checkId).then(res => {
@@ -424,6 +533,9 @@ function reloadData(checkId: string) {
         });
       });
     });
+  }).catch(() => {
+    state.loading = false;
+    state.ready = false;
   });
 }
 
@@ -467,8 +579,11 @@ function handleLegacyDataLoading(checkId: string) {
     
     // Log when all data is loaded
     Promise.all(loadPromises).then(() => {
+      state.loading = false;
       console.log(`Legacy load complete: ${state.mtrData.length} unique MTR entries`);
     });
+  }).catch(() => {
+    state.loading = false;
   });
 }
 
@@ -543,7 +658,7 @@ watch(() => state.timeRange, (newRange) => {
 </script>
 
 <template>
-  <div v-if="state.ready" class="container-fluid">
+  <div class="container-fluid">
     <Title
         :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
         :title="state.title"
@@ -552,7 +667,7 @@ watch(() => state.timeRange, (newRange) => {
         <VueDatePicker v-model="state.timeRange" :partial-range="false" range/>
       </div>
     </Title>
-
+    <div v-if="state.ready" >
     <!-- Summary Card (from AgentProbe) -->
     <div class="card mb-3" v-if="state.summary.totalDataPoints > 0">
       <div class="card-body">
@@ -578,17 +693,186 @@ watch(() => state.timeRange, (newRange) => {
     </div>
 
     <div class="row">
-      <!-- Ping/Latency Graph -->
+      <!-- Agent Probe Comparison View -->
+      <div v-if="state.isAgentProbe && state.agentPairData.length > 0" class="col-12">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Agent-to-Agent Monitoring Comparison</h5>
+            <p class="card-text">Bidirectional monitoring data between agent pairs</p>
+            
+            <!-- Tabs for different agent pairs -->
+            <ul class="nav nav-tabs" role="tablist">
+              <li v-for="(pair, index) in state.agentPairData" :key="`tab-${index}`" class="nav-item" role="presentation">
+                <button 
+                  :class="['nav-link', index === 0 ? 'active' : '']"
+                  :id="`pair-tab-${index}`"
+                  :data-bs-target="`#pair-content-${index}`"
+                  data-bs-toggle="tab"
+                  type="button"
+                  role="tab"
+                  @click="onTabChange(index)">
+                  {{ pair.sourceAgentName }} → {{ pair.targetAgentName }}
+                </button>
+              </li>
+            </ul>
+            
+            <!-- Tab content for each agent pair -->
+            <div class="tab-content mt-3">
+              <div v-for="(pair, index) in state.agentPairData" 
+                   :key="`content-${index}`"
+                   :id="`pair-content-${index}`"
+                   :class="['tab-pane', 'fade', index === 0 ? 'show active' : '']"
+                   role="tabpanel">
+                
+                <!-- Agent Pair Information -->
+                <div class="alert alert-info">
+                  <strong>Source Agent:</strong> {{ pair.sourceAgentName }} ({{ pair.sourceAgentId }})<br>
+                  <strong>Target Agent:</strong> {{ pair.targetAgentName }} ({{ pair.targetAgentId }})
+                </div>
+                
+                <div class="row">
+                  <!-- Ping Data for this pair -->
+                  <div v-if="pair.pingData.length > 0" class="col-lg-6 mb-3">
+                    <div class="card h-100">
+                      <div class="card-header">
+                        <h6 class="mb-0">Latency ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body">
+                        <LatencyGraph :pingResults="transformPingDataMulti(pair.pingData)" />
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="containsProbeType('PING')" class="col-lg-6 mb-3">
+                    <div class="card h-100">
+                      <div class="card-header">
+                        <h6 class="mb-0">Latency ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body d-flex align-items-center justify-content-center text-muted">
+                        <div class="text-center">
+                          <i class="bi bi-info-circle fs-1 mb-2"></i>
+                          <p>No latency data available for this direction</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Traffic Sim Data for this pair -->
+                  <div v-if="pair.trafficSimData.length > 0" class="col-lg-6 mb-3">
+                    <div class="card h-100">
+                      <div class="card-header">
+                        <h6 class="mb-0">Simulated Traffic ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body">
+                        <TrafficSimGraph :traffic-results="transformToTrafficSimResult(pair.trafficSimData)" />
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="containsProbeType('TRAFFICSIM')" class="col-lg-6 mb-3">
+                    <div class="card h-100">
+                      <div class="card-header">
+                        <h6 class="mb-0">Simulated Traffic ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body d-flex align-items-center justify-content-center text-muted">
+                        <div class="text-center">
+                          <i class="bi bi-info-circle fs-1 mb-2"></i>
+                          <p>No traffic simulation data available for this direction</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- MTR Data for this pair -->
+                  <div v-if="pair.mtrData.length > 0" class="col-12">
+                    <div class="card">
+                      <div class="card-header">
+                        <h6 class="mb-0">Traceroutes ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body">
+                        <!-- Key to force re-render on tab change -->
+                        <NetworkMap 
+                          :key="`mtr-map-${index}-${activeTabIndex}`"
+                          :mtrResults="transformMtrDataMulti(pair.mtrData)" 
+                        />
+                        <div :id="`mtrAccordion-${index}`" class="accordion mt-3">
+                          <div v-for="(mtr, mtrIndex) in pair.mtrData" :key="`${mtr.id}-${index}-${mtrIndex}`">
+                            <div class="accordion-item">
+                              <h2 :id="`heading-${index}-${mtr.id}`" class="accordion-header">
+                                <button 
+                                  :aria-controls="`collapse-${index}-${mtr.id}`" 
+                                  :aria-expanded="false"
+                                  :data-bs-target="`#collapse-${index}-${mtr.id}`"
+                                  class="accordion-button collapsed" 
+                                  data-bs-toggle="collapse" 
+                                  type="button">
+                                  {{ transformMtrData((mtr as ProbeData).data).stopTimestamp }}
+                                  <span v-if="(mtr as ProbeData).triggered" class="badge bg-dark ms-2">TRIGGERED</span>
+                                </button>
+                              </h2>
+                              <div 
+                                :id="`collapse-${index}-${mtr.id}`" 
+                                :aria-labelledby="`heading-${index}-${mtr.id}`"
+                                :data-bs-parent="`#mtrAccordion-${index}`"
+                                class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                  <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="containsProbeType('MTR')" class="col-12">
+                    <div class="card">
+                      <div class="card-header">
+                        <h6 class="mb-0">Traceroutes ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
+                      </div>
+                      <div class="card-body d-flex align-items-center justify-content-center text-muted" style="min-height: 200px;">
+                        <div class="text-center">
+                          <i class="bi bi-info-circle fs-1 mb-2"></i>
+                          <p>No traceroute data available for this direction</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- No data state for agent probes -->
+      <div v-else-if="state.isAgentProbe && !state.loading && state.agentPairData.length === 0" class="col-12">
+        <div class="card mb-3">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+            <h5 class="text-muted">No Agent-to-Agent Data Available</h5>
+            <p class="text-muted">No monitoring data found for the selected time range. Try adjusting the date range.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Original probe views for non-AGENT probes -->
+      <template v-if="!state.isAgentProbe">
+        <!-- Ping/Latency Graph -->
       <div class="col-sm-12" v-if="containsProbeType('PING')">
         <div class="card mb-3">
           <div class="card-body">
             <h5 class="card-title">Latency</h5>
             <p class="card-text">displays the stats associated with latency</p>
-            <div v-if="state.pingData.length <= 0">
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
+            <div v-if="state.loading && state.pingData.length === 0" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
               </div>
+              <h3 class="mt-3 text-muted">Loading latency data...</h3>
+              <p class="text-muted">Please wait while we fetch the data</p>
+            </div>
+            <div v-else-if="!state.loading && state.pingData.length === 0" class="text-center py-5">
+              <i class="bi bi-graph-down fs-1 text-muted mb-3"></i>
+              <h5 class="text-muted">No Latency Data Available</h5>
+              <p class="text-muted">No ping data found for the selected time range</p>
             </div>
             <div v-else>
               <LatencyGraph :pingResults="transformPingDataMulti(state.pingData)" />
@@ -603,11 +887,17 @@ watch(() => state.timeRange, (newRange) => {
           <div class="card-body">
             <h5 class="card-title">Simulated Traffic</h5>
             <p class="card-text">displays the stats for simulated traffic</p>
-            <div v-if="state.trafficSimData.length <= 0">
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
+            <div v-if="state.loading && state.trafficSimData.length === 0" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
               </div>
+              <h3 class="mt-3 text-muted">Loading traffic simulation data...</h3>
+              <p class="text-muted">Please wait while we fetch the data</p>
+            </div>
+            <div v-else-if="!state.loading && state.trafficSimData.length === 0" class="text-center py-5">
+              <i class="bi bi-broadcast fs-1 text-muted mb-3"></i>
+              <h5 class="text-muted">No Traffic Simulation Data Available</h5>
+              <p class="text-muted">No traffic simulation data found for the selected time range</p>
             </div>
             <div v-else>
               <TrafficSimGraph :traffic-results="transformToTrafficSimResult(state.trafficSimData)" />
@@ -616,36 +906,23 @@ watch(() => state.timeRange, (newRange) => {
         </div>
       </div>
 
-      <!-- RPerf Graph (commented out in original) -->
-      <!--<div class="col-sm-12" v-if="containsProbeType('RPERF')">
-        <div class="card mb-3">
-          <div class="card-body">
-            <h5 class="card-title">RPerf Traffic</h5>
-            <p class="card-text">displays the stats for rperf traffic</p>
-            <div v-if="state.rperfData.length <= 0">
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
-              </div>
-            </div>
-            <div v-else>
-              <RperfGraph :rperfResults="transformToRPerfResults(state.rperfData)"/>
-            </div>
-          </div>
-        </div>
-      </div>-->
-
       <!-- MTR Map and Table -->
       <div class="col-sm-12" v-if="containsProbeType('MTR')">
         <div class="card mb-3">
           <div class="card-body">
             <h5 class="card-title">Traceroutes</h5>
             <p class="card-text">view the recent trace routes for the selected period of time</p>
-            <div v-if="state.mtrData.length <= 0">
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
+            <div v-if="state.loading && state.mtrData.length === 0" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
               </div>
+              <h3 class="mt-3 text-muted">Loading traceroute data...</h3>
+              <p class="text-muted">Please wait while we fetch the data</p>
+            </div>
+            <div v-else-if="!state.loading && state.mtrData.length === 0" class="text-center py-5">
+              <i class="bi bi-diagram-3 fs-1 text-muted mb-3"></i>
+              <h5 class="text-muted">No Traceroute Data Available</h5>
+              <p class="text-muted">No MTR data found for the selected time range</p>
             </div>
             <div v-else>
               <NetworkMap :mtrResults="transformMtrDataMulti(state.mtrData)" />
@@ -674,8 +951,34 @@ watch(() => state.timeRange, (newRange) => {
           </div>
         </div>
       </div>
+      </template>
     </div>
   </div>
+  <!-- Loading state for entire page -->
+  <div v-else-if="state.loading" class="container-fluid">
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+      <div class="text-center">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <h3 class="text-muted">Loading probe data...</h3>
+        <p class="text-muted">Fetching monitoring information</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Error state -->
+  <div v-else class="container-fluid">
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+      <div class="text-center">
+        <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3"></i>
+        <h3 class="text-danger">Error Loading Data</h3>
+        <p class="text-muted">Failed to load probe information. Please try again.</p>
+        <button class="btn btn-primary" @click="location.reload()">Reload Page</button>
+      </div>
+    </div>
+  </div>
+</div>
 </template>
 
 <style lang="scss" scoped>
@@ -692,5 +995,19 @@ watch(() => state.timeRange, (newRange) => {
   grid-template-columns: repeat(6, 1fr);
   grid-template-rows: repeat(12, minmax(8rem, 1fr));
   grid-gap: 0.5rem;
+}
+
+/* Loading spinner animation */
+.spinner-border {
+  animation: spinner-border .75s linear infinite;
+}
+
+/* Bootstrap Icons support (if not already included) */
+.bi::before {
+  display: inline-block;
+  content: "";
+  vertical-align: -.125em;
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
 }
 </style>

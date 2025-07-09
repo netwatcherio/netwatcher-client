@@ -125,7 +125,7 @@ function probeTitle(probeKey: string): string {
                 </td>
 
                 <td class="px-0 text-end px-3">
-                  <router-link v-if="!(group.type == 'SYSINFO' || group.type == 'NETINFO') && !(group.type == 'RPERF' && group.config.server)" :to="`/probes/${group.id}/delete`" class="">
+                  <router-link v-if="!(group.type == 'SYSINFO' || group.type == 'NETINFO') && !(group.type == 'RPERF' && group.config.server)" :to="`/probe/${group.id}/delete`" class="">
                     <i class="fa-solid fa-up-right-from-square"></i> remove
                   </router-link>
                 </td>

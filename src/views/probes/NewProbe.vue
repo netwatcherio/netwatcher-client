@@ -1,363 +1,495 @@
 <script lang="ts" setup>
-
-import {onMounted, reactive} from "vue";
-import type {AgentGroup, Probe, ProbeConfig, ProbeTarget, ProbeType, SelectOption, Site} from "@/types";
-import {Agent} from "@/types";
+import { onMounted, reactive, computed, watch } from "vue";
+import type { AgentGroup, Probe, ProbeConfig, ProbeTarget, ProbeType, SelectOption, Site } from "@/types";
+import { Agent } from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import probeService from "@/services/probeService";
 import siteService from "@/services/siteService";
 
-let state = reactive({
+interface ProbeState {
+  site: Site;
+  ready: boolean;
+  loading: boolean;
+  agent: Agent;
+  selected: SelectOption;
+  options: SelectOption[];
+  probe: Probe;
+  probeConfig: ProbeConfig;
+  probeTarget: ProbeTarget;
+  targetGroup: boolean;
+  agentGroupSelected: AgentGroup[];
+  agents: Agent[];
+  customServer: boolean;
+  targetAgent: boolean;
+  targetAgentSelected: Agent | null;
+  validAgents: Agent[];
+  existingProbes: Probe[];
+  duplicateWarning: string;
+  errors: string[];
+}
+
+const state = reactive<ProbeState>({
   site: {} as Site,
   ready: false,
+  loading: false,
   agent: {} as Agent,
   selected: {} as SelectOption,
-  options: [] as SelectOption[],
+  options: [],
   probe: {} as Probe,
   probeConfig: {} as ProbeConfig,
   probeTarget: {} as ProbeTarget,
   targetGroup: false,
-  agentGroupSelected: [] as AgentGroup[],
-  agents: [] as Agent[],
+  agentGroupSelected: [],
+  agents: [],
   customServer: false,
   targetAgent: true,
-  targetAgentSelected: {} as Agent,
-  validAgents: [] as Agent[]
-})
+  targetAgentSelected: null,
+  validAgents: [],
+  existingProbes: [],
+  duplicateWarning: "",
+  errors: []
+});
 
-onMounted(() => {
-  let id = router.currentRoute.value.params["idParam"] as string
-  if (!id) return
+const router = core.router();
+
+// Computed properties
+const showTargetAgentOption = computed(() => {
+  const validTypes = ['MTR', 'PING', 'RPERF', 'TRAFFICSIM', 'AGENT'];
+  return state.selected.value && validTypes.includes(state.selected.value) && state.agents.length >= 1;
+});
+
+const showTargetInput = computed(() => {
+  return !state.targetGroup && !state.targetAgent;
+});
+
+const isValidProbe = computed(() => {
+  if (!state.selected.value) return false;
+
+  if (state.targetAgent && !state.targetAgentSelected) return false;
+
+  if (state.targetGroup && state.agentGroupSelected.length === 0) return false;
+
+  if (!state.targetAgent && !state.targetGroup) {
+    if (!state.probeConfig.server && !state.probeTarget.target) return false;
+  }
+
+  return state.duplicateWarning === "";
+});
+
+// Initialize component
+onMounted(async () => {
+  const id = router.currentRoute.value.params["idParam"] as string;
+  if (!id) return;
 
   state.probeConfig = {
     duration: 60,
     count: 60,
     interval: 5,
     server: false,
-  } as ProbeConfig
+  } as ProbeConfig;
+
   state.probeTarget = {
     target: ""
-  } as ProbeTarget
+  } as ProbeTarget;
 
-  agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
-    siteService.getSite(state.agent.site).then(async res => {
-      state.site = res.data as Site
-      console.log(state.agent)
-      /*siteService.getAgentGroups(state.agent.site).then(res => {
-        state.agentGroups = res.data as AgentGroups[]
-        state.ready = true
+  try {
+    // Load agent data
+    const agentRes = await agentService.getAgent(id);
+    state.agent = agentRes.data as Agent;
 
-        console.log(state.agentGroups)
-      })*/
-      agentService.getSiteAgents(state.agent.site).then(res => {
-        if (res.data.length > 0) {
-          const agents = res.data as Agent[];
-          state.ready = true
+    // Load existing probes for duplicate checking
+    const probesRes = await probeService.getAgentProbes(id);
+    state.existingProbes = probesRes.data as Probe[];
 
-          for (let i = 0; i < agents.length; i++) {
-            if (agents[i].id != id) {
-              state.agents.push(agents[i])
-            }
-          }
-        }
-        getValidAgents("TRAFFICSIM")
-      }).catch(res => {
-        alert(res)
-      })
-      // todo get all probes for agents for a site, and check which ones have the trafficsim server enabled
-      // if they have the option, only show valid options for traffic sim server
-    })
-  })
+    // Load site data
+    const siteRes = await siteService.getSite(state.agent.site);
+    state.site = siteRes.data as Site;
 
-  state.options.push({value: "MTR", text: "MTR (My Traceroute)"} as SelectOption)
-  state.options.push({value: "PING", text: "PING (Packet Internet Groper)"} as SelectOption)
-  state.options.push({value: "TRAFFICSIM", text: "Simulated Traffic (UDP)"} as SelectOption)
-  // state.options.push({value: "SPEEDTEST", text: "Speed Test"} as SelectOption)
-  // state.options.push({value: "RPERF", text: "RPERF (UDP)"} as SelectOption)
-})
+    // Load all agents for the site
+    const agentsRes = await agentService.getSiteAgents(state.agent.site);
+    if (agentsRes.data.length > 0) {
+      const agents = agentsRes.data as Agent[];
+      state.agents = agents.filter(a => a.id !== id);
+      state.ready = true;
+    }
 
-const router = core.router()
+    // Initialize probe type options
+    initializeOptions();
 
-function onCreate(response: any) {
-  router.push("/sites")
+  } catch (error) {
+    console.error("Error loading data:", error);
+    state.errors.push("Failed to load agent data");
+  }
+});
+
+// Initialize probe type options
+function initializeOptions() {
+  state.options = [
+    { value: "MTR", text: "MTR (My Traceroute)" },
+    { value: "PING", text: "PING (Packet Internet Groper)" },
+    { value: "TRAFFICSIM", text: "Simulated Traffic (UDP)" },
+    { value: "AGENT", text: "Agent Monitoring" },
+    // { value: "SPEEDTEST", text: "Speed Test" },
+    // { value: "RPERF", text: "RPERF (UDP)" }
+  ];
 }
 
-function onError(response: any) {
-  alert(response)
-}
+// Watch for probe type changes
+watch(() => state.selected.value, async (newType) => {
+  if (newType === 'TRAFFICSIM') {
+    await getValidAgents('TRAFFICSIM');
+  } else if (newType === 'AGENT') {
+    // For AGENT type, all other agents are valid targets
+    state.validAgents = state.agents;
+  }
 
-async function getValidAgents(probeType: ProbeType){
-  let validAgents: Agent[] = [];
+  // Reset target selection when changing probe type
+  state.targetAgentSelected = null;
+  state.duplicateWarning = "";
 
-  console.log("getting valid agents for probe type: " + probeType + "...");
+  // Check for duplicates when type changes
+  if (state.targetAgent && state.targetAgentSelected) {
+    checkForDuplicates();
+  }
+});
 
-  for (let agent of state.agents) {
-    console.log(state.agents);
-    console.log("checking agent: " + agent.id + " for probe type: " + probeType + "...");
-    if (agent.id != state.agent.id) {
-      try {
-        let res = await probeService.getAgentProbes(agent.id);
-        let agentProbes = res.data as Probe[];
-        for (let probe of agentProbes) {
-          console.log(probe);
-          if (probe.type === probeType) {
-            if (probe.type === "TRAFFICSIM" && probe.config.server) {
-              console.log("valid agent: " + agent.id);
-              validAgents.push(agent);
-            } else if (probe.type !== "TRAFFICSIM") {
-              console.log("valid agent: " + agent.id);
-              validAgents.push(agent);
-            }
-          }
+// Watch for target changes to check duplicates
+watch([
+  () => state.targetAgentSelected,
+  () => state.probeTarget.target,
+  () => state.probeConfig.server
+], () => {
+  checkForDuplicates();
+});
+
+// Check for duplicate probes
+function checkForDuplicates() {
+  state.duplicateWarning = "";
+
+  if (!state.selected.value) return;
+
+  const probeType = state.selected.value as ProbeType;
+
+  for (const existingProbe of state.existingProbes) {
+    if (existingProbe.type !== probeType) continue;
+
+    // Check server probes
+    if (state.probeConfig.server && existingProbe.config.server) {
+      if (probeType === 'TRAFFICSIM' || probeType === 'RPERF') {
+        state.duplicateWarning = `A ${probeType} server probe already exists for this agent`;
+        return;
+      }
+    }
+
+    // Check target-based probes
+    if (state.targetAgent && state.targetAgentSelected) {
+      const existingTargets = existingProbe.config.target || [];
+      for (const target of existingTargets) {
+        if (target.agent === state.targetAgentSelected.id) {
+          state.duplicateWarning = `A ${probeType} probe already exists for target agent: ${state.targetAgentSelected.name}`;
+          return;
         }
-      } catch (error) {
-        console.error("Error fetching agent probes: ", error);
+      }
+    }
+
+    // Check custom target probes
+    if (!state.targetAgent && !state.targetGroup && state.probeTarget.target) {
+      const existingTargets = existingProbe.config.target || [];
+      for (const target of existingTargets) {
+        if (target.target === state.probeTarget.target) {
+          state.duplicateWarning = `A ${probeType} probe already exists for target: ${state.probeTarget.target}`;
+          return;
+        }
       }
     }
   }
+}
+
+// Get valid agents for specific probe types
+async function getValidAgents(probeType: ProbeType) {
+  const validAgents: Agent[] = [];
+  state.loading = true;
+
+  console.log(`Getting valid agents for probe type: ${probeType}...`);
+
+  try {
+    for (const agent of state.agents) {
+      if (agent.id === state.agent.id) continue;
+
+      try {
+        const res = await probeService.getAgentProbes(agent.id);
+        const agentProbes = res.data as Probe[];
+
+        // For TRAFFICSIM, only agents with server enabled are valid
+        if (probeType === "TRAFFICSIM") {
+          const hasTrafficSimServer = agentProbes.some(
+              probe => probe.type === "TRAFFICSIM" && probe.config.server
+          );
+          if (hasTrafficSimServer) {
+            validAgents.push(agent);
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching probes for agent ${agent.id}:`, error);
+      }
+    }
+  } finally {
+    state.loading = false;
+  }
 
   state.validAgents = validAgents;
+  console.log(`Found ${validAgents.length} valid agents for ${probeType}`);
 }
 
-function submit() {
+// Create probe
+async function submit() {
+  state.errors = [];
 
-  let id = router.currentRoute.value.params["idParam"] as string
-  if (!id) return
-
-  // build probetarget for if groups are enabled for specific types
-
-
-  if (state.targetGroup && state.agentGroupSelected.length > 0) {
-    // for the selected groups, build a probe with them as the targets
-    let tempTargetGroups = [] as ProbeTarget[]
-    for (let aa of state.agentGroupSelected) {
-      tempTargetGroups.push({group: aa.id} as ProbeTarget)
-    }
-    state.probeConfig.target = tempTargetGroups
-  } else if (state.targetGroup && state.agentGroupSelected.length <= 0) {
-    return
-  } else if (state.targetAgent && state.targetAgentSelected) {
-    // for the selected agent, build a probe with it as the target
-    state.probeConfig.target = [] as ProbeTarget[]
-    state.probeConfig.target.push({agent: state.targetAgentSelected.id} as ProbeTarget)
-  } else {
-    // load default/populated target
-    state.probeConfig.target = [] as ProbeTarget[]
-    state.probeConfig.target.push(state.probeTarget)
+  if (!isValidProbe.value) {
+    state.errors.push("Please fill in all required fields");
+    return;
   }
 
-  if(state.selected.value === 'TRAFFICSIM' && state.targetAgent) {
-    if (state.probeConfig.target.length >= 1) {
-      state.probeConfig.server = false
+  const id = router.currentRoute.value.params["idParam"] as string;
+  if (!id) return;
+
+  state.loading = true;
+
+  try {
+    // Build probe targets
+    if (state.targetGroup && state.agentGroupSelected.length > 0) {
+      // Group targets
+      state.probeConfig.target = state.agentGroupSelected.map(
+          group => ({ group: group.id } as ProbeTarget)
+      );
+    } else if (state.targetAgent && state.targetAgentSelected) {
+      // Agent target
+      state.probeConfig.target = [{ agent: state.targetAgentSelected.id } as ProbeTarget];
+    } else if (!state.probeConfig.server) {
+      // Custom target
+      state.probeConfig.target = [state.probeTarget];
     }
+
+    // Special handling for TRAFFICSIM client mode
+    if (state.selected.value === 'TRAFFICSIM' && state.targetAgent && state.probeConfig.target.length >= 1) {
+      state.probeConfig.server = false;
+    }
+
+    // Set probe configuration
+    state.probe.config = state.probeConfig;
+    state.probe.type = state.selected.value as ProbeType;
+
+    // Create the probe
+    await probeService.createProbe(id, state.probe);
+    router.push(`/agent/${id}`);
+
+  } catch (error) {
+    console.error("Error creating probe:", error);
+    state.errors.push("Failed to create probe. Please try again.");
+  } finally {
+    state.loading = false;
   }
-
-
-  // set probe config as the config
-  state.probe.config = state.probeConfig
-
-  // update type of the probe
-  state.probe.type = state.selected.value as ProbeType
-
-  let send = state.probe
-
-  probeService.createProbe(id, send).then((res) => {
-    router.push(`/agent/${id}`)
-  }).catch(err => {
-    console.log(err)
-  })
 }
 
-
-// Target: 10.0111
-//
+// Helper function to get available agents based on probe type
+const availableAgentsForSelection = computed(() => {
+  if (state.selected.value === 'TRAFFICSIM') {
+    return state.validAgents;
+  } else if (state.selected.value === 'AGENT') {
+    return state.agents;
+  }
+  return state.agents;
+});
 </script>
 
 <template>
   <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
-        :subtitle="`create a new probe for an agent '${state.site.name}'`"
-        title="new probe"></Title>
+        :history="[
+          {title: 'workspaces', link: '/workspaces'},
+          {title: state.site.name, link: `/workspace/${state.site.id}`},
+          {title: state.agent.name, link: `/agent/${state.agent.id}`}
+        ]"
+        :subtitle="`create a new probe for agent '${state.agent.name}'`"
+        title="New Probe">
+    </Title>
+
     <div class="row">
       <div class="col-12">
         <div class="card">
           <div class="form-horizontal">
             <div class="card-body">
+              <!-- Error Messages -->
+              <div v-if="state.errors.length > 0" class="alert alert-danger mb-3">
+                <div v-for="(error, index) in state.errors" :key="index">{{ error }}</div>
+              </div>
+
+              <!-- Duplicate Warning -->
+              <div v-if="state.duplicateWarning" class="alert alert-warning mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>{{ state.duplicateWarning }}
+              </div>
+
               <div class="row">
+                <!-- Probe Type Selection -->
                 <div class="mb-3 col-lg-8 col-12">
-                  <label class="form-label" for="agentOptions">Probe Types</label>
-                  <select v-model="state.selected" class="form-select">
-                    <option v-for="option in state.options" :value="option">
+                  <label class="form-label" for="probeType">Probe Type</label>
+                  <select
+                      id="probeType"
+                      v-model="state.selected"
+                      class="form-select"
+                      :disabled="state.loading">
+                    <option value="" disabled>Select a probe type</option>
+                    <option v-for="option in state.options" :key="option.value" :value="option">
                       {{ option.text }}
                     </option>
                   </select>
                 </div>
+
+                <!-- Target Options -->
                 <div class="mb-1 col-lg-4 col-8">
                   <br>
-                  <!--                  <div v-if="state.selected.value === 'MTR' || 'PING' || 'RPERF' && state.agentGroups.length > 0">
-                                      <label class="form-label">Use Agent Groups</label>
-                                      <div class="form-check">
-                                        <input type="checkbox" id="useAgentGroups" value="Enable" v-model="state.targetGroup" class="form-check-input">
-                                        <label for="useAgentGroups" class="form-check-label">Enable</label>
-                                      </div>
-                                    </div>-->
-                  <div v-if="state.selected.value == 'MTR' || 'PING' || 'RPERF' && state.agents.length >= 1">
+                  <div v-if="showTargetAgentOption">
                     <label class="form-label">Use Agent as Target</label>
                     <div class="form-check">
-                      <input id="useAgentGroups" v-model="state.targetAgent" class="form-check-input" type="checkbox"
-                             value="Enable">
-                      <label class="form-check-label" for="useAgentGroups">Enable</label>
+                      <input
+                          id="useAgentTarget"
+                          v-model="state.targetAgent"
+                          class="form-check-input"
+                          type="checkbox">
+                      <label class="form-check-label" for="useAgentTarget">Enable</label>
                     </div>
                   </div>
-
-                  <!--                  <div class="mt-3">Selected: <strong>{{ state.selected }}</strong></div>-->
                 </div>
               </div>
+
               <br>
-              <div class="row">
-                <div v-if="state.selected && state.selected.value">
-                  <h5 class="border-bottom pb-2">Options</h5>
-                  <!-- MTR Options -->
-                  <!--                <div v-if="state.targetGroup">
-                                    <div class="mb-3 col-lg-8 col-12">
-                                      <label for="agentGroupOptions" class="form-label">Available Agent Groups</label>
-                                      <select v-model="state.agentGroupSelected" class="form-select" id="agentGroupOptions">
-                                        <option v-for="group in state.agentGroups" :value="group" :key="group.name">
-                                          {{ group.name + " (" + group.description + ")" }}
-                                        </option>
-                                      </select>
-                                      <div class="mt-3">
-                                        Selected:
-                                        <strong>{{ state.agentGroupSelected }}</strong>
-                                      </div>
-                                    </div>
-                                  </div>-->
-                  <div v-if="state.targetAgent && state.selected.value != 'TRAFFICSIM'">
-                    <div class="mb-3 col-lg-8 col-12">
-                      <label class="form-label" for="targetAgentOptions">Available Agents</label>
-                      <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
-                        <option v-for="group in state.agents" :key="group.name" :value="group">
-                          {{ group.name + " (" + group.location + ")" }}
-                        </option>
-                      </select>
-                      <div class="mt-3">
-                        Selected:
-                        <strong>{{ state.targetAgentSelected }}</strong>
-                      </div>
-                    </div>
+
+              <!-- Probe Configuration -->
+              <div v-if="state.selected && state.selected.value" class="row">
+                <h5 class="border-bottom pb-2">Configuration</h5>
+
+                <!-- Agent Selection -->
+                <div v-if="state.targetAgent" class="mb-3 col-lg-8 col-12">
+                  <label class="form-label" for="targetAgent">Target Agent</label>
+                  <select
+                      id="targetAgent"
+                      v-model="state.targetAgentSelected"
+                      class="form-select"
+                      :disabled="state.loading">
+                    <option :value="null" disabled>Select an agent</option>
+                    <option
+                        v-for="agent in availableAgentsForSelection"
+                        :key="agent.id"
+                        :value="agent">
+                      {{ agent.name }} ({{ agent.location || 'No location' }})
+                    </option>
+                  </select>
+                  <small v-if="state.selected.value === 'TRAFFICSIM' && state.validAgents.length === 0" class="text-muted">
+                    No agents with TrafficSim server enabled found
+                  </small>
+                </div>
+
+                <!-- AGENT Probe Options -->
+                <div v-if="state.selected.value === 'AGENT'">
+                  <div class="mb-3">
+                    <p class="text-muted">
+                      Agent monitoring will check the health and connectivity of the selected target agent.
+                    </p>
                   </div>
-                  <div v-else-if="state.targetAgent && state.selected.value == 'TRAFFICSIM'">
-                    <div class="mb-3 col-lg-8 col-12">
-                      <label class="form-label" for="targetAgentOptions">Available Agents</label>
-                      <select id="targetAgentOptions" v-model="state.targetAgentSelected" class="form-select">
-                        <option v-for="group in state.validAgents" :key="(group as Agent).name" :value="group">
-                          {{ (group as Agent).name + " (" + (group as Agent).location + ")" }}
-                        </option>
-                      </select>
-                      <div class="mt-3">
-                        Selected:
-                        <strong>{{ state.targetAgentSelected }}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="state.selected.value === 'TRAFFICSIM'">
-                    <!-- Fields specific to MTR -->
-                    <div v-if="state.probeConfig.server && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div v-if="!state.probeConfig.server  && !state.targetAgent  && !state.targetGroup" class="mb-3">
-                      <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
-                      <div class="form-check">
-                        <input id="useRperfServer" v-model="state.probeConfig.server" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="useRperfServer">Enable</label>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="state.selected.value === 'RPERF'">
-                    <!-- Fields specific to MTR -->
-                    <div v-if="state.probeConfig.server" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Port Listening <code>(eg. 0.0.0.0:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div v-if="!state.targetGroup && !state.targetAgent && state.customServer" class="mb-3">
-                      <label class="form-label" for="rperfTarget">Target <code>(eg. 1.1.1.1:666)</code></label>
-                      <input id="rperfTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <!--                    <div class="mb-3" v-if="state.customRperfServer && !state.targetGroup && !state.targetAgent ">
-                                          <label for="mtrInterval" class="form-label">Interval (minutes)</label>
-                                          <input type="number" id="mtrTarget" v-model="state.probeConfig.interval" class="form-control">
-                                        </div>-->
-                    <div v-if="!state.probeConfig.server && !state.targetGroup  && !state.targetAgent" class="mb-3">
-                      <label class="form-label">Custom Target</label>
-                      <div class="form-check">
-                        <input id="customRperfServer" v-model="state.customServer" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="customRperfServer">Enable</label>
-                      </div>
-                    </div>
-                    <div v-if="!state.customServer  && !state.targetAgent  && !state.targetGroup" class="mb-3">
-                      <label class="form-label">Enable Server (MUST NOT ALREADY HAVE SERVER FOR AGENT #todo)</label>
-                      <div class="form-check">
-                        <input id="useRperfServer" v-model="state.probeConfig.server" class="form-check-input"
-                               type="checkbox"
-                               value="Enable">
-                        <label class="form-check-label" for="useRperfServer">Enable</label>
-                      </div>
+                </div>
+
+                <!-- TRAFFICSIM Options -->
+                <div v-if="state.selected.value === 'TRAFFICSIM'">
+                  <div v-if="!state.targetAgent && !state.targetGroup" class="mb-3">
+                    <label class="form-label">Enable Server Mode</label>
+                    <div class="form-check">
+                      <input
+                          id="trafficSimServer"
+                          v-model="state.probeConfig.server"
+                          class="form-check-input"
+                          type="checkbox"
+                          :disabled="state.existingProbes.some(p => p.type === 'TRAFFICSIM' && p.config.server)">
+                      <label class="form-check-label" for="trafficSimServer">
+                        Enable (only one server per agent allowed)
+                      </label>
                     </div>
                   </div>
 
-                  <!-- PING Options -->
-                  <div v-if="state.selected.value === 'PING'">
-                    <!-- Fields specific to PING -->
-                    <div v-if="!state.targetGroup && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="pingTarget">Target <code>(eg. 1.1.1.1)</code></label>
-                      <input id="pingTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <!--                    <div class="mb-3">
-                                          <label for="pingInterval" class="form-label">Interval (minutes)</label>
-                                          <input type="number" id="pingInterval" v-model="state.probeConfig.interval" class="form-control">
-                                        </div>-->
-                    <!--                    <div class="mb-3">
-                                          <label for="pingDuration" class="form-label">Duration (seconds)</label>
-                                          <input type="number" id="pingDuration" v-model="state.probeConfig.duration" class="form-control">
-                                        </div>-->
+                  <div v-if="state.probeConfig.server && showTargetInput" class="mb-3">
+                    <label class="form-label" for="trafficSimPort">
+                      Listening Address <code>(e.g., 0.0.0.0:5000)</code>
+                    </label>
+                    <input
+                        id="trafficSimPort"
+                        v-model="state.probeTarget.target"
+                        class="form-control"
+                        type="text"
+                        placeholder="0.0.0.0:5000">
                   </div>
+                </div>
 
-                  <!-- SPEEDTEST Options -->
-                  <div v-if="state.selected.value === 'SPEEDTEST'">
-                    <!-- Fields specific to SPEEDTEST -->
+                <!-- PING Options -->
+                <div v-if="state.selected.value === 'PING'">
+                  <div v-if="showTargetInput" class="mb-3">
+                    <label class="form-label" for="pingTarget">
+                      Target <code>(e.g., 1.1.1.1 or google.com)</code>
+                    </label>
+                    <input
+                        id="pingTarget"
+                        v-model="state.probeTarget.target"
+                        class="form-control"
+                        type="text"
+                        placeholder="1.1.1.1">
                   </div>
+                </div>
 
-                  <!-- MTR Options -->
-                  <div v-if="state.selected.value === 'MTR'">
-                    <!-- Fields specific to RPERF -->
-                    <div v-if="!state.targetGroup && !state.targetAgent" class="mb-3">
-                      <label class="form-label" for="mtrTarget">Target <code>(eg. 1.1.1.1)</code></label>
-                      <input id="pingTarget" v-model="state.probeTarget.target" class="form-control" type="text">
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label" for="mtrInterval">Interval (minutes)</label>
-                      <input id="mtrInterval" v-model="state.probeConfig.interval" class="form-control" type="number">
-                    </div>
+                <!-- MTR Options -->
+                <div v-if="state.selected.value === 'MTR'">
+                  <div v-if="showTargetInput" class="mb-3">
+                    <label class="form-label" for="mtrTarget">
+                      Target <code>(e.g., 1.1.1.1 or google.com)</code>
+                    </label>
+                    <input
+                        id="mtrTarget"
+                        v-model="state.probeTarget.target"
+                        class="form-control"
+                        type="text"
+                        placeholder="1.1.1.1">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="mtrInterval">Interval (minutes)</label>
+                    <input
+                        id="mtrInterval"
+                        v-model.number="state.probeConfig.interval"
+                        class="form-control"
+                        type="number"
+                        min="1"
+                        max="60">
                   </div>
                 </div>
               </div>
             </div>
-            <div class="p-3">
-              <div class="form-group mb-0 text-end">
-                <button class="
-                         btn btn-primary px-4" type="submit" @click="submit">
-                  Create Probe
-                </button>
 
+            <!-- Form Actions -->
+            <div class="card-footer">
+              <div class="d-flex justify-content-between align-items-center">
+                <router-link
+                    :to="`/agent/${state.agent.id}`"
+                    class="btn btn-secondary">
+                  Cancel
+                </router-link>
+                <button
+                    class="btn btn-primary px-4"
+                    type="submit"
+                    @click="submit"
+                    :disabled="!isValidProbe || state.loading">
+                  <span v-if="state.loading">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Creating...
+                  </span>
+                  <span v-else>Create Probe</span>
+                </button>
               </div>
             </div>
           </div>
@@ -367,6 +499,27 @@ function submit() {
   </div>
 </template>
 
-<style>
+<style scoped>
+.form-label {
+  font-weight: 500;
+}
 
+.card-footer {
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  padding: 1rem 1.5rem;
+}
+
+.alert {
+  border-radius: 0.375rem;
+}
+
+code {
+  color: #e83e8c;
+  font-size: 0.875em;
+}
+
+.text-muted {
+  font-size: 0.875rem;
+}
 </style>
