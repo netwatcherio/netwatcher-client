@@ -13,7 +13,7 @@ const state = reactive({
 });
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   agentService.getAgent(id).then(res => {
@@ -37,7 +37,7 @@ function onError(error: any) {
 function submit() {
   if (state.agent.id) {
     agentService.updateAgent(state.agent).then(() => {
-      router.push(`/sites/${state.site.id}`);
+      router.push(`/workspace/${state.site.id}`);
     }).catch(onError);
   }
 }
@@ -48,7 +48,7 @@ function submit() {
   <div class="container-fluid" v-if="state.ready">
     <Title :title="`edit agent`"
            :subtitle="`update agent details`"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` }]">
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` }]">
       <router-link :to="`/agents/${state.agent.id}/delete`" active-class="active" class="btn btn-danger"><i class="fa-solid fa-trash"></i>&nbsp;delete</router-link>
     </Title>
     <div class="row">

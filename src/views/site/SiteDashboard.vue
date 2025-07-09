@@ -65,7 +65,7 @@ function getOnlineStatus(agent: Agent) {
     <div class="site-grid" v-if="state.ready">
       <AgentCard
           v-for="agent in state.agents.sort((a, b) => (getOnlineStatus(b) - getOnlineStatus(a)))"
-          :title="agent.name + (agent.version?' <code> v' + agent.version + '</code>':'')"
+          :title="agent.name + (agent.version?' <code>' + agent.version + '</code>':'')"
           :subtitle="agent.location"
           :icon="getOnlineStatus(agent)?'fa-solid fa-circle-check text-success fa-fw':'fa-solid fa-circle-xmark text-danger fa-fw'"
       >

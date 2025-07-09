@@ -31,14 +31,14 @@ export default {
             component: DeleteAgent,
         },
         {
-            path: '/agent/:idParam/edit-probes',
-            name: 'editProbes',
-            component: ProbesEdit,
+            path: '/agent/:idParam/edit',
+            name: 'agentEdit',
+            component: EditAgent,
         },
         {
-            path: '/agent/:idParam/edit',
-            name: 'editAgent',
-            component: EditAgent,
+            path: '/agent/:idParam/probes',
+            name: 'editProbes',
+            component: ProbesEdit,
         },
         {
             path: '/agent/:idParam/deactivate',
