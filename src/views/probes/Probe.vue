@@ -325,6 +325,16 @@ function generateTable(probeData: ProbeData) {
   return table.toString();
 }
 
+// Helper function to add probe data without duplicates
+function addProbeDataUnique(targetArray: ProbeData[], newData: ProbeData) {
+  const exists = targetArray.some(item => item.id === newData.id);
+  if (!exists) {
+    targetArray.push(newData);
+  } else {
+    console.log(`Duplicate probe data detected and skipped: ${newData.id}`);
+  }
+}
+
 // Enhanced reload using grouped API response (from AgentProbe)
 function reloadData(checkId: string) {
   state.pingData = [];
@@ -376,19 +386,19 @@ function reloadData(checkId: string) {
               Object.entries(agentGroup).forEach(([agentId, typeMap]) => {
                 Object.entries(typeMap as Record<string, ProbeData[]>).forEach(([type, entries]) => {
                   entries.forEach(entry => {
-                    state.probeData.push(entry);
+                    addProbeDataUnique(state.probeData, entry);
                     switch (type) {
                       case 'PING':
-                        state.pingData.push(entry);
+                        addProbeDataUnique(state.pingData, entry);
                         break;
                       case 'MTR':
-                        state.mtrData.push(entry);
+                        addProbeDataUnique(state.mtrData, entry);
                         break;
                       case 'TRAFFICSIM':
-                        state.trafficSimData.push(entry);
+                        addProbeDataUnique(state.trafficSimData, entry);
                         break;
                       case 'RPERF':
-                        state.rperfData.push(entry);
+                        addProbeDataUnique(state.rperfData, entry);
                         break;
                     }
                   });
@@ -397,6 +407,7 @@ function reloadData(checkId: string) {
             });
 
             state.ready = true;
+            console.log(`Loaded ${state.mtrData.length} unique MTR entries`);
             
             // Also get similar probes for compatibility
             probeService.getSimilarProbes(checkId).then(res => {
@@ -422,34 +433,42 @@ function handleLegacyDataLoading(checkId: string) {
   
   probeService.getSimilarProbes(checkId).then(res => {
     state.similarProbes = res.data as Probe[];
+    let loadPromises: Promise<any>[] = [];
+    
     for (let p of state.similarProbes) {
       console.log(p);
-      probeService.getProbeData(p.id, {
+      const promise = probeService.getProbeData(p.id, {
         recent: false,
         limit: 5000,
         startTimestamp: state.timeRange[0],
         endTimestamp: state.timeRange[1]
       } as ProbeDataRequest).then(res => {
         for (let d of res.data as ProbeData[]) {
-          state.probeData.push(d);
+          addProbeDataUnique(state.probeData, d);
 
           let pprober = getProbe(d.probe) as Probe;
 
           if (pprober.type == "PING") {
-            state.pingData.push(d);
+            addProbeDataUnique(state.pingData, d);
           }
           if (pprober.type == "MTR") {
-            state.mtrData.push(d);
+            addProbeDataUnique(state.mtrData, d);
           }
           if (pprober.type == "RPERF" && !pprober.config.server) {
-            state.rperfData.push(d);
+            addProbeDataUnique(state.rperfData, d);
           }
           if (pprober.type == "TRAFFICSIM") {
-            state.trafficSimData.push(d);
+            addProbeDataUnique(state.trafficSimData, d);
           }
         }
       });
+      loadPromises.push(promise);
     }
+    
+    // Log when all data is loaded
+    Promise.all(loadPromises).then(() => {
+      console.log(`Legacy load complete: ${state.mtrData.length} unique MTR entries`);
+    });
   });
 }
 
@@ -631,7 +650,7 @@ watch(() => state.timeRange, (newRange) => {
             <div v-else>
               <NetworkMap :mtrResults="transformMtrDataMulti(state.mtrData)" />
               <div id="mtrAccordion" class="accordion">
-                <div v-for="mtr in state.mtrData" :key="mtr.id">
+                <div v-for="(mtr, index) in state.mtrData" :key="`${mtr.id}-${index}`">
                   <div class="accordion-item">
                     <h2 :id="'heading' + mtr.id" class="accordion-header">
                       <button :aria-controls="'collapse' + mtr.id" :aria-expanded="false"
@@ -643,7 +662,7 @@ watch(() => state.timeRange, (newRange) => {
                     </h2>
                     <div :id="'collapse' + mtr.id" :aria-labelledby="'heading' + mtr.id"
                          class="accordion-collapse collapse"
-                         data-bs-parent="#accordionExample">
+                         data-bs-parent="#mtrAccordion">
                       <div class="accordion-body">
                         <pre style="text-align: center">{{ generateTable(mtr as ProbeData) }}</pre>
                       </div>

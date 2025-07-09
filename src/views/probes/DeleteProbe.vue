@@ -36,7 +36,7 @@ onMounted(() => {
 const router = core.router()
 
 function onCreate(response: any) {
-  router.push(`/agent/${state.agent.id}/edit-probes`)
+  router.push(`/agent/${state.agent.id}/probes`)
 }
 
 function onError(response: any) {
@@ -45,7 +45,7 @@ function onError(response: any) {
 
 function submit() {
   probeService.deleteProbe(state.probe.id).then((res) => {
-    router.push(`/agent/${state.agent.id}/edit-probes`)
+    router.push(`/agent/${state.agent.id}/probes`)
     console.log(res)
   }).catch(err => {
     console.log(err)
@@ -53,7 +53,7 @@ function submit() {
 }
 
 function cancel() {
-  router.push(`/agent/${state.agent.id}/edit-probes`)
+  router.push(`/agent/${state.agent.id}/probes`)
 }
 
 </script>
