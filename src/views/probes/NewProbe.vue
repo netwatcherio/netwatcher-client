@@ -28,6 +28,8 @@ interface ProbeState {
   existingProbes: Probe[];
   duplicateWarning: string;
   errors: string[];
+  hostInput: string;
+  portInput: string;
 }
 
 const state = reactive<ProbeState>({
@@ -49,7 +51,9 @@ const state = reactive<ProbeState>({
   validAgents: [],
   existingProbes: [],
   duplicateWarning: "",
-  errors: []
+  errors: [],
+  hostInput: "0.0.0.0",
+  portInput: "5000"
 });
 
 const router = core.router();
@@ -77,6 +81,16 @@ const isValidProbe = computed(() => {
 
   return state.duplicateWarning === "";
 });
+
+// Probe type descriptions
+const probeDescriptions = {
+  AGENT: "Monitor the health, connectivity, and performance of other agents in your network",
+  MTR: "Combine traceroute and ping to diagnose network paths and identify packet loss",
+  PING: "Test basic connectivity and measure round-trip time to a target",
+  TRAFFICSIM: "Generate simulated UDP traffic to test network throughput and performance",
+  SPEEDTEST: "Measure bandwidth performance between locations",
+  RPERF: "Advanced UDP performance testing with detailed metrics"
+};
 
 // Initialize component
 onMounted(async () => {
@@ -124,15 +138,15 @@ onMounted(async () => {
   }
 });
 
-// Initialize probe type options
+// Initialize probe type options with AGENT as preferred
 function initializeOptions() {
   state.options = [
-    { value: "MTR", text: "MTR (My Traceroute)" },
-    { value: "PING", text: "PING (Packet Internet Groper)" },
-    { value: "TRAFFICSIM", text: "Simulated Traffic (UDP)" },
-    { value: "AGENT", text: "Agent Monitoring" },
-    // { value: "SPEEDTEST", text: "Speed Test" },
-    // { value: "RPERF", text: "RPERF (UDP)" }
+    { value: "AGENT", text: "Agent Monitoring", icon: "fa-heartbeat", recommended: true },
+    { value: "PING", text: "PING (Packet Internet Groper)", icon: "fa-signal" },
+    { value: "MTR", text: "MTR (My Traceroute)", icon: "fa-route" },
+    { value: "TRAFFICSIM", text: "Simulated Traffic (UDP)", icon: "fa-stream" },
+    // { value: "SPEEDTEST", text: "Speed Test", icon: "fa-tachometer-alt" },
+    // { value: "RPERF", text: "RPERF (UDP)", icon: "fa-chart-line" }
   ];
 }
 
@@ -152,6 +166,13 @@ watch(() => state.selected.value, async (newType) => {
   // Check for duplicates when type changes
   if (state.targetAgent && state.targetAgentSelected) {
     checkForDuplicates();
+  }
+});
+
+// Watch for host/port changes to update target
+watch([() => state.hostInput, () => state.portInput], () => {
+  if (state.hostInput && state.portInput) {
+    state.probeTarget.target = `${state.hostInput}:${state.portInput}`;
   }
 });
 
@@ -318,148 +339,222 @@ const availableAgentsForSelection = computed(() => {
 
     <div class="row">
       <div class="col-12">
-        <div class="card">
-          <div class="form-horizontal">
-            <div class="card-body">
-              <!-- Error Messages -->
-              <div v-if="state.errors.length > 0" class="alert alert-danger mb-3">
-                <div v-for="(error, index) in state.errors" :key="index">{{ error }}</div>
+        <!-- Error Messages -->
+        <div v-if="state.errors.length > 0" class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <div>
+              <div v-for="(error, index) in state.errors" :key="index">{{ error }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Duplicate Warning -->
+        <div v-if="state.duplicateWarning" class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span>{{ state.duplicateWarning }}</span>
+          </div>
+        </div>
+
+        <!-- Probe Type Selection Card -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-list-check me-2"></i>Select Probe Type</h5>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div 
+                v-for="option in state.options" 
+                :key="option.value"
+                class="col-lg-6 col-xl-4">
+                <div 
+                  class="probe-type-card"
+                  :class="{ 
+                    'selected': state.selected.value === option.value,
+                    'recommended': option.recommended
+                  }"
+                  @click="state.selected = option">
+                  <div class="probe-type-header">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <div class="d-flex align-items-center">
+                        <i :class="`fas ${option.icon} probe-icon`"></i>
+                        <h6 class="mb-0">{{ option.text }}</h6>
+                      </div>
+                      <span v-if="option.recommended" class="badge bg-success">Recommended</span>
+                    </div>
+                  </div>
+                  <p class="probe-description mb-0">
+                    {{ probeDescriptions[option.value] || 'No description available' }}
+                  </p>
+                  <div class="selection-indicator">
+                    <i class="fas fa-check-circle"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Card -->
+        <div v-if="state.selected && state.selected.value" class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i :class="`fas ${state.selected.icon} me-2`"></i>
+              {{ state.selected.text }} Configuration
+            </h5>
+          </div>
+          <div class="card-body">
+            <!-- Target Selection -->
+            <div class="configuration-section">
+              <h6 class="section-title">Target Configuration</h6>
+              
+              <!-- Target Mode Toggle (if applicable) -->
+              <div v-if="showTargetAgentOption" class="mb-4">
+                <div class="form-check form-switch">
+                  <input
+                      id="useAgentTarget"
+                      v-model="state.targetAgent"
+                      class="form-check-input"
+                      type="checkbox">
+                  <label class="form-check-label" for="useAgentTarget">
+                    Use Agent as Target
+                    <small class="text-muted d-block">Select another agent as the probe target</small>
+                  </label>
+                </div>
               </div>
 
-              <!-- Duplicate Warning -->
-              <div v-if="state.duplicateWarning" class="alert alert-warning mb-3">
-                <i class="fas fa-exclamation-triangle me-2"></i>{{ state.duplicateWarning }}
+              <!-- Agent Selection -->
+              <div v-if="state.targetAgent" class="mb-4">
+                <label class="form-label fw-semibold" for="targetAgent">
+                  <i class="fas fa-server me-2"></i>Target Agent
+                </label>
+                <select
+                    id="targetAgent"
+                    v-model="state.targetAgentSelected"
+                    class="form-select form-select-lg"
+                    :disabled="state.loading">
+                  <option :value="null" disabled>Select an agent</option>
+                  <option
+                      v-for="agent in availableAgentsForSelection"
+                      :key="agent.id"
+                      :value="agent">
+                    {{ agent.name }} 
+                    <span v-if="agent.location">({{ agent.location }})</span>
+                  </option>
+                </select>
+                <small v-if="state.selected.value === 'TRAFFICSIM' && state.validAgents.length === 0" class="text-warning">
+                  <i class="fas fa-info-circle me-1"></i>No agents with TrafficSim server enabled found
+                </small>
               </div>
 
-              <div class="row">
-                <!-- Probe Type Selection -->
-                <div class="mb-3 col-lg-8 col-12">
-                  <label class="form-label" for="probeType">Probe Type</label>
-                  <select
-                      id="probeType"
-                      v-model="state.selected"
-                      class="form-select"
-                      :disabled="state.loading">
-                    <option value="" disabled>Select a probe type</option>
-                    <option v-for="option in state.options" :key="option.value" :value="option">
-                      {{ option.text }}
-                    </option>
-                  </select>
+              <!-- AGENT Probe Specific Info -->
+              <div v-if="state.selected.value === 'AGENT'" class="info-box mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <div>
+                  <strong>Agent Monitoring</strong> will continuously check the health, connectivity, and performance 
+                  metrics of the selected target agent. This includes uptime, response times, and system resources.
+                </div>
+              </div>
+
+              <!-- TRAFFICSIM Options -->
+              <div v-if="state.selected.value === 'TRAFFICSIM'">
+                <div v-if="!state.targetAgent && !state.targetGroup" class="mb-4">
+                  <div class="form-check form-switch">
+                    <input
+                        id="trafficSimServer"
+                        v-model="state.probeConfig.server"
+                        class="form-check-input"
+                        type="checkbox"
+                        :disabled="state.existingProbes.some(p => p.type === 'TRAFFICSIM' && p.config.server)">
+                    <label class="form-check-label" for="trafficSimServer">
+                      Enable Server Mode
+                      <small class="text-muted d-block">Run as a traffic receiver (only one server per agent allowed)</small>
+                    </label>
+                  </div>
                 </div>
 
-                <!-- Target Options -->
-                <div class="mb-1 col-lg-4 col-8">
-                  <br>
-                  <div v-if="showTargetAgentOption">
-                    <label class="form-label">Use Agent as Target</label>
-                    <div class="form-check">
-                      <input
-                          id="useAgentTarget"
-                          v-model="state.targetAgent"
-                          class="form-check-input"
-                          type="checkbox">
-                      <label class="form-check-label" for="useAgentTarget">Enable</label>
+                <div v-if="state.probeConfig.server && showTargetInput" class="mb-4">
+                  <label class="form-label fw-semibold">
+                    <i class="fas fa-network-wired me-2"></i>Server Listening Configuration
+                  </label>
+                  <div class="host-port-input">
+                    <div class="row g-3">
+                      <div class="col-md-8">
+                        <label class="form-label text-muted small">Host / IP Address</label>
+                        <div class="input-group">
+                          <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                          <input
+                              v-model="state.hostInput"
+                              class="form-control"
+                              type="text"
+                              placeholder="0.0.0.0"
+                              aria-label="Host address">
+                        </div>
+                        <small class="text-muted">Use 0.0.0.0 to listen on all interfaces</small>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label text-muted small">Port</label>
+                        <div class="input-group">
+                          <span class="input-group-text"><i class="fas fa-ethernet"></i></span>
+                          <input
+                              v-model="state.portInput"
+                              class="form-control"
+                              type="number"
+                              min="1"
+                              max="65535"
+                              placeholder="5000"
+                              aria-label="Port number">
+                        </div>
+                        <small class="text-muted">Range: 1-65535</small>
+                      </div>
+                    </div>
+                    <div class="mt-2">
+                      <code class="text-primary">{{ state.hostInput || '0.0.0.0' }}:{{ state.portInput || '5000' }}</code>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <br>
-
-              <!-- Probe Configuration -->
-              <div v-if="state.selected && state.selected.value" class="row">
-                <h5 class="border-bottom pb-2">Configuration</h5>
-
-                <!-- Agent Selection -->
-                <div v-if="state.targetAgent" class="mb-3 col-lg-8 col-12">
-                  <label class="form-label" for="targetAgent">Target Agent</label>
-                  <select
-                      id="targetAgent"
-                      v-model="state.targetAgentSelected"
-                      class="form-select"
-                      :disabled="state.loading">
-                    <option :value="null" disabled>Select an agent</option>
-                    <option
-                        v-for="agent in availableAgentsForSelection"
-                        :key="agent.id"
-                        :value="agent">
-                      {{ agent.name }} ({{ agent.location || 'No location' }})
-                    </option>
-                  </select>
-                  <small v-if="state.selected.value === 'TRAFFICSIM' && state.validAgents.length === 0" class="text-muted">
-                    No agents with TrafficSim server enabled found
-                  </small>
+              <!-- PING Options -->
+              <div v-if="state.selected.value === 'PING' && showTargetInput" class="mb-4">
+                <label class="form-label fw-semibold" for="pingTarget">
+                  <i class="fas fa-bullseye me-2"></i>Target Address
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                  <input
+                      id="pingTarget"
+                      v-model="state.probeTarget.target"
+                      class="form-control"
+                      type="text"
+                      placeholder="1.1.1.1 or google.com">
                 </div>
+                <small class="text-muted">Enter an IP address or domain name</small>
+              </div>
 
-                <!-- AGENT Probe Options -->
-                <div v-if="state.selected.value === 'AGENT'">
-                  <div class="mb-3">
-                    <p class="text-muted">
-                      Agent monitoring will check the health and connectivity of the selected target agent.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- TRAFFICSIM Options -->
-                <div v-if="state.selected.value === 'TRAFFICSIM'">
-                  <div v-if="!state.targetAgent && !state.targetGroup" class="mb-3">
-                    <label class="form-label">Enable Server Mode</label>
-                    <div class="form-check">
-                      <input
-                          id="trafficSimServer"
-                          v-model="state.probeConfig.server"
-                          class="form-check-input"
-                          type="checkbox"
-                          :disabled="state.existingProbes.some(p => p.type === 'TRAFFICSIM' && p.config.server)">
-                      <label class="form-check-label" for="trafficSimServer">
-                        Enable (only one server per agent allowed)
-                      </label>
-                    </div>
-                  </div>
-
-                  <div v-if="state.probeConfig.server && showTargetInput" class="mb-3">
-                    <label class="form-label" for="trafficSimPort">
-                      Listening Address <code>(e.g., 0.0.0.0:5000)</code>
-                    </label>
-                    <input
-                        id="trafficSimPort"
-                        v-model="state.probeTarget.target"
-                        class="form-control"
-                        type="text"
-                        placeholder="0.0.0.0:5000">
-                  </div>
-                </div>
-
-                <!-- PING Options -->
-                <div v-if="state.selected.value === 'PING'">
-                  <div v-if="showTargetInput" class="mb-3">
-                    <label class="form-label" for="pingTarget">
-                      Target <code>(e.g., 1.1.1.1 or google.com)</code>
-                    </label>
-                    <input
-                        id="pingTarget"
-                        v-model="state.probeTarget.target"
-                        class="form-control"
-                        type="text"
-                        placeholder="1.1.1.1">
-                  </div>
-                </div>
-
-                <!-- MTR Options -->
-                <div v-if="state.selected.value === 'MTR'">
-                  <div v-if="showTargetInput" class="mb-3">
-                    <label class="form-label" for="mtrTarget">
-                      Target <code>(e.g., 1.1.1.1 or google.com)</code>
-                    </label>
+              <!-- MTR Options -->
+              <div v-if="state.selected.value === 'MTR'">
+                <div v-if="showTargetInput" class="mb-4">
+                  <label class="form-label fw-semibold" for="mtrTarget">
+                    <i class="fas fa-route me-2"></i>Target Address
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-globe"></i></span>
                     <input
                         id="mtrTarget"
                         v-model="state.probeTarget.target"
                         class="form-control"
                         type="text"
-                        placeholder="1.1.1.1">
+                        placeholder="1.1.1.1 or google.com">
                   </div>
-                  <div class="mb-3">
-                    <label class="form-label" for="mtrInterval">Interval (minutes)</label>
+                  <small class="text-muted">Enter an IP address or domain name</small>
+                </div>
+                <div class="mb-4">
+                  <label class="form-label fw-semibold" for="mtrInterval">
+                    <i class="fas fa-clock me-2"></i>Probe Interval
+                  </label>
+                  <div class="input-group">
                     <input
                         id="mtrInterval"
                         v-model.number="state.probeConfig.interval"
@@ -467,30 +562,34 @@ const availableAgentsForSelection = computed(() => {
                         type="number"
                         min="1"
                         max="60">
+                    <span class="input-group-text">minutes</span>
                   </div>
+                  <small class="text-muted">How often to run the MTR trace</small>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Form Actions -->
-            <div class="card-footer">
-              <div class="d-flex justify-content-between align-items-center">
-                <router-link
-                    :to="`/agent/${state.agent.id}`"
-                    class="btn btn-secondary">
-                  Cancel
-                </router-link>
-                <button
-                    class="btn btn-primary px-4"
-                    type="submit"
-                    @click="submit"
-                    :disabled="!isValidProbe || state.loading">
-                  <span v-if="state.loading">
-                    <i class="fas fa-spinner fa-spin me-2"></i>Creating...
-                  </span>
-                  <span v-else>Create Probe</span>
-                </button>
-              </div>
+          <!-- Form Actions -->
+          <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-center">
+              <router-link
+                  :to="`/agent/${state.agent.id}`"
+                  class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Cancel
+              </router-link>
+              <button
+                  class="btn btn-primary btn-lg px-5"
+                  type="submit"
+                  @click="submit"
+                  :disabled="!isValidProbe || state.loading">
+                <span v-if="state.loading">
+                  <i class="fas fa-spinner fa-spin me-2"></i>Creating Probe...
+                </span>
+                <span v-else>
+                  <i class="fas fa-plus-circle me-2"></i>Create Probe
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -500,26 +599,237 @@ const availableAgentsForSelection = computed(() => {
 </template>
 
 <style scoped>
-.form-label {
-  font-weight: 500;
+/* Card Styles */
+.card {
+  border: none;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.card-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  padding: 1.25rem;
+}
+
+.card-body {
+  padding: 1.5rem;
 }
 
 .card-footer {
   background-color: #f8f9fa;
-  border-top: 1px solid #dee2e6;
-  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  padding: 1.25rem 1.5rem;
 }
 
+/* Probe Type Cards */
+.probe-type-card {
+  border: 2px solid #e9ecef;
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  height: 100%;
+  background: white;
+}
+
+.probe-type-card:hover {
+  border-color: #0d6efd;
+  box-shadow: 0 0.25rem 0.5rem rgba(13, 110, 253, 0.15);
+  transform: translateY(-2px);
+}
+
+.probe-type-card.selected {
+  border-color: #0d6efd;
+  background-color: #f0f6ff;
+}
+
+.probe-type-card.recommended {
+  border-color: #198754;
+}
+
+.probe-type-header {
+  margin-bottom: 0.75rem;
+}
+
+.probe-icon {
+  font-size: 1.25rem;
+  margin-right: 0.75rem;
+  color: #0d6efd;
+}
+
+.probe-type-card.selected .probe-icon {
+  color: #0d6efd;
+}
+
+.probe-description {
+  font-size: 0.875rem;
+  color: #6c757d;
+  line-height: 1.5;
+}
+
+.selection-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: #0d6efd;
+  font-size: 1.25rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.probe-type-card.selected .selection-indicator {
+  opacity: 1;
+}
+
+/* Configuration Sections */
+.configuration-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  color: #495057;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* Info Box */
+.info-box {
+  background-color: #e7f3ff;
+  border-left: 4px solid #0d6efd;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: start;
+}
+
+.info-box i {
+  color: #0d6efd;
+  margin-top: 0.125rem;
+}
+
+/* Host/Port Input */
+.host-port-input {
+  background-color: #f8f9fa;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e9ecef;
+}
+
+/* Form Controls */
+.form-label {
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+  border: 1px solid #ced4da;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-select-lg {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* Input Groups */
+.input-group-text {
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  color: #6c757d;
+}
+
+/* Alerts */
 .alert {
+  border: none;
+  border-radius: 0.5rem;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  font-weight: 500;
   border-radius: 0.375rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+  transform: translateY(-1px);
+  box-shadow: 0 0.25rem 0.5rem rgba(13, 110, 253, 0.2);
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  color: #fff;
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+/* Utilities */
+.fw-semibold {
+  font-weight: 600;
 }
 
 code {
-  color: #e83e8c;
-  font-size: 0.875em;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  color: #0d6efd;
+  background-color: #e7f3ff;
+  border-radius: 0.25rem;
 }
 
 .text-muted {
-  font-size: 0.875rem;
+  color: #6c757d !important;
+}
+
+.text-warning {
+  color: #ffc107 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .probe-type-card {
+    margin-bottom: 1rem;
+  }
+  
+  .btn-lg {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+  }
 }
 </style>
