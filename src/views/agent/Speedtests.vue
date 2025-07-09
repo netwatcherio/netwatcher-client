@@ -1,82 +1,88 @@
 <script lang="ts" setup>
-
-import {onMounted, reactive, watch} from "vue";
+import {onMounted, reactive, computed} from "vue";
 import siteService from "@/services/siteService";
 import type {
   Agent,
-  MtrHop,
-  MtrResult,
-  PingResult,
   Probe,
   ProbeData,
   ProbeDataRequest,
-  ProbeType,
-  RPerfResults, SelectOption,
-  Site, SpeedTestPLoss, SpeedTestResult, SpeedTestServer, SpeedTestTestDuration, TrafficSimResult
+  Site, 
+  SpeedTestPLoss, 
+  SpeedTestResult, 
+  SpeedTestServer, 
+  SpeedTestTestDuration
 } from "@/types";
 import core from "@/core";
 import Title from "@/components/Title.vue";
 import agentService from "@/services/agentService";
 import probeService from "@/services/probeService";
-import {AsciiTable3} from "@/lib/ascii-table3/ascii-table3"
-import LatencyGraph from "@/components/PingGraph.vue";
 import VueDatePicker from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
-import RperfGraph from "@/components/RperfGraph.vue";
-import NetworkMap from "@/components/NetworkMap.vue";
-import TrafficSimGraph from "@/components/TrafficSimGraph.vue";
 
 const state = reactive({
-  target: {} as string,
   site: {} as Site,
   ready: false,
+  loading: true,
   agent: {} as Agent,
-  checks: [] as Probe[],
   probe: {} as Probe,
-  probeData: [] as ProbeData[],
-  title: {} as string,
-  probeAgent: {} as Agent,
+  title: "Speedtests",
   speedtestProbe: {} as Probe,
   speedtestData: [] as SpeedTestResult[],
-  speedtestServerProbe: {} as Probe
+  speedtestServerProbe: {} as Probe,
+  selectedTest: null as SpeedTestResult | null,
+  expandedTests: new Set<string>(),
+  pendingTest: null as { target: string, time: Date } | null
 })
-function camelCase(str: string) {
-  return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-}
+
+// Computed properties
+const latestTest = computed(() => {
+  if (state.speedtestData.length === 0) return null;
+  return state.speedtestData[0];
+});
+
+const averageDownload = computed(() => {
+  if (state.speedtestData.length === 0) return 0;
+  const sum = state.speedtestData.reduce((acc, test) => acc + (test.test_data[0]?.dl_speed || 0), 0);
+  return ((sum / state.speedtestData.length) * 8 / 1048576).toFixed(1); // Convert MiB/s to Mb/s
+});
+
+const averageUpload = computed(() => {
+  if (state.speedtestData.length === 0) return 0;
+  const sum = state.speedtestData.reduce((acc, test) => acc + (test.test_data[0]?.ul_speed || 0), 0);
+  return ((sum / state.speedtestData.length) * 8 / 1048576).toFixed(1); // Convert MiB/s to Mb/s
+});
+
+const averageLatency = computed(() => {
+  if (state.speedtestData.length === 0) return 0;
+  const sum = state.speedtestData.reduce((acc, test) => acc + (test.test_data[0]?.latency || 0), 0);
+  return (sum / state.speedtestData.length / 1000000).toFixed(1);
+});
 
 function convertToSpeedTestResult(data: any): SpeedTestResult {
-  console.log(data)
-
   const result: SpeedTestResult = {
     test_data: [],
     timestamp: new Date(data.createdAt)
   };
 
-  // Find the 'data' array in the input
   const dataArray = data;
   if (!dataArray || !Array.isArray(dataArray)) {
     throw new Error("Invalid data structure");
   }
 
-  // Find the 'testdata' item in the data array
   const testDataItem = dataArray.find(item => item.Key === "testdata");
   if (!testDataItem || !Array.isArray(testDataItem.Value)) {
     throw new Error("Invalid testdata structure");
   }
 
-  // Convert each server data
   testDataItem.Value.forEach((serverData: any[]) => {
     const server = convertToSpeedTestServer(serverData);
     result.test_data.push(server);
   });
 
-  // Find and set the timestamp
   const timestampItem = dataArray.find(item => item.Key === "timestamp");
   if (timestampItem && timestampItem.Value) {
     result.timestamp = new Date(timestampItem.Value);
   }
-
-  console.log(result)
 
   return result;
 }
@@ -133,44 +139,71 @@ function convertPacketLoss(data: Array<{ Key: string; Value: number }>): SpeedTe
   return result;
 }
 
-function generateTable(speedTestResult: any) {
-  if (speedTestResult.test_data.length === 0) {
-    return "No speed test data available.";
-  }
-
-  const server = speedTestResult.test_data[0];
-  const displayText = `${server.sponsor} (${server.name}, ${server.country}) - ${server.distance}km`;
-
-  console.log(server)
-
-  let table = new AsciiTable3(displayText + " - " + speedTestResult.timestamp.toISOString());
-  table.setHeading('Metric', 'Value', 'Unit');
-
-  table.addRow('Download Speed', (server.dl_speed / 1000000).toFixed(2), 'Mbps');
-  table.addRow('Upload Speed', (server.ul_speed / 1000000).toFixed(2), 'Mbps');
-  table.addRow('Latency', (server.latency / 1000000).toFixed(2), 'ms');
-  table.addRow('Jitter', (server.jitter / 1000000).toFixed(2), 'ms');
-
-  if (server.packet_loss) {
-    table.addRow('Packet Loss', server.packet_loss.sent, 'packets');
-  }
-
-  if (server.test_duration) {
-    if (server.test_duration.download) {
-      table.addRow('Download Test Duration', (server.test_duration.download / 1000000000).toFixed(2), 's');
-    }
-    if (server.test_duration.upload) {
-      table.addRow('Upload Test Duration', (server.test_duration.upload / 1000000000).toFixed(2), 's');
-    }
-    if (server.test_duration.total) {
-      table.addRow('Total Test Duration', (server.test_duration.total / 1000000000).toFixed(2), 's');
-    }
-  }
-
-  table.setStyle("unicode-single");
-
-  return table.toString();
+function formatSpeed(speed: number): string {
+  // Convert from MiB/s to Mb/s (1 MiB = 8.388608 Mb)
+  return (speed * 8 / 1048576).toFixed(1);
 }
+
+function formatLatency(latency: number): string {
+  return (latency / 1000000).toFixed(1);
+}
+
+function formatDuration(duration: number): string {
+  return (duration / 1000000000).toFixed(1);
+}
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date);
+}
+
+function getSpeedClass(speed: number): string {
+  // Convert MiB/s to Mb/s for classification
+  const mbps = speed * 8 / 1048576;
+  if (mbps >= 100) return 'excellent';
+  if (mbps >= 50) return 'good';
+  if (mbps >= 25) return 'fair';
+  return 'poor';
+}
+
+function getLatencyClass(latency: number): string {
+  const ms = latency / 1000000;
+  if (ms <= 20) return 'excellent';
+  if (ms <= 50) return 'good';
+  if (ms <= 100) return 'fair';
+  return 'poor';
+}
+
+function toggleTest(testId: string) {
+  if (state.expandedTests.has(testId)) {
+    state.expandedTests.delete(testId);
+  } else {
+    state.expandedTests.add(testId);
+  }
+}
+
+function isExpanded(testId: string): boolean {
+  return state.expandedTests.has(testId);
+}
+
+function formatTimeUntil(date: Date): string {
+  const now = new Date();
+  const diff = date.getTime() - now.getTime();
+  
+  if (diff <= 0) return 'Starting soon...';
+  
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) return `in ${days} day${days > 1 ? 's' : ''}`;
+  if (hours > 0) return `in ${hours} hour${hours > 1 ? 's' : ''}`;
+  if (minutes > 0) return `in ${minutes} minute${minutes > 1 ? 's' : ''}`;
+  return 'in less than a minute';
+}
+
 onMounted(() => {
   let checkId = router.currentRoute.value.params["idParam"] as string
   if (!checkId) return
@@ -182,144 +215,740 @@ onMounted(() => {
       state.site = res.data as Site
     })
 
-    probeService.getAgentProbes(state.agent.id).then( res => {
+    probeService.getAgentProbes(state.agent.id).then(res => {
       let probes = res.data as Probe[]
-      for(let item in probes){
-        if(probes[item].type == "SPEEDTEST"){
+      for (let item in probes) {
+        if (probes[item].type == "SPEEDTEST") {
           state.speedtestProbe = probes[item]
+          
+          // Check if there's a pending test
+          if (state.speedtestProbe.config?.target?.[0]?.target !== "ok") {
+            state.pendingTest = {
+              target: state.speedtestProbe.config.target[0].target,
+              time: state.speedtestProbe.config.pending ? new Date(state.speedtestProbe.config.pending) : new Date()
+            };
+          }
+          
           let req = {limit: 25, recent: true} as ProbeDataRequest
           probeService.getProbeData(state.speedtestProbe.id, req).then(res => {
-            for(let i in res.data as ProbeData[]){
-              console.log(res.data[i])
+            for (let i in res.data as ProbeData[]) {
               let convD = convertToSpeedTestResult(res.data[i].data)
-              console.log(convD)
               state.speedtestData.push(convD)
             }
             state.ready = true
+            state.loading = false
           })
-
-          state.title = "Speedtests"
-          continue
-        }else if(probes[item].type == "SPEEDTEST_SERVERS"){
+        } else if (probes[item].type == "SPEEDTEST_SERVERS") {
           state.speedtestServerProbe = probes[item]
         }
       }
     })
   })
-
 })
+
 const router = core.router()
-
-function onCreate(response: any) {
-  router.push("/sites")
-}
-
-function onError(response: any) {
-  alert(response)
-}
-
-function submit() {
-
-}
-
 </script>
 
 <template>
   <div class="container-fluid">
     <Title
-        :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: state.agent.name, link: `/agent/${state.agent.id}`}]"
+        :history="[
+          {title: 'workspaces', link: '/sites'}, 
+          {title: state.site.name || 'Loading...', link: `/sites/${state.site.id}`}, 
+          {title: state.agent.name || 'Loading...', link: `/agent/${state.agent.id}`}
+        ]"
         :title="state.title"
-        subtitle="information about this target">
-      <div class="d-flex gap-1">
-        <!--        <router-link :to="`/agent/${state.agent.id}/checks`" active-class="active" class="btn btn-outline-primary"><i
-                    class="fa-regular fa-pen-to-square"></i>&nbsp;edit checks
-                </router-link>
-                <router-link :to="`/agents/${state.agent.id}/probes/new`" active-class="active" class="btn btn-primary"><i
-                    class="fa-solid fa-plus"></i>&nbsp;add check
-                </router-link>-->
-        <router-link :to="`/agent/${state.speedtestServerProbe.id}/speedtest/new`" active-class="active" class="btn btn-primary"><i
-            class="fa-solid fa-arrows-turn-to-dots"></i> run speedtest
+        subtitle="Network performance history">
+      <div class="d-flex gap-2">
+        <router-link 
+          :to="`/agent/${state.speedtestServerProbe.id}/speedtest/new`" 
+          class="btn btn-primary"
+        >
+          <i class="fa-solid fa-gauge-high"></i>&nbsp;Run Speedtest
         </router-link>
       </div>
     </Title>
 
-    <div class="row">
-      <div class="col-sm-12">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">speedtests</h5>
-            <p class="card-text">last 25 speedtests</p>
+    <!-- Pending Test Notification -->
+    <div v-if="state.pendingTest" class="pending-test-card">
+      <div class="pending-icon">
+        <i class="fa-solid fa-clock"></i>
+      </div>
+      <div class="pending-content">
+        <h6 class="pending-title">Speedtest Scheduled</h6>
+        <p class="pending-description">
+          A speedtest is pending for server <strong>{{ state.pendingTest.target }}</strong>
+        </p>
+        <div class="pending-time">
+          <i class="fa-regular fa-clock"></i>
+          Starting {{ formatTimeUntil(state.pendingTest.time) }}
+        </div>
+      </div>
+      <div class="pending-actions">
+        <button class="btn btn-sm btn-outline-secondary" disabled>
+          <i class="fa-solid fa-hourglass-half"></i>
+          Waiting...
+        </button>
+      </div>
+    </div>
 
-            <div v-if="!state.ready && state.speedtestData.length <= 0">
-              <!--        <div class="px-2 py-2 pb-1 ">
-                        <div class="label-c4 label-o2 label-w500">Loading...</div>
-                      </div>-->
-              <div class="error-body text-center">
-                <h1 class="error-title text-warning">Loading...</h1>
-                <h3 class="text-error-subtitle">please wait for data to load</h3>
+    <!-- Statistics Cards -->
+    <div class="stats-grid" v-if="state.ready && state.speedtestData.length > 0">
+      <div class="stat-card">
+        <div class="stat-icon download">
+          <i class="fa-solid fa-download"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Average Download</div>
+          <div class="stat-value">{{ averageDownload }} <span class="stat-unit">Mbps</span></div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon upload">
+          <i class="fa-solid fa-upload"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Average Upload</div>
+          <div class="stat-value">{{ averageUpload }} <span class="stat-unit">Mbps</span></div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon latency">
+          <i class="fa-solid fa-stopwatch"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Average Latency</div>
+          <div class="stat-value">{{ averageLatency }} <span class="stat-unit">ms</span></div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon tests">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Total Tests</div>
+          <div class="stat-value">{{ state.speedtestData.length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="state.loading" class="content-card">
+      <div class="loading-state">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="loading-text">Loading speedtest data...</p>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="state.ready && state.speedtestData.length === 0" class="content-card">
+      <div class="empty-state">
+        <i class="fa-solid fa-gauge-high"></i>
+        <h5>No Speedtest Results</h5>
+        <p>Run your first speedtest to start tracking network performance.</p>
+        <router-link 
+          :to="`/agent/${state.speedtestServerProbe.id}/speedtest/new`" 
+          class="btn btn-primary"
+        >
+          <i class="fa-solid fa-plus"></i> Run First Speedtest
+        </router-link>
+      </div>
+    </div>
+
+    <!-- Speedtest Results -->
+    <div v-else class="speedtest-results">
+      <div class="results-header">
+        <h5 class="results-title">Recent Speedtests</h5>
+        <span class="results-count">Showing last {{ state.speedtestData.length }} tests</span>
+      </div>
+
+      <div class="test-list">
+        <div 
+          v-for="(test, index) in state.speedtestData" 
+          :key="state.speedtestProbe.id + test.timestamp.getTime()"
+          class="test-item"
+          :class="{ 'expanded': isExpanded(state.speedtestProbe.id + test.timestamp.getTime()) }"
+        >
+          <div 
+            class="test-header"
+            @click="toggleTest(state.speedtestProbe.id + test.timestamp.getTime())"
+          >
+            <div class="test-info">
+              <div class="test-time">
+                <i class="fa-regular fa-clock"></i>
+                {{ formatDate(test.timestamp) }}
               </div>
-
-            </div>
-            <div v-else-if="state.ready && state.speedtestData.length <= 0">
-              <div class="error-body text-center">
-                <h1 class="error-title text-danger">no data</h1>
-                <h3 class="text-error-subtitle">please run a speedtest</h3>
+              <div class="test-server">
+                <i class="fa-solid fa-server"></i>
+                {{ test.test_data[0].sponsor }} 
+                <span class="server-location">
+                  ({{ test.test_data[0].name }}, {{ test.test_data[0].country }})
+                </span>
+                <span class="server-distance">{{ test.test_data[0].distance }}km</span>
               </div>
             </div>
-            <div v-else>
-              <div id="mtrAccordion" class="accordion">
-
-                <div v-for="mtr in state.speedtestData" :key="state.speedtestProbe.id + mtr.timestamp.getTime()">
-
-                  <div class="accordion-item">
-                    <h2 :id="'heading' + state.speedtestProbe.id + mtr.timestamp.getTime()" class="accordion-header">
-                      <button :aria-controls="'collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()"
-                              :aria-expanded="false"
-                              :data-bs-target="'#collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()"
-                              class="accordion-button collapsed d-flex align-items-center"
-                              data-bs-toggle="collapse"
-                              type="button">
-
-  <span class="me-3">
-    <i class="fa-regular fa-clock me-2"></i>
-    <b>{{mtr.timestamp}}</b>
-  </span>
-                        <span>
-    {{mtr.test_data[0].sponsor}} ({{mtr.test_data[0].country}}, {{mtr.test_data[0].name}}) - ({{mtr.test_data[0].distance}}km)
-  </span>
-                      </button>
-                    </h2>
-                    <div :id="'collapse' + state.speedtestProbe.id + mtr.timestamp.getTime()" :aria-labelledby="'heading' + state.probe.id + mtr.timestamp"
-                         class="accordion-collapse collapse"
-                         data-bs-parent="#accordionExample">
-                      <div class="accordion-body">
-                        <pre style="text-align: center">{{ generateTable(mtr) }}</pre>
-                      </div>
-                    </div>
-                  </div>
-
+            
+            <div class="test-metrics">
+              <div class="metric" :class="'speed-' + getSpeedClass(test.test_data[0].dl_speed)">
+                <i class="fa-solid fa-download"></i>
+                <span>{{ formatSpeed(test.test_data[0].dl_speed) }} Mbps</span>
+              </div>
+              <div class="metric" :class="'speed-' + getSpeedClass(test.test_data[0].ul_speed)">
+                <i class="fa-solid fa-upload"></i>
+                <span>{{ formatSpeed(test.test_data[0].ul_speed) }} Mbps</span>
+              </div>
+              <div class="metric" :class="'latency-' + getLatencyClass(test.test_data[0].latency)">
+                <i class="fa-solid fa-stopwatch"></i>
+                <span>{{ formatLatency(test.test_data[0].latency) }} ms</span>
+              </div>
+            </div>
+            
+            <div class="test-toggle">
+              <i :class="isExpanded(state.speedtestProbe.id + test.timestamp.getTime()) ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+            </div>
+          </div>
+          
+          <div 
+            class="test-details"
+            v-show="isExpanded(state.speedtestProbe.id + test.timestamp.getTime())"
+          >
+            <div class="details-grid">
+              <div class="detail-section">
+                <h6>Performance Metrics</h6>
+                <div class="detail-row">
+                  <span class="detail-label">Download Speed</span>
+                  <span class="detail-value">{{ formatSpeed(test.test_data[0].dl_speed) }} Mbps</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Upload Speed</span>
+                  <span class="detail-value">{{ formatSpeed(test.test_data[0].ul_speed) }} Mbps</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Latency</span>
+                  <span class="detail-value">{{ formatLatency(test.test_data[0].latency) }} ms</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Jitter</span>
+                  <span class="detail-value">{{ formatLatency(test.test_data[0].jitter) }} ms</span>
                 </div>
               </div>
-
-              <!-- Add more accordion items here if needed -->
+              
+              <div class="detail-section">
+                <h6>Server Information</h6>
+                <div class="detail-row">
+                  <span class="detail-label">Server</span>
+                  <span class="detail-value">{{ test.test_data[0].sponsor }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Location</span>
+                  <span class="detail-value">{{ test.test_data[0].name }}, {{ test.test_data[0].country }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Distance</span>
+                  <span class="detail-value">{{ test.test_data[0].distance }} km</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Host</span>
+                  <span class="detail-value">{{ test.test_data[0].host }}</span>
+                </div>
+              </div>
+              
+              <div class="detail-section" v-if="test.test_data[0].test_duration">
+                <h6>Test Duration</h6>
+                <div class="detail-row" v-if="test.test_data[0].test_duration.download">
+                  <span class="detail-label">Download Test</span>
+                  <span class="detail-value">{{ formatDuration(test.test_data[0].test_duration.download) }} s</span>
+                </div>
+                <div class="detail-row" v-if="test.test_data[0].test_duration.upload">
+                  <span class="detail-label">Upload Test</span>
+                  <span class="detail-value">{{ formatDuration(test.test_data[0].test_duration.upload) }} s</span>
+                </div>
+                <div class="detail-row" v-if="test.test_data[0].test_duration.total">
+                  <span class="detail-label">Total Duration</span>
+                  <span class="detail-value">{{ formatDuration(test.test_data[0].test_duration.total) }} s</span>
+                </div>
+              </div>
+              
+              <div class="detail-section" v-if="test.test_data[0].packet_loss">
+                <h6>Packet Loss</h6>
+                <div class="detail-row">
+                  <span class="detail-label">Packets Sent</span>
+                  <span class="detail-value">{{ test.test_data[0].packet_loss.sent }}</span>
+                </div>
+                <div class="detail-row" v-if="test.test_data[0].packet_loss.dup">
+                  <span class="detail-label">Duplicates</span>
+                  <span class="detail-value">{{ test.test_data[0].packet_loss.dup }}</span>
+                </div>
+              </div>
             </div>
-
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
-<style lang="scss">
-.check-grid {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(12, minmax(8rem, 1fr));
-  grid-gap: 0.5rem;
+<style scoped>
+/* Pending Test Card */
+.pending-test-card {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.1);
+}
 
+.pending-icon {
+  width: 3rem;
+  height: 3rem;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.pending-content {
+  flex: 1;
+}
+
+.pending-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.pending-description {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #78350f;
+}
+
+.pending-description strong {
+  color: #92400e;
+  font-family: monospace;
+}
+
+.pending-time {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.pending-actions {
+  flex-shrink: 0;
+}
+
+/* Statistics Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.stat-icon.download {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.stat-icon.upload {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.stat-icon.latency {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.stat-icon.tests {
+  background: #ede9fe;
+  color: #8b5cf6;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+}
+
+.stat-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* Content Card */
+.content-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.loading-text {
+  margin-top: 1rem;
+  color: #6b7280;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  color: #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.empty-state h5 {
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+/* Results Section */
+.speedtest-results {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.results-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.results-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Test List */
+.test-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.test-item {
+  border-bottom: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.test-item:last-child {
+  border-bottom: none;
+}
+
+.test-item:hover {
+  background: #f9fafb;
+}
+
+.test-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  cursor: pointer;
+  gap: 1rem;
+}
+
+.test-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.test-time {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.test-server {
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.server-location {
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.server-distance {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  padding: 0.125rem 0.5rem;
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+/* Test Metrics */
+.test-metrics {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.metric i {
+  font-size: 0.875rem;
+}
+
+/* Speed Classes */
+.speed-excellent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.speed-good {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.speed-fair {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.speed-poor {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Latency Classes */
+.latency-excellent {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.latency-good {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.latency-fair {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.latency-poor {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.test-toggle {
+  color: #9ca3af;
+  transition: transform 0.2s;
+}
+
+.test-item.expanded .test-toggle {
+  transform: rotate(180deg);
+}
+
+/* Test Details */
+.test-details {
+  padding: 0 1.25rem 1.25rem;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.detail-section h6 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.detail-value {
+  font-size: 0.875rem;
+  color: #1f2937;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .test-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .test-metrics {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .metric {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .pending-test-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .pending-content {
+    text-align: center;
+  }
+  
+  .pending-time {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .test-metrics {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .server-location {
+    display: block;
+    width: 100%;
+  }
 }
 </style>
