@@ -15,7 +15,7 @@ const router = createRouter({
         auth,
         {
             path: '/',
-            redirect: '/home',
+            redirect: '/workspaces',
             name: 'root',
             component: RootView,
             children: [
@@ -26,7 +26,7 @@ const router = createRouter({
                 {
                     path: '/home',
                     name: 'home',
-                    component: HomeView,
+                    redirect: "/workspaces"
                 },
             ]
         },
