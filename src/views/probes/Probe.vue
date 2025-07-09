@@ -668,7 +668,7 @@ watch(() => state.timeRange, (newRange) => {
       </div>
     </Title>
     <div v-if="state.ready" >
-    <!-- Summary Card (from AgentProbe) -->
+    <!-- Summary Card (from AgentProbe) 
     <div class="card mb-3" v-if="state.summary.totalDataPoints > 0">
       <div class="card-body">
         <h5 class="card-title">Summary</h5>
@@ -678,9 +678,9 @@ watch(() => state.timeRange, (newRange) => {
         <p>Probe Types: {{ state.summary.probeTypes.join(', ') }}</p>
         <p>Counts: <span v-for="(count, type) in state.summary.dataCountByType" :key="type">{{ type }}: {{ count }}, </span></p>
       </div>
-    </div>
+    </div>-->
 
-    <!-- Available Targets (from AgentProbe) -->
+    <!-- Available Targets (from AgentProbe) 
     <div class="card mb-3" v-if="state.availableTargets.length > 0">
       <div class="card-body">
         <h5 class="card-title">Available Targets</h5>
@@ -690,7 +690,7 @@ watch(() => state.timeRange, (newRange) => {
           </li>
         </ul>
       </div>
-    </div>
+    </div>-->
 
     <div class="row">
       <!-- Agent Probe Comparison View -->
