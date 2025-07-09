@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-
-import {onMounted, reactive} from "vue";
+import {onMounted, reactive, computed} from "vue";
 import siteService from "@/services/siteService";
 import type {
   Agent,
@@ -42,7 +41,6 @@ interface CpuUsage {
 }
 
 interface MemoryUsage {
-
   used: number
   free: number
   total: number
@@ -53,6 +51,25 @@ interface SystemData {
   ram: MemoryUsage
   virtual: MemoryUsage
 }
+
+// Computed properties for better organization
+const isOnline = computed(() => {
+  if (!state.systemInfoComplete?.timestamp) return false;
+  const lastSeen = new Date(state.systemInfoComplete.timestamp);
+  const now = new Date();
+  const diffMinutes = (now.getTime() - lastSeen.getTime()) / 60000;
+  return diffMinutes <= 5; // Consider online if seen in last 5 minutes
+});
+
+const cpuUsagePercent = computed(() => {
+  if (!state.systemData?.cpu) return 0;
+  return ((state.systemData.cpu.user + state.systemData.cpu.system) * 100).toFixed(1);
+});
+
+const memoryUsagePercent = computed(() => {
+  if (!state.systemData?.ram) return 0;
+  return (state.systemData.ram.used * 100).toFixed(1);
+});
 
 function roundTo(value: number): number {
   return Math.round(value * 1000) / 1000
@@ -84,17 +101,16 @@ function updateSystemData(info: CompleteSystemInfo): SystemData {
 function getVendorFromMac(macAddress: string) {
   const normalizedMac = macAddress.replace(/[:-]/g, '').toUpperCase();
   const oui = normalizedMac.substring(0, 6);
-  console.log(oui + " " + normalizedMac)
   const entry = state.ouiList.find(item => item.Assignment == oui);
-  console.log(entry)
-  return entry ? (entry as OUIEntry)["Organization Name"] : "Unknown";
+  return entry ? (entry as OUIEntry)["Organization Name"] : "Unknown Vendor";
 }
 
 let state = reactive({
   site: {} as Site,
   ready: false,
+  loading: true,
   agent: {} as Agent,
-  agents: {} as Agent[],
+  agents: [] as Agent[],
   probes: [] as Probe[],
   organizedProbes: [] as OrganizedProbe[],
   agentGroups: [] as AgentGroup[],
@@ -108,13 +124,13 @@ let state = reactive({
 
 function transformNetData(data: any): NetResult {
   return {
-    localAddress: data.find((d: any) => d.Key === "local_address").Value || 'Unknown',
-    defaultGateway: data.find((d: any) => d.Key === "default_gateway").Value || 'Unknown',
-    publicAddress: data.find((d: any) => d.Key === "public_address").Value || 'Unknown',
-    internetProvider: data.find((d: any) => d.Key === "internet_provider").Value || 'Unknown',
-    lat: data.find((d: any) => d.Key === "lat").Value || 'Unknown',
-    long: data.find((d: any) => d.Key === "long").Value || 'Unknown',
-    timestamp: new Date(data.find((d: any) => d.Key === "timestamp").Value || Date.now()),
+    localAddress: data.find((d: any) => d.Key === "local_address")?.Value || 'Unknown',
+    defaultGateway: data.find((d: any) => d.Key === "default_gateway")?.Value || 'Unknown',
+    publicAddress: data.find((d: any) => d.Key === "public_address")?.Value || 'Unknown',
+    internetProvider: data.find((d: any) => d.Key === "internet_provider")?.Value || 'Unknown',
+    lat: data.find((d: any) => d.Key === "lat")?.Value || 'Unknown',
+    long: data.find((d: any) => d.Key === "long")?.Value || 'Unknown',
+    timestamp: new Date(data.find((d: any) => d.Key === "timestamp")?.Value || Date.now()),
   };
 }
 
@@ -209,35 +225,22 @@ function convertToCPUTimes(data: any[]): CPUTimes {
   return cpuTimes as CPUTimes;
 }
 
-// Example us
-function formatNumber(value: number): string {
-  return value.toFixed(2)
-}
-
 function reloadData(id: string) {
   state.probes = [] as Probe[]
   state.organizedProbes = [] as OrganizedProbe[];
-
-  state.ready = false
-
+  state.ready = false;
 
   probeService.getSystemInfo(id).then(res => {
     let sysInfo = (res.data as ProbeData)
     state.systemInfoComplete = convertToCompleteSystemInfo(sysInfo.data)
-
-    //console.log(state.systemInfoComplete)
   })
 
   probeService.getNetworkInfo(id).then(res => {
     state.networkInfo = res.data as ProbeData
-    //console.log(state.networkInfo)
-    // todo handle edgecase where probe_data collection is wiped and agents are already running
-
   })
 
   agentService.getSiteAgents(state.agent.site).then(res => {
     state.agents = res.data as Agent[]
-    //console.log("agents ", res.data)
   })
 
   siteService.getAgentGroups(state.agent.site).then(res => {
@@ -245,18 +248,14 @@ function reloadData(id: string) {
 
     probeService.getAgentProbes(id).then(res => {
       state.probes = res.data as Probe[]
-      //console.log("probes ", res.data)
       let organizedProbesMap = new Map<string, Probe[]>();
 
-      console.log("1" + state)
       for (let probe of state.probes) {
-        if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType /*|| /*(probe.type == "RPERF" as ProbeType && probe.config.server)*/) {
+        if (probe.type == "SYSINFO" as ProbeType || probe.type == "NETINFO" as ProbeType) {
           continue
         }
 
         if (probe.config && probe.config.target) {
-          //console.log(probe)
-
           for (let target of probe.config.target) {
             let key = target.target;
 
@@ -265,19 +264,14 @@ function reloadData(id: string) {
             }
 
             if (target.group && target.group != "000000000000000000000000") {
-              // Prefix group ID to differentiate
               key = `group:${target.group}`;
-              // Fetch or determine group information here if necessary
-              // e.g., groupInfoMap.get(target.group) or similar
-            }else if (target.agent && target.agent != "000000000000000000000000") {
-              // Prefix group ID to differentiate
-              /*target.agent*/
+            } else if (target.agent && target.agent != "000000000000000000000000") {
               key = `agent:${target.agent}`;
-            }else if (probe.type == "RPERF" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
-                key = target.target.split(':')[0]
-            }else if (probe.type == "TRAFFICSIM" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
+            } else if (probe.type == "RPERF" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
               key = target.target.split(':')[0]
-            }else if (probe.type == "TRAFFICSIM") {
+            } else if (probe.type == "TRAFFICSIM" && !probe.config.server && probe.config.target[0].agent != "000000000000000000000000") {
+              key = target.target.split(':')[0]
+            } else if (probe.type == "TRAFFICSIM") {
               key = probe.type + " SERVER"
             }
 
@@ -286,7 +280,6 @@ function reloadData(id: string) {
             }
 
             organizedProbesMap.get(key).push(probe);
-            console.log(state)
           }
         }
       }
@@ -294,82 +287,12 @@ function reloadData(id: string) {
       state.organizedProbes = Array.from(organizedProbesMap, ([key, probes]) => ({key, probes}));
       state.ready = true
       state.hasData = true
+      state.loading = false
     })
   })
 
   state.netData = transformNetData(state.networkInfo.data)
   state.systemData = updateSystemData(state.systemInfoComplete);
-}
-
-function latestUpdate(list: Probe[]): string {
-  let now = Date.now().valueOf()
-  let mutations = list.map(p => new Date(p.updatedAt));
-  let latest = now - (24 * 60 * 1000)
-  let sorted = mutations.sort((a, b) => a.valueOf() - b.valueOf())
-
-  return since(sorted[0].toString(), true)
-}
-
-
-// const site = inject("site") as Site
-
-onMounted(() => {
-
-  let id = router.currentRoute.value.params["idParam"] as string
-  if (!id) return
-
-  console.log("oui: "+state.ouiList)
-
-  agentService.getAgent(id).then(res => {
-    state.agent = res.data as Agent
-
-    fetch('/ouiList.json')
-        .then(response => response.json())
-        .then(data => state.ouiList = data as OUIEntry[]);
-
-    siteService.getSite(state.agent.site).then(res => {
-      state.site = res.data as Site
-      probeService.getNetworkInfo(state.agent.id).then(res => {
-        state.networkInfo = res.data as ProbeData
-        //console.log(state.networkInfo)
-        probeService.getSystemInfo(state.agent.id).then(res => {
-          state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
-          //console.log(state.systemInfoComplete)
-          reloadData(id);
-        })
-      })
-    })
-  })
-  /*setInterval(() => {
-    reloadData(id);
-  }, 1000 * 15);*/
-})
-const router = core.router()
-
-function onCreate(response: any) {
-  router.push("/sites")
-}
-
-function onError(response: any) {
-  alert(response)
-}
-
-function submit() {
-
-}
-
-function getRandomProbeId(list: Probe[]): string | undefined {
-  if (list.length === 0) {
-    return undefined; // Return undefined if the list is empty
-  }
-
-  const randomIndex = Math.floor(Math.random() * list.length);
-  return list[randomIndex].id; // Return the ID of the randomly selected probe
-}
-
-function formatDate(timestamp: Date): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString();
 }
 
 function bytesToString(bytes: number, si: boolean = true, dp: number = 2): string {
@@ -390,7 +313,6 @@ function bytesToString(bytes: number, si: boolean = true, dp: number = 2): strin
     ++u;
   } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
 
-
   return bytes.toFixed(dp) + ' ' + units[u];
 }
 
@@ -404,307 +326,762 @@ function formatSnakeCaseToHumanCase(name: string): string {
   let words = name.split("_")
   words = words.filter(w => w != "bytes")
   words = words.map(w => w[0].toUpperCase() + w.substring(1))
-
   return words.join(" ")
 }
 
 function getGroupName(id: string): string {
-  // Use the 'find' method to locate the group with the matching ID
   const group = state.agentGroups.find(group => group.id === id);
-
-  // Return the group name if found, otherwise return a default value or empty string
   return group ? group.name : 'Unknown Group';
 }
 
 function getAgentName(id: string) {
-  let name = "Unknown"
-  state.agents.find(a => {
-    if (a.id == id) {
-      name = a.name
-      return name
-    }
-  })
-
-  return name
+  let agent = state.agents.find(a => a.id == id);
+  return agent ? agent.name : 'Unknown Agent';
 }
 
 function probeTitle(probeKey: string): string {
   if (probeKey.startsWith("group:")) {
-    return ``+ getGroupName(probeKey.split(":")[1]);
+    return getGroupName(probeKey.split(":")[1]);
   } else if (probeKey.startsWith("agent:")) {
-    return ``+getAgentName(probeKey.split(":")[1]);
+    return getAgentName(probeKey.split(":")[1]);
   } else {
     return probeKey;
   }
 }
 
+function getRandomProbeId(list: Probe[]): string | undefined {
+  if (list.length === 0) {
+    return undefined;
+  }
+  const randomIndex = Math.floor(Math.random() * list.length);
+  return list[randomIndex].id;
+}
+
+const router = core.router()
+
+onMounted(() => {
+  let id = router.currentRoute.value.params["idParam"] as string
+  if (!id) return
+
+  agentService.getAgent(id).then(res => {
+    state.agent = res.data as Agent
+
+    fetch('/ouiList.json')
+        .then(response => response.json())
+        .then(data => state.ouiList = data as OUIEntry[]);
+
+    siteService.getSite(state.agent.site).then(res => {
+      state.site = res.data as Site
+      probeService.getNetworkInfo(state.agent.id).then(res => {
+        state.networkInfo = res.data as ProbeData
+        probeService.getSystemInfo(state.agent.id).then(res => {
+          state.systemInfoComplete = convertToCompleteSystemInfo((res.data as ProbeData).data);
+          reloadData(id);
+        })
+      })
+    })
+  })
+})
 </script>
 
 <template>
-  <div class="container-fluid gap-0">
-    <Title :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}]"
-           :title="state.agent.name"
-           subtitle="information about this agent">
-
-      <div class="d-flex gap-1">
-        <router-link :to="`/agent/${state.agent.id}/probes`" active-class="active" class="btn btn-outline-primary"><i
-            class="fa-regular fa-pen-to-square"></i>&nbsp;edit probes
+  <div class="container-fluid">
+    <Title 
+      :history="[
+        {title: 'workspaces', link: '/sites'}, 
+        {title: state.site.name || 'Loading...', link: `/sites/${state.site.id}`}
+      ]"
+      :title="state.agent.name || 'Loading...'"
+      :subtitle="state.agent.location || 'Agent Information'">
+      <div class="d-flex flex-wrap gap-2">
+        <div class="status-badge" :class="isOnline ? 'online' : 'offline'">
+          <i :class="isOnline ? 'fa-solid fa-circle' : 'fa-solid fa-circle'"></i>
+          {{ isOnline ? 'Online' : 'Offline' }}
+        </div>
+        <router-link :to="`/agent/${state.agent.id}/probes`" class="btn btn-outline-primary">
+          <i class="fa-regular fa-pen-to-square"></i>
+          <span class="d-none d-sm-inline">&nbsp;Edit Probes</span>
         </router-link>
-        <router-link :to="`/probe/${state.agent.id}/new`" active-class="active" class="btn btn-primary"><i
-            class="fa-solid fa-plus"></i>&nbsp;add probe
+        <router-link :to="`/probe/${state.agent.id}/new`" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i>&nbsp;Add Probe
         </router-link>
       </div>
     </Title>
 
-    <Element v-if="false">
-      <ElementPair :title="key" :key="key" code v-for="key in Object.keys(state)">
-        <template v-slot:extended>
-          <List>
-            <ElementPair :title="vk" :key="vk" code v-for="vk in Object.keys(state[key])">
-              <template v-slot:extended>
-                {{ state[key][vk] }}
-              </template>
-
-            </ElementPair>
-          </List>
-        </template>
-
-      </ElementPair>
-    </Element>
-
-    <div class="d-flex flex-column gap-1" v-if="state.ready && state.agent.initialized">
-      <div class="agent-grid">
-        <div v-if="state.organizedProbes.length > 0" style="grid-column: 1 / span 2">
-          <Element style="height: 100%">
-            <div class="px-2 py-2 pb-1 ">
-              <div class="label-c4 label-o2 label-w500">Probes</div>
-            </div>
-            <List>
-              <ElementLink v-for="(organized, index) in state.organizedProbes" :key="organized"
-                           :icon="organized.key.startsWith('agent:') ? 'fa-solid fa-robot' : 'fa-solid fa-diagram-project'"
-                           :to="`/probe/${getRandomProbeId(organized.probes)}`"
-                           :secondary="organized.probes.sort((a, b) => a.type.localeCompare(b.type)).map(p => p.type).join(', ')"
-                           :title="probeTitle(organized.key)">
-                <Chart></Chart>
-              </ElementLink>
-            </List>
-          </Element>
-
+    <!-- Quick Stats Bar -->
+    <div class="quick-stats" v-if="state.ready && !state.loading">
+      <div class="stat-item">
+        <div class="stat-icon cpu">
+          <i class="fa-solid fa-microchip"></i>
         </div>
-        <div v-else style="grid-column: 1 / span 2">
-          <Element style="height: 100%">
-            <div class="px-2 py-2 pb-1 ">
-              <div class="label-c4 label-o2 label-w500">Probes</div>
-            </div>
-              <div class="error-body text-center">
-              <h1 class="error-title text-danger">no probes</h1>
-              <h3 class="text-error-subtitle">please create a probe</h3>
-              <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
-               <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
-            </div>
-          </Element>
-
+        <div class="stat-content">
+          <div class="stat-value">{{ cpuUsagePercent }}%</div>
+          <div class="stat-label">CPU Usage</div>
         </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon memory">
+          <i class="fa-solid fa-memory"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ memoryUsagePercent }}%</div>
+          <div class="stat-label">Memory Usage</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon network">
+          <i class="fa-solid fa-network-wired"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ state.organizedProbes.length }}</div>
+          <div class="stat-label">Active Probes</div>
+        </div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-icon uptime">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ since(state.systemInfoComplete.hostInfo?.bootTime + "", false) }}</div>
+          <div class="stat-label">Uptime</div>
+        </div>
+      </div>
+    </div>
 
-        <Element>
-          <div class="px-2 py-2 pb-1 ">
-            <div class="label-c4 label-o2 label-w500">Network</div>
-          </div>
-          <List>
-            <ElementPair title="Hostname" code>
-              {{ state.systemInfoComplete.hostInfo.hostname }}
-            </ElementPair>
-            <ElementPair title="WAN" code>
-              {{ state.netData.publicAddress }}
-            </ElementPair>
-            <ElementPair title="ISP" code>
-              {{ state.netData.internetProvider }}
-            </ElementPair>
-          </List>
-          <List>
-            <ElementPair title="IPs" code>
-              <div v-for="alias in getLocalAddresses(state.systemInfoComplete.hostInfo?.IPs || [])">
-                {{ alias }}
+    <!-- Loading State -->
+    <div v-if="state.loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="text-muted mt-3">Loading agent data...</p>
+    </div>
+
+    <!-- Main Content -->
+    <div v-else-if="state.ready && state.agent.initialized" class="agent-content">
+      <!-- Probes Section -->
+      <div class="content-section probes-section">
+        <div class="section-header">
+          <h5 class="section-title">
+            <i class="fa-solid fa-diagram-project"></i>
+            Monitoring Probes
+          </h5>
+          <span class="badge bg-primary">{{ state.organizedProbes.length }} Active</span>
+        </div>
+        
+        <div v-if="state.organizedProbes.length > 0" class="probes-grid">
+          <div v-for="(organized, index) in state.organizedProbes" :key="index" class="probe-card">
+            <router-link :to="`/probe/${getRandomProbeId(organized.probes)}`" class="probe-link">
+              <div class="probe-icon">
+                <i :class="organized.key.startsWith('agent:') ? 'fa-solid fa-robot' : 'fa-solid fa-diagram-project'"></i>
               </div>
-            </ElementPair>
-
-            <ElementPair title="Gateway" code>
-              {{ state.netData.defaultGateway }}
-            </ElementPair>
-          </List>
-          <router-link :to="`/agent/${state.agent.id}/speedtests`" active-class="active" style="margin: 15px; margin-right: 15px;" class="btn btn-outline-secondary"><i
-              class="fa-solid fa-arrows-turn-to-dots"></i>&nbsp;speedtests
+              <div class="probe-content">
+                <h6 class="probe-title">{{ probeTitle(organized.key) }}</h6>
+                <div class="probe-types">
+                  <span v-for="probe in organized.probes" :key="probe.id" class="probe-type-badge">
+                    {{ probe.type }}
+                  </span>
+                </div>
+              </div>
+              <i class="fa-solid fa-chevron-right probe-arrow"></i>
+            </router-link>
+          </div>
+        </div>
+        
+        <div v-else class="empty-state">
+          <i class="fa-solid fa-diagram-project"></i>
+          <h5>No Probes Configured</h5>
+          <p>Create your first probe to start monitoring</p>
+          <router-link :to="`/probe/${state.agent.id}/new`" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Create Probe
           </router-link>
-        </Element>
-
-
+        </div>
       </div>
-      <div class="agent-grid">
-        <Element>
-          <div class="px-2 py-2 pb-1 ">
-            <div class="label-c4 label-o2 label-w500">Utilization</div>
+
+      <!-- System Information Grid -->
+      <div class="info-grid">
+        <!-- Network Information -->
+        <div class="info-card">
+          <div class="card-header">
+            <h5 class="card-title">
+              <i class="fa-solid fa-network-wired"></i>
+              Network Information
+            </h5>
           </div>
-          <List style="height: 100%;">
-            <ElementPair title="CPU" code class="">
-              <FillChart :data="[state.systemData.cpu.user, state.systemData.cpu.system]"
-                         :labels="['user', 'system']"></FillChart>
-            </ElementPair>
+          <div class="card-content">
+            <div class="info-row">
+              <span class="info-label">Hostname</span>
+              <span class="info-value">{{ state.systemInfoComplete.hostInfo?.hostname || 'Unknown' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Public IP</span>
+              <span class="info-value">{{ state.netData.publicAddress }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">ISP</span>
+              <span class="info-value">{{ state.netData.internetProvider }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Gateway</span>
+              <span class="info-value">{{ state.netData.defaultGateway }}</span>
+            </div>
+            <div class="info-row expandable">
+              <span class="info-label">Local IPs</span>
+              <div class="info-value">
+                <div v-for="ip in getLocalAddresses(state.systemInfoComplete.hostInfo?.IPs || [])" :key="ip">
+                  {{ ip }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <router-link :to="`/agent/${state.agent.id}/speedtests`" class="btn btn-sm btn-outline-secondary">
+              <i class="fa-solid fa-gauge-high"></i> View Speedtests
+            </router-link>
+          </div>
+        </div>
 
-            <ElementPair title="Ram" code class="">
-              <FillChart :data="[state.systemData.ram.used, state.systemData.virtual.used]"
-                         :labels="['physical', 'virtual']"
-                         :values="[bytesToString(state.systemInfoComplete.memoryInfo.usedBytes), bytesToString(state.systemInfoComplete.memoryInfo.virtualUsedBytes)]"></FillChart>
-            </ElementPair>
+        <!-- System Resources -->
+        <div class="info-card">
+          <div class="card-header">
+            <h5 class="card-title">
+              <i class="fa-solid fa-server"></i>
+              System Resources
+            </h5>
+          </div>
+          <div class="card-content">
+            <div class="resource-meter">
+              <div class="resource-header">
+                <span>CPU Usage</span>
+                <span>{{ cpuUsagePercent }}%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-bar bg-primary" :style="{width: cpuUsagePercent + '%'}"></div>
+              </div>
+              <div class="resource-details">
+                <span>User: {{ (state.systemData.cpu?.user * 100).toFixed(1) }}%</span>
+                <span>System: {{ (state.systemData.cpu?.system * 100).toFixed(1) }}%</span>
+              </div>
+            </div>
+            
+            <div class="resource-meter">
+              <div class="resource-header">
+                <span>Memory Usage</span>
+                <span>{{ memoryUsagePercent }}%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-bar bg-success" :style="{width: memoryUsagePercent + '%'}"></div>
+              </div>
+              <div class="resource-details">
+                <span>Used: {{ bytesToString(state.systemInfoComplete.memoryInfo?.usedBytes || 0) }}</span>
+                <span>Total: {{ bytesToString(state.systemInfoComplete.memoryInfo?.totalBytes || 0) }}</span>
+              </div>
+            </div>
 
-            <ElementExpand title="Memory Allocations"  code>
-              + {{Object.keys(state.systemInfoComplete.memoryInfo.metrics).length}} values
+            <ElementExpand title="Memory Details" code>
               <template v-slot:expanded>
-                <div class="d-flex flex-column gap-2 pt-1 w-100">
-                  <div v-for="entry in Object.keys(state.systemInfoComplete.memoryInfo.metrics)" class="d-flex justify-content-between gap-1" style="margin-left: 1rem">
-                    <div class="label-o1 label-w500 label-c5">{{formatSnakeCaseToHumanCase(entry)}}</div>
-                    <div class="label-o4 label-w400 label-c5 label-code">{{bytesToString(state.systemInfoComplete.memoryInfo.metrics[entry])}}</div>
-
+                <div class="memory-details">
+                  <div v-for="(value, key) in state.systemInfoComplete.memoryInfo?.metrics" :key="key" class="detail-row">
+                    <span>{{ formatSnakeCaseToHumanCase(key) }}</span>
+                    <span>{{ bytesToString(value) }}</span>
                   </div>
                 </div>
               </template>
             </ElementExpand>
-
-
-
-          </List>
-
-        </Element>
-        <Element>
-          <div class="px-2 py-2 pb-1 ">
-            <div class="label-c4 label-o2 label-w500">Machine</div>
           </div>
-          <List>
-            <ElementPair title="Architecture" code>
-              {{ state.systemInfoComplete.hostInfo.architecture }}
-            </ElementPair>
-            <ElementPair title="Virtuality" code>
-              {{ state.systemInfoComplete.hostInfo.containerized ? "Virtual" : "Physical" }}
-            </ElementPair>
-            <ElementPair title="Timezone" code>
-              {{ state.systemInfoComplete.hostInfo.timezone }}
-            </ElementPair>
-            <ElementPair title="Location" code>
-              {{ state.netData.lat }},{{ state.netData.long }}
-            </ElementPair>
+        </div>
 
-            <ElementExpand title="Media Access Control"  code>
-              + {{Object.keys(state.systemInfoComplete.hostInfo.MACs).length}} values
+        <!-- System Information -->
+        <div class="info-card">
+          <div class="card-header">
+            <h5 class="card-title">
+              <i class="fa-solid fa-desktop"></i>
+              System Information
+            </h5>
+          </div>
+          <div class="card-content">
+            <div class="info-row">
+              <span class="info-label">Operating System</span>
+              <span class="info-value">
+                {{ state.systemInfoComplete.hostInfo?.os?.name }}
+                {{ state.systemInfoComplete.hostInfo?.os?.version }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Architecture</span>
+              <span class="info-value">{{ state.systemInfoComplete.hostInfo?.architecture }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Environment</span>
+              <span class="info-value">
+                {{ state.systemInfoComplete.hostInfo?.containerized ? 'Virtualized' : 'Physical' }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Timezone</span>
+              <span class="info-value">{{ state.systemInfoComplete.hostInfo?.timezone }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Location</span>
+              <span class="info-value">{{ state.netData.lat }}, {{ state.netData.long }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Last Seen</span>
+              <span class="info-value">{{ since(state.systemInfoComplete.timestamp + "", true) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Network Interfaces -->
+        <div class="info-card">
+          <div class="card-header">
+            <h5 class="card-title">
+              <i class="fa-solid fa-ethernet"></i>
+              Network Interfaces
+            </h5>
+          </div>
+          <div class="card-content">
+            <ElementExpand title="MAC Addresses" code>
+              <span class="badge bg-secondary">{{ Object.keys(state.systemInfoComplete.hostInfo?.MACs || {}).length }} interfaces</span>
               <template v-slot:expanded>
-                <div class="d-flex flex-column gap-2 pt-1 w-100">
-                  <div v-for="entry in Object.keys(state.systemInfoComplete.hostInfo.MACs)" class="d-flex justify-content-between gap-1" style="margin-left: 1rem">
-                    <div class="label-o1 label-w500 label-c5">{{getVendorFromMac(state.systemInfoComplete.hostInfo.MACs[entry])}}</div>
-                    <div class="label-o4 label-w400 label-c5 label-code">{{state.systemInfoComplete.hostInfo.MACs[entry]}}</div>
-
+                <div class="mac-list">
+                  <div v-for="(mac, iface) in state.systemInfoComplete.hostInfo?.MACs" :key="iface" class="mac-item">
+                    <div class="mac-address">{{ mac }}</div>
+                    <div class="mac-vendor">{{ getVendorFromMac(mac) }}</div>
                   </div>
                 </div>
               </template>
             </ElementExpand>
-          </List>
-        </Element>
-        <Element>
-          <div class="px-2 py-2 pb-1 ">
-            <div class="label-c4 label-o2 label-w500">Operating System</div>
           </div>
-          <List>
-
-            <ElementPair title="OS" code>
-              {{ state.systemInfoComplete.hostInfo.os.name }}
-              {{ state.systemInfoComplete.hostInfo.os.version }}
-            </ElementPair>
-            <ElementPair title="Location" code>
-              {{ state.netData.lat }},
-              {{ state.netData.long }}
-            </ElementPair>
-            <ElementPair title="Uptime" code>
-              {{ since(state.systemInfoComplete.hostInfo.bootTime + "", false) }}
-            </ElementPair>
-
-            <ElementPair title="Last Seen" code>
-              {{ since(state.systemInfoComplete.timestamp + "", true) }}
-            </ElementPair>
-          </List>
-        </Element>
-
-      </div>
-    </div>
-    <div v-else>
-      <div class="col-lg-12">
-        <div class="error-body text-center">
-          <h1 class="error-title text-danger">no data</h1>
-          <h3 class="text-error-subtitle">please check back later</h3>
-          <!-- <p class="text-muted m-t-30 m-b-30">YOU SEEM TO BE TRYING TO FIND HIS WAY HOME</p>
-           <a href="/" class="btn btn-danger btn-rounded waves-effect waves-light m-b-40 text-white">Back to home</a>-->
         </div>
       </div>
     </div>
 
+    <!-- Not Initialized State -->
+    <div v-else-if="!state.agent.initialized" class="empty-state">
+      <i class="fa-solid fa-exclamation-triangle text-warning"></i>
+      <h5>Agent Not Initialized</h5>
+      <p>This agent needs to be initialized before it can be used.</p>
+    </div>
 
-    <br>
-    <!--    <div class="row">
-          <div class="col-sm-12">
-            <div class="card">
-              <div class="card-body">
-                <h5 class="card-title">speedtest</h5>
-                <p class="card-text">view historical speedtests</p>
-                <table class="table">
-                  <thead>
-                  <tr>
-                    <th scope="col">timestamp</th>
-                    <th scope="col">server</th>
-                    <th scope="col">host</th>
-                    <th scope="col">upload</th>
-                    <th scope="col">download</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  <tr>
-                    &lt;!&ndash;                <th scope="row">{{state.stats.speed_test_info.timestamp}}</th>
-                                    <td>{{state.stats.speed_test_info.server}}</td>
-                                    <td>{{state.stats.speed_test_info.host}}</td>
-                                    <td>{{state.stats.speed_test_info.ul_speed}}</td>
-                                    <td>{{state.stats.speed_test_info.dl_speed}}</td>&ndash;&gt;
-                  </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>-->
+    <!-- No Data State -->
+    <div v-else class="empty-state">
+      <i class="fa-solid fa-database text-muted"></i>
+      <h5>No Data Available</h5>
+      <p>Waiting for agent to report data. Please check back later.</p>
+    </div>
   </div>
 </template>
 
-<style lang="scss">
-
-.agent-grid {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(1, 1fr);
-
-  grid-gap: 0.25rem;
-
+<style scoped>
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
-.probe {
-  height: 100%;
-  width: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+.status-badge.online {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.status-badge.offline {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.status-badge i {
+  font-size: 0.5rem;
+}
+
+/* Quick Stats */
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-item {
+  background: white;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s;
 }
 
-.check-grid {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(12, minmax(8rem, 1fr));
-  grid-gap: 0.5rem;
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
 
+.stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.stat-icon.cpu {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.stat-icon.memory {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.stat-icon.network {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.stat-icon.uptime {
+  background: #ede9fe;
+  color: #8b5cf6;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Content Sections */
+.agent-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.content-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-title i {
+  color: #6b7280;
+}
+
+/* Probes Grid */
+.probes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.probe-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.probe-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.probe-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.probe-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+}
+
+.probe-content {
+  flex: 1;
+}
+
+.probe-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.probe-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.probe-type-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.probe-arrow {
+  color: #9ca3af;
+}
+
+/* Info Grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.info-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-title i {
+  color: #6b7280;
+}
+
+.card-content {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* Info Rows */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.info-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.info-value {
+  font-size: 0.875rem;
+  color: #1f2937;
+  font-family: monospace;
+  text-align: right;
+  flex: 1;
+}
+
+/* Resource Meters */
+.resource-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resource-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.progress {
+  height: 0.5rem;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.resource-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Memory Details */
+.memory-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.813rem;
+  padding: 0.25rem 0;
+}
+
+/* MAC List */
+.mac-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.mac-item {
+  padding: 0.5rem;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.mac-address {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.mac-vendor {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.empty-state h5 {
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  margin-bottom: 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .quick-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .probes-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-row {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .info-label {
+    min-width: auto;
+  }
+  
+  .info-value {
+    text-align: left;
+  }
+}
+
+@media (max-width: 576px) {
+  .quick-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-item {
+    padding: 1rem;
+  }
+  
+  .probes-grid {
+    padding: 1rem;
+  }
 }
 </style>
