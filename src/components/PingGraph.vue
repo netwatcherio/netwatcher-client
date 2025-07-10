@@ -31,15 +31,32 @@
     <!-- Chart Container -->
     <div id="latencyGraph" ref="latencyGraph"></div>
 
-    <!-- Time Range Selector -->
-    <div class="time-range-selector">
-      <button 
-        v-for="range in timeRanges" 
-        :key="range.value"
-        :class="['time-btn', { active: selectedRange === range.value }]"
-        @click="setTimeRange(range.value)">
-        {{ range.label }}
-      </button>
+    <!-- Controls Row -->
+    <div class="controls-row">
+      <!-- Time Range Selector -->
+      <div class="time-range-selector">
+        <button 
+          v-for="range in timeRanges" 
+          :key="range.value"
+          :class="['time-btn', { active: selectedRange === range.value }]"
+          @click="setTimeRange(range.value)">
+          {{ range.label }}
+        </button>
+      </div>
+      
+      <!-- Annotation Toggle -->
+      <div class="annotation-toggle">
+        <label class="toggle-label">
+          <input 
+            type="checkbox" 
+            v-model="showAnnotations" 
+            @change="toggleAnnotations"
+            class="toggle-input"
+          />
+          <span class="toggle-switch"></span>
+          <span class="toggle-text">Show All Annotations</span>
+        </label>
+      </div>
     </div>
   </div>
 </template>
@@ -58,6 +75,7 @@ export default {
     const latencyGraph = ref(null);
     const chart = ref<ApexCharts | null>(null);
     const selectedRange = ref('all');
+    const showAnnotations = ref(true);
     
     const timeRanges = [
       { label: '1H', value: '1h' },
@@ -108,6 +126,12 @@ export default {
       drawGraph();
     };
 
+    const toggleAnnotations = () => {
+      if (chart.value) {
+        drawGraph();
+      }
+    };
+
     const filterDataByTimeRange = (data: PingResult[]) => {
       if (selectedRange.value === 'all') return data;
       
@@ -131,9 +155,9 @@ export default {
       const filteredData = filterDataByTimeRange(props.pingResults);
       
       if (chart.value) {
-        chart.value.updateOptions(createChartOptions(filteredData));
+        chart.value.updateOptions(createChartOptions(filteredData, showAnnotations.value));
       } else {
-        chart.value = new ApexCharts(latencyGraph.value, createChartOptions(filteredData));
+        chart.value = new ApexCharts(latencyGraph.value, createChartOptions(filteredData, showAnnotations.value));
         chart.value.render();
       }
     };
@@ -168,14 +192,16 @@ export default {
       getPacketLossClass,
       timeRanges,
       selectedRange,
-      setTimeRange
+      setTimeRange,
+      showAnnotations,
+      toggleAnnotations
     };
   },
 };
 
 const maxAllowedGap = 1000 * 90; // 90 seconds
 
-function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
+function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexCharts.ApexOptions {
   const sortedData = data.sort((a, b) => a.stopTimestamp.getTime() - b.stopTimestamp.getTime());
 
   // Decimate data if too many points
@@ -250,7 +276,7 @@ function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
     points: []
   };
 
-  // Gap annotations - check gaps in original data, not decimated data
+  // Gap annotations - always show these (check gaps in original data, not decimated data)
   sortedData.forEach((current, index, array) => {
     if (index > 0) {
       const prev = array[index - 1];
@@ -297,62 +323,64 @@ function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
   const p90Value = sortedAvgRtts[p90Index] || sortedAvgRtts[sortedAvgRtts.length - 1];
   
   // Set a reasonable Y-axis limit based on 90th percentile
-  // This will cut off extreme spikes but show normal operation clearly
   const yMax = Math.min(Math.ceil(p90Value * 1.5 / 50) * 50, 500); // Cap at 500ms for readability
-  
-  // Add high latency anomaly annotations (>300ms)
-  const anomalyThreshold = 300; // 300ms threshold for anomalies
-  decimatedData.forEach((d, index) => {
-    const avgRtt = d.avgRtt / 1e6;
-    const maxRtt = d.maxRtt / 1e6;
-    
-    // Check if any RTT value exceeds the anomaly threshold
-    if (avgRtt > anomalyThreshold || maxRtt > anomalyThreshold) {
-      // Add annotation for the anomaly
-      annotations.points.push({
-        x: d.stopTimestamp.getTime(),
-        y: Math.min(avgRtt, yMax), // Cap at yMax for visibility
-        seriesIndex: 1, // Avg RTT series
-        marker: {
-          size: 8,
-          fillColor: '#ef4444',
-          strokeColor: '#fff',
-          strokeWidth: 2,
-          radius: 2
-        },
-        label: {
-          borderColor: '#ef4444',
-          style: {
-            color: '#fff',
-            background: '#ef4444',
-            fontSize: '12px',
-            fontWeight: 'bold'
-          },
-          text: `Anomaly: ${avgRtt.toFixed(0)}ms`,
-          offsetY: -10
-        }
-      });
+
+  // Only add other annotations if showAnnotations is true
+  if (showAnnotations) {
+    // Add high latency anomaly annotations (>300ms)
+    const anomalyThreshold = 300; // 300ms threshold for anomalies
+    decimatedData.forEach((d, index) => {
+      const avgRtt = d.avgRtt / 1e6;
+      const maxRtt = d.maxRtt / 1e6;
       
-      // Also add a vertical line annotation for better visibility
-      annotations.xaxis.push({
-        x: d.stopTimestamp.getTime(),
-        strokeDashArray: 0,
-        borderColor: '#ef4444',
-        borderWidth: 2,
-        opacity: 0.3,
-        label: {
-          borderColor: '#ef4444',
-          style: {
-            color: '#fff',
-            background: '#ef4444'
+      // Check if any RTT value exceeds the anomaly threshold
+      if (avgRtt > anomalyThreshold || maxRtt > anomalyThreshold) {
+        // Add annotation for the anomaly
+        annotations.points.push({
+          x: d.stopTimestamp.getTime(),
+          y: Math.min(avgRtt, yMax), // Cap at yMax for visibility
+          seriesIndex: 1, // Avg RTT series
+          marker: {
+            size: 8,
+            fillColor: '#ef4444',
+            strokeColor: '#fff',
+            strokeWidth: 2,
+            radius: 2
           },
-          text: 'High Latency',
-          position: 'top',
-          orientation: 'horizontal'
-        }
-      });
-    }
-  });
+          label: {
+            borderColor: '#ef4444',
+            style: {
+              color: '#fff',
+              background: '#ef4444',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            },
+            text: `Anomaly: ${avgRtt.toFixed(0)}ms`,
+            offsetY: -10
+          }
+        });
+        
+        // Also add a vertical line annotation for better visibility
+        annotations.xaxis.push({
+          x: d.stopTimestamp.getTime(),
+          strokeDashArray: 0,
+          borderColor: '#ef4444',
+          borderWidth: 2,
+          opacity: 0.3,
+          label: {
+            borderColor: '#ef4444',
+            style: {
+              color: '#fff',
+              background: '#ef4444'
+            },
+            text: 'High Latency',
+            position: 'top',
+            orientation: 'horizontal'
+          }
+        });
+      }
+    });
+  }
 
   return {
     series,
@@ -609,11 +637,18 @@ function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
   color: #ef4444;
 }
 
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .time-range-selector {
   display: flex;
-  justify-content: center;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .time-btn {
@@ -636,6 +671,65 @@ function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
+}
+
+/* Annotation Toggle Styles */
+.annotation-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background-color: #e5e7eb;
+  border-radius: 12px;
+  margin-right: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked + .toggle-switch {
+  background-color: #3b82f6;
+}
+
+.toggle-input:checked + .toggle-switch::after {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
 }
 
 /* Custom tooltip styles */
@@ -678,5 +772,21 @@ function createChartOptions(data: PingResult[]): ApexCharts.ApexOptions {
   color: #1f2937;
   font-weight: 600;
   margin-left: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .time-range-selector {
+    justify-content: center;
+  }
+  
+  .annotation-toggle {
+    justify-content: center;
+  }
 }
 </style>
