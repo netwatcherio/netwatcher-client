@@ -19,7 +19,7 @@ function logout() {
       <!-- Logo Section -->
       <router-link to="/" class="navbar-brand">
         <i class="fa-solid fa-eye brand-icon"></i>
-        <span class="brand-text">NetWatcher</span>
+        <span class="brand-text">netwatcher.io</span>
       </router-link>
 
       <!-- Right Side Actions -->

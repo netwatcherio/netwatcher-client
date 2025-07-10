@@ -44,7 +44,7 @@ onMounted(() => {
 })
 
 function onCreate(response: any) {
-  router.push("/sites/" + state.site.id + "/members")
+  router.push("/workspace/" + state.site.id + "/members")
 }
 
 function onError(response: any) {
@@ -59,7 +59,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-  <Title title="edit member" :subtitle="`edit a member of the site '${state.site.name}'`" :history="[{title: 'workspaces', link: '/sites'}, {title: state.site.name, link: `/sites/${state.site.id}`}, {title: `members`, link: `/sites/${state.site.id}/members`}]"></Title>
+  <Title title="edit member" :subtitle="`edit a member of the site '${state.site.name}'`" :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}, {title: `members`, link: `/workspace/${state.site.id}/members`}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">

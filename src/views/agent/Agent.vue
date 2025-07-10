@@ -388,8 +388,8 @@ onMounted(() => {
   <div class="container-fluid">
     <Title 
       :history="[
-        {title: 'workspaces', link: '/sites'}, 
-        {title: state.site.name || 'Loading...', link: `/sites/${state.site.id}`}
+        {title: 'workspaces', link: '/workspaces'}, 
+        {title: state.site.name || 'Loading...', link: `/workspace/${state.site.id}`}
       ]"
       :title="state.agent.name || 'Loading...'"
       :subtitle="state.agent.location || 'Agent Information'">

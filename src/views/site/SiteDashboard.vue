@@ -101,17 +101,17 @@ function getLastSeenText(agent: Agent) {
 
 <template>
   <div class="container-fluid">
-    <Title :title="state.site.name || 'Loading...'" :history="[{title: 'workspaces', link: '/sites'}]">
+    <Title :title="state.site.name || 'Loading...'" :history="[{title: 'workspaces', link: '/workspaces'}]">
       <div class="d-flex flex-wrap gap-2">
-        <router-link :to="`/sites/${state.site.id}/edit`" class="btn btn-outline-dark">
+        <router-link :to="`/workspace/${state.site.id}/edit`" class="btn btn-outline-dark">
           <i class="fa-solid fa-pencil-alt"></i>
           <span class="d-none d-sm-inline">&nbsp;Edit</span>
         </router-link>
-        <router-link :to="`/sites/${state.site.id}/members`" class="btn btn-outline-dark">
+        <router-link :to="`/workspace/${state.site.id}/members`" class="btn btn-outline-dark">
           <i class="fa-solid fa-users"></i>
           <span class="d-none d-sm-inline">&nbsp;Members</span>
         </router-link>
-        <router-link :to="`/agents/${state.site.id}/new`" class="btn btn-primary">
+        <router-link :to="`/agent/${state.site.id}/new`" class="btn btn-primary">
           <i class="fa-solid fa-plus"></i>&nbsp;Create Agent
         </router-link>
       </div>

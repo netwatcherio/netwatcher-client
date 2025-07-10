@@ -42,7 +42,7 @@ function submit() {
   <div class="container-fluid" v-if="state.ready">
     <Title title="edit workspace"
            subtitle="update site details"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` }]">
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` }]">
     </Title>
     <div class="row">
       <div class="col-12">

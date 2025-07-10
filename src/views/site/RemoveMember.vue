@@ -71,7 +71,7 @@ function cancel() {
 <template>
   <div class="container-fluid" v-if="state.ready">
     <Title :title="`remove member`"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` },{ title: `members`, link: `/sites/${state.site.id}/members` }]">
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` },{ title: `members`, link: `/workspace/${state.site.id}/members` }]">
     </Title>
     <div class="row">
       <div class="col-12">

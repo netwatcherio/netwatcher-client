@@ -60,7 +60,7 @@ function cancel() {
 
 <template>
   <div class="container-fluid" v-if="state.ready">
-    <Title title="delete probe" subtitle="delete a specific probe" :history="[{title: 'workspaces', link: '/workspaces'},{title: state.site.name, link: `/sites/${state.site.id}`},{title: state.agent.name, link: `/agents/${state.agent.id}`}, {title: `edit probes`, link: `/agent/${state.agent.id}/probes`}]"> </Title>
+    <Title title="delete probe" subtitle="delete a specific probe" :history="[{title: 'workspaces', link: '/workspaces'},{title: state.site.name, link: `/workspace/${state.site.id}`},{title: state.agent.name, link: `/agent/${state.agent.id}`}, {title: `edit probes`, link: `/agent/${state.agent.id}/probes`}]"> </Title>
   <div class="row">
       <div class="col-12">
         <div class="card">

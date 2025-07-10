@@ -49,7 +49,7 @@ function submit() {
     <Title :title="`edit agent`"
            :subtitle="`update agent details`"
            :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` }]">
-      <router-link :to="`/agents/${state.agent.id}/delete`" active-class="active" class="btn btn-danger"><i class="fa-solid fa-trash"></i>&nbsp;delete</router-link>
+      <router-link :to="`/agent/${state.agent.id}/delete`" active-class="active" class="btn btn-danger"><i class="fa-solid fa-trash"></i>&nbsp;delete</router-link>
     </Title>
     <div class="row">
       <div class="col-12">
