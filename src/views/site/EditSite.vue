@@ -32,7 +32,7 @@ function submit() {
   if (state.site.id) {
     // Call the updateSite method from the siteService
     siteService.updateSite(state.site).then(() => {
-      router.push(`/sites/${state.site.id}`);
+      router.push(`/workspace/${state.site.id}`);
     }).catch(onError);
   }
 }

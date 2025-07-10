@@ -55,7 +55,7 @@ function onError(response: any) {
 
 function submit() {
   siteService.removeMember(state.site.id, state.memberInfo).then((res) => {
-    router.push(`/sites/${state.site.id}/members`)
+    router.push(`/workspace/${state.site.id}/members`)
     console.log(res)
   }).catch(err => {
     console.log(err)
@@ -63,7 +63,7 @@ function submit() {
 }
 
 function cancel() {
-  router.push(`/sites/${state.site.id}`)
+  router.push(`/workspace/${state.site.id}`)
 }
 
 </script>

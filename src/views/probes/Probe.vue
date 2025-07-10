@@ -732,7 +732,7 @@ watch(() => state.timeRange, (newRange) => {
                 
                 <div class="row">
                   <!-- Ping Data for this pair -->
-                  <div v-if="pair.pingData.length > 0" class="col-lg-6 mb-3">
+                  <div v-if="pair.pingData.length > 0" class="col-lg-12 mb-3">
                     <div class="card h-100">
                       <div class="card-header">
                         <h6 class="mb-0">Latency ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
@@ -742,7 +742,7 @@ watch(() => state.timeRange, (newRange) => {
                       </div>
                     </div>
                   </div>
-                  <div v-else-if="containsProbeType('PING')" class="col-lg-6 mb-3">
+                  <div v-else-if="containsProbeType('PING')" class="col-lg-12 mb-3">
                     <div class="card h-100">
                       <div class="card-header">
                         <h6 class="mb-0">Latency ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
@@ -755,9 +755,10 @@ watch(() => state.timeRange, (newRange) => {
                       </div>
                     </div>
                   </div>
-                  
+                  </div>
+                  <div class="row">
                   <!-- Traffic Sim Data for this pair -->
-                  <div v-if="pair.trafficSimData.length > 0" class="col-lg-6 mb-3">
+                  <div v-if="pair.trafficSimData.length > 0" class="col-lg-12 mb-3">
                     <div class="card h-100">
                       <div class="card-header">
                         <h6 class="mb-0">Simulated Traffic ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
@@ -767,7 +768,7 @@ watch(() => state.timeRange, (newRange) => {
                       </div>
                     </div>
                   </div>
-                  <div v-else-if="containsProbeType('TRAFFICSIM')" class="col-lg-6 mb-3">
+                  <div v-else-if="containsProbeType('TRAFFICSIM')" class="col-lg-12 mb-3">
                     <div class="card h-100">
                       <div class="card-header">
                         <h6 class="mb-0">Simulated Traffic ({{ pair.sourceAgentName }} → {{ pair.targetAgentName }})</h6>
