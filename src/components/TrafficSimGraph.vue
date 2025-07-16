@@ -41,7 +41,7 @@
           :class="['time-btn', { active: selectedRange === range.value }]"
           @click="setTimeRange(range.value)">
           {{ range.label }}
-        </button>
+        </button>tt
       </div>-->
       
       <!-- Annotation Toggle -->
