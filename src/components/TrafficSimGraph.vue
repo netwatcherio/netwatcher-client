@@ -34,7 +34,7 @@
     <!-- Controls Row -->
     <div class="controls-row">
       <!-- Time Range Selector -->
-      <div class="time-range-selector">
+<!--      <div class="time-range-selector">
         <button 
           v-for="range in timeRanges" 
           :key="range.value"
@@ -42,7 +42,7 @@
           @click="setTimeRange(range.value)">
           {{ range.label }}
         </button>
-      </div>
+      </div>-->
       
       <!-- Annotation Toggle -->
       <div class="annotation-toggle">
