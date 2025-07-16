@@ -25,7 +25,7 @@ onMounted(() => {
 })
 
 function onCreate(response: any) {
-  router.push("/sites/" + state.site.id + "/members")
+  router.push("/workspace/" + state.site.id + "/members")
 }
 
 function onError(response: any) {
