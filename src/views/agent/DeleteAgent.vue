@@ -18,16 +18,18 @@ onMounted(() => {
   let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
-  siteService.getSite(id).then(res => {
-    state.site = res.data as Site
-    state.agent.site = state.site.id
-    state.ready = true
+  agentService.getAgent(id).then(res => {
+    state.agent = res.data as Agent
+    siteService.getSite(state.agent.site).then(res => {
+      state.site = res.data as Site
+      state.ready = true
+    })
   })
 })
 const router = core.router()
 
 function onCreate(response: any) {
-  router.push("/sites")
+  router.push("/workspaces")
 }
 
 function onError(response: any) {
@@ -35,7 +37,7 @@ function onError(response: any) {
 }
 
 function submit() {
-  agentService.createAgent(state.agent).then((res) => {
+  agentService.deleteAgent(state.agent.id).then((res) => {
     router.push(`/workspace/${state.site.id}`)
     console.log(res)
   }).catch(err => {
@@ -43,32 +45,33 @@ function submit() {
   })
 }
 
+function cancel() {
+  router.push(`/workspace/${state.site.id}`)
+}
+
 </script>
 
 <template>
   <div class="container-fluid" v-if="state.ready">
-    <Title title="Add Agent" subtitle="create a new agent" :history="[{title: 'workspaces', link: '/workspaces'}, {title: state.site.name, link: `/workspace/${state.site.id}`}]"></Title>
+    <Title :title="`delete agent`"
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` },{ title: `edit agent`, link: `/agent/${state.agent.id}/edit` }]">
+    </Title>
     <div class="row">
       <div class="col-12">
         <div class="card">
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="agentName">agent name</label>
+                <label class="col-3 text-end control-label col-form-label">confirm deletion</label>
                 <div class="col-9 border-start pb-2 pt-2">
-                  <input id="agentName" class="form-control" name="name" v-model="state.agent.name" placeholder="name" type="text">
-                  <br>
-                  <input id="agentLocation" class="form-control" name="name" v-model="state.agent.location" placeholder="location" type="text">
+                  <p>are you sure you want to delete the agent <strong>{{ state.agent.name }}</strong>?</p>
                 </div>
               </div>
             </div>
             <div class="p-3 border-top">
               <div class="form-group mb-0 text-end">
-                <button class="
-                          btn btn-primary px-4" type="submit" @click="submit">
-                  Create Agent
-                </button>
-
+                <button class="btn btn-secondary px-4" @click="cancel">cancel</button>
+                <button style="margin-left: 20px" class="btn btn-danger px-4" @click="submit">delete</button>
               </div>
             </div>
           </div>

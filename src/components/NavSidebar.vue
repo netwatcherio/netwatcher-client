@@ -29,7 +29,7 @@ function logout() {
         </router-link>
       </li>
       <li class="nav-item">
-        <router-link active-class="active" class="nav-link" to="/sites">
+        <router-link active-class="active" class="nav-link" to="/workspaces">
           <div class="sidebar-link waves-effect waves-dark"><i class="bi bi-grid"></i>&nbsp;&nbsp;workspaces
           </div>
         </router-link>

@@ -83,12 +83,14 @@ function submit(_: MouseEvent) {
         <div class="row justify-content-center text-center">
           <div class="col-md-7 col-lg-12 col-xl-9">
             <div>
-              <span class="db"><img alt="logo" src="/assets/images/logo-light-icon.png"></span>
-              <span class="db"><img alt="logo" src="/assets/images/logo-light-text.png"></span>
+              <router-link to="/" class="navbar-brand">
+        <i class="fa-solid fa-eye brand-icon"></i>
+        <span class="brand-text">netwatcher.io</span>
+      </router-link>
             </div>
-            <h2 class="text-white mt-4 fw-light">
+            <!--<h2 class="text-white mt-4 fw-light">
               <span class="font-weight-medium">Network Monitoring</span> made easy
-            </h2>
+            </h2>-->
             <p class="op-5 text-white fs-4 mt-4">
               A simple network performance monitoring platform designed for MSPs
             </p>
@@ -181,6 +183,17 @@ function submit(_: MouseEvent) {
 </template>
 
 <style scoped>
+/* Logo/Brand */
+.navbar-brand {
+  align-items: center;
+  /*gap: 0.75rem;*/
+  text-decoration: none;
+  color: #FFFF;
+  font-weight: 600;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+}
+
 .card {
   border-radius: 0.8rem;
 }

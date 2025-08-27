@@ -13,7 +13,7 @@ const state = reactive({
 });
 
 onMounted(() => {
-  let id = router.currentRoute.value.params["agentId"] as string
+  let id = router.currentRoute.value.params["idParam"] as string
   if (!id) return
 
   agentService.getAgent(id).then(res => {
@@ -37,7 +37,7 @@ function onError(error: any) {
 function submit() {
   if (state.agent.id) {
     agentService.updateAgent(state.agent).then(() => {
-      router.push(`/sites/${state.site.id}`);
+      router.push(`/workspace/${state.site.id}`);
     }).catch(onError);
   }
 }
@@ -48,7 +48,8 @@ function submit() {
   <div class="container-fluid" v-if="state.ready">
     <Title :title="`edit agent`"
            :subtitle="`update agent details`"
-           :history="[{ title: 'workspaces', link: '/sites' }, { title: state.site.name, link: `/sites/${state.site.id}` }]">
+           :history="[{ title: 'workspaces', link: '/workspaces' }, { title: state.site.name, link: `/workspace/${state.site.id}` }]">
+      <router-link :to="`/agent/${state.agent.id}/delete`" active-class="active" class="btn btn-danger"><i class="fa-solid fa-trash"></i>&nbsp;delete</router-link>
     </Title>
     <div class="row">
       <div class="col-12">
@@ -56,11 +57,13 @@ function submit() {
           <div class="form-horizontal r-separator border-top">
             <div class="card-body">
               <div class="form-group row align-items-center mb-0">
-                <label class="col-3 text-end control-label col-form-label" for="agentName">Agent Name</label>
+                <label class="col-3 text-end control-label col-form-label" for="agentName">{{state.agent.name}}</label>
                 <div class="col-9 border-start pb-2 pt-2">
                   <input id="agentName" class="form-control" name="name" v-model="state.agent.name" placeholder="Enter agent name" type="text">
                   <br>
                   <input id="agentLocation" class="form-control" name="location" v-model="state.agent.location" placeholder="Enter agent location" type="text">
+                  <hr>
+                  <input title="public ip override" id="agentLocation" class="form-control" name="public_address" v-model="state.agent.public_ip_override" placeholder="Public IP Override" type="text">
                 </div>
               </div>
             </div>

@@ -1,267 +1,338 @@
 <template>
-  <div ref="mtrGraph" class="network-map"></div>
+  <div class="network-map-container">
+    <div class="controls">
+      <button @click="resetView" class="control-btn">Reset View</button>
+      <button @click="toggleLayout" class="control-btn">
+        {{ layoutMode === 'force' ? 'Hierarchical' : 'Force' }} Layout
+      </button>
+      <select v-model="colorMode" class="control-select">
+        <option value="combined">Combined Metrics</option>
+        <option value="latency">Latency Only</option>
+        <option value="packetLoss">Packet Loss Only</option>
+      </select>
+    </div>
+    <div ref="containerRef" class="network-map"></div>
+  </div>
 </template>
 
 <script lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue';
 import * as d3 from 'd3';
-import type { MtrResult } from '@/types'; // Import your MtrResult type
+import type { MtrResult } from '@/types';
 
 export default {
   name: 'NetworkMap',
   props: {
-    mtrResults: Array as () => MtrResult[],
+    mtrResults: {
+      type: Array as () => MtrResult[],
+      required: true,
+    },
   },
-  setup(props: { mtrResults: MtrResult[]; }) {
-    const mtrGraph = ref<HTMLElement | null>(null);
+  setup(props) {
+    const containerRef = ref<HTMLElement | null>(null);
+    const colorMode = ref<'combined' | 'latency' | 'packetLoss'>('combined');
+    const layoutMode = ref<'force' | 'hierarchical'>('hierarchical');
+    
+    let visualization: NetworkVisualization | null = null;
 
-    const drawGraph = () => {
-      if (mtrGraph.value && props.mtrResults.length > 0) {
-        createNetworkMap(props.mtrResults, mtrGraph.value);
+    const resetView = () => {
+      visualization?.resetZoom();
+    };
+
+    const toggleLayout = () => {
+      layoutMode.value = layoutMode.value === 'force' ? 'hierarchical' : 'force';
+      if (visualization) {
+        visualization.setLayout(layoutMode.value);
       }
     };
 
-    const resizeListener = () => {
-      drawGraph();
+    const createVisualization = () => {
+      if (!containerRef.value || !props.mtrResults.length) return;
+      
+      if (visualization) {
+        visualization.destroy();
+      }
+      
+      visualization = new NetworkVisualization(
+        containerRef.value,
+        props.mtrResults,
+        colorMode.value,
+        layoutMode.value
+      );
     };
 
     onMounted(() => {
-      drawGraph();
-      window.addEventListener('resize', resizeListener);
+      createVisualization();
     });
 
     onUnmounted(() => {
-      window.removeEventListener('resize', resizeListener);
+      visualization?.destroy();
     });
 
-    watch(() => props.mtrResults, drawGraph, { immediate: true });
+    watch([() => props.mtrResults, colorMode], () => {
+      createVisualization();
+    }, { deep: true });
 
-    return { mtrGraph };
+    return {
+      containerRef,
+      colorMode,
+      layoutMode,
+      resetView,
+      toggleLayout,
+    };
   },
 };
 
-type Node = {
-  id: string;
-  label: string;
-  hopNumber: number;
-};
+// Separate the D3 logic into a class for better organization
+class NetworkVisualization {
+  private container: HTMLElement;
+  private svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+  private g: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private simulation: d3.Simulation<Node, Link>;
+  private zoom: d3.ZoomBehavior<Element, unknown>;
+  private tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>;
+  private nodes: Node[] = [];
+  private links: Link[] = [];
+  private width: number;
+  private height: number;
+  private nodeRadius = 22;
+  private margin = { top: 60, right: 20, bottom: 100, left: 20 };
 
-type Link = {
-  source: string;
-  target: string;
-  latency: number;
-  packetLoss: number;
-};
+  constructor(
+    container: HTMLElement,
+    mtrResults: MtrResult[],
+    private colorMode: 'combined' | 'latency' | 'packetLoss',
+    private layoutMode: 'force' | 'hierarchical'
+  ) {
+    this.container = container;
+    this.width = container.clientWidth - this.margin.left - this.margin.right;
+    this.height = 600 - this.margin.top - this.margin.bottom;
+    
+    this.processData(mtrResults);
+    this.initializeSVG();
+    this.createVisualization();
+  }
 
-function createNetworkMap(mtrResults: MtrResult[], graphElement: HTMLElement) {
-  graphElement.style.height = '600px';
-  // Set the dimensions and margins of the graph
-  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-  const width = graphElement.clientWidth - margin.left - margin.right;
-  const height = graphElement.clientHeight - margin.top - margin.bottom;
-  const nodeRadius = 18;
-  const linkColor = '#999';
-  const unreachableColor = 'gray';
-  const textSize = 8;
+  private processData(mtrResults: MtrResult[]) {
+    const nodeMap = new Map<string, Node>();
+    const linkMap = new Map<string, Link>();
 
-  const nodes = [] as Node[];
-  const links = [] as Link[];
+    mtrResults.forEach((result, pathIndex) => {
+      let prevNode: Node | null = null;
 
-  // Create a map to aggregate packetLoss and latency values for each source
-  const aggregationMap = new Map();
+      result.report.hops.forEach((hop, hopIndex) => {
+        const hopNum = hopIndex + 1;
+        let nodeId: string;
+        let hostname: string | undefined;
+        let ip: string | undefined;
+        let isUnknown = false;
 
-  mtrResults.forEach((mtrResult) => {
-    mtrResult.report.hops.forEach((hop, hopIndex) => {
-      if (hop.hosts.length > 0) {
-        hop.hosts.forEach((host) => {
-          const nodeId = host.hostname ? `${host.hostname} (${host.ip})` : 'Unreachable #' + (hopIndex + 1);
-          if (!nodes.some(n => n.id === nodeId)) {
-            nodes.push({
-              id: nodeId,
-              label: `Hop ${hopIndex + 1}: ${nodeId}`,
-              hopNumber: hopIndex + 1,
-            });
-          }
+        if (hop.hosts.length > 0) {
+          hostname = hop.hosts[0].hostname;
+          ip = hop.hosts[0].ip;
+          nodeId = ip || `hop-${hopNum}`;
+        } else {
+          // Use same ID for all unknown hosts at the same hop number
+          nodeId = `unknown-hop-${hopNum}`;
+          isUnknown = true;
+        }
 
-          if (hopIndex < mtrResult.report.hops.length - 1) {
-            const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
-            if (nextHopHosts.length > 0) {
-              const nextHop = nextHopHosts[0];
-              const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
-
-              // Calculate the average packetLoss and latency for this link
-              const sourceNodeId = nodeId;
-              const targetNodeId = nextNodeId;
-              const packetLoss = parseFloat(hop.loss_pct);
-              const latency = parseFloat(hop.avg);
-
-              if (!aggregationMap.has(sourceNodeId)) {
-                aggregationMap.set(sourceNodeId, {
-                  packetLossSum: packetLoss,
-                  latencySum: latency,
-                  count: 1,
-                });
-              } else {
-                const existingData = aggregationMap.get(sourceNodeId);
-                existingData.packetLossSum += packetLoss;
-                existingData.latencySum += latency;
-                existingData.count++;
-              }
-
-              links.push({
-                source: sourceNodeId,
-                target: targetNodeId,
-              });
-            } else {
-              const nextNodeId = 'Unreachable #' + (hopIndex + 2);
-              links.push({
-                source: nodeId,
-                target: nextNodeId,
-              });
-            }
-          }
-        });
-      } else {
-        const nodeId = 'Unreachable #' + (hopIndex + 1);
-        if (!nodes.some(n => n.id === nodeId)) {
-          nodes.push({
+        let node = nodeMap.get(nodeId);
+        if (!node) {
+          node = {
             id: nodeId,
-            label: `Hop ${hopIndex + 1}: ${nodeId}`,
-            hopNumber: hopIndex + 1,
-          });
+            label: isUnknown ? '?' : `${hopNum}`,
+            hopNumber: hopNum,
+            paths: new Set([pathIndex]),
+            packetLoss: parseFloat(hop.loss_pct || '0'),
+            latency: parseFloat(hop.avg || '0'),
+            hostname,
+            ip,
+            isUnknown,
+          };
+          nodeMap.set(nodeId, node);
+        } else {
+          // Update metrics for combined nodes (especially important for unknown hosts)
+          const oldSize = node.paths.size;
+          node.paths.add(pathIndex);
+          
+          // Average the metrics across all paths
+          node.packetLoss = (node.packetLoss * oldSize + parseFloat(hop.loss_pct || '0')) / node.paths.size;
+          node.latency = (node.latency * oldSize + parseFloat(hop.avg || '0')) / node.paths.size;
         }
 
-        if (hopIndex < mtrResult.report.hops.length - 1) {
-          const nextHopHosts = mtrResult.report.hops[hopIndex + 1].hosts;
-          if (nextHopHosts.length > 0) {
-            const nextHop = nextHopHosts[0];
-            const nextNodeId = nextHop.hostname ? `${nextHop.hostname} (${nextHop.ip})` : 'Unreachable #' + (hopIndex + 1);
-
-            // Calculate the average packetLoss and latency for this link
-            const sourceNodeId = nodeId;
-            const targetNodeId = nextNodeId;
-            const packetLoss = parseFloat(hop.loss_pct);
-            const latency = parseFloat(hop.avg);
-
-            if (!aggregationMap.has(sourceNodeId)) {
-              aggregationMap.set(sourceNodeId, {
-                packetLossSum: packetLoss,
-                latencySum: latency,
-                count: 1,
-              });
-            } else {
-              const existingData = aggregationMap.get(sourceNodeId);
-              existingData.packetLossSum += packetLoss;
-              existingData.latencySum += latency;
-              existingData.count++;
-            }
-
-            links.push({
-              source: sourceNodeId,
-              target: targetNodeId,
-            });
+        if (prevNode) {
+          const linkId = `${prevNode.id}->${node.id}`;
+          let link = linkMap.get(linkId);
+          if (!link) {
+            link = {
+              id: linkId,
+              source: prevNode.id,
+              target: node.id,
+              paths: new Set([pathIndex]),
+            };
+            linkMap.set(linkId, link);
           } else {
-            const nextNodeId = 'Unreachable #' + (hopIndex + 1);
-            links.push({
-              source: nodeId,
-              target: nextNodeId,
-            });
+            link.paths.add(pathIndex);
           }
         }
-      }
+
+        prevNode = node;
+      });
     });
-  });
 
-  // Calculate the average packetLoss and latency for each source
-  aggregationMap.forEach((data, sourceNodeId) => {
-    const averagePacketLoss = data.packetLossSum / data.count;
-    const averageLatency = data.latencySum / data.count;
+    this.nodes = Array.from(nodeMap.values());
+    this.links = Array.from(linkMap.values());
+  }
 
-    // Find the link corresponding to the sourceNodeId
-    const link = links.find(link => link.source === sourceNodeId);
+  private initializeSVG() {
+    // Clear container
+    d3.select(this.container).selectAll('*').remove();
 
-    if (link) {
-      link.packetLoss = averagePacketLoss;
-      link.latency = averageLatency;
-    }
-  });
-
-  // Clear any existing SVG
-  d3.select(graphElement).selectAll('svg').remove();
-
-  // Create the outer SVG element
-  const svg = d3.select(graphElement)
+    // Create SVG
+    this.svg = d3.select(this.container)
       .append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`); // Translate to include margins
+      .attr('width', this.width + this.margin.left + this.margin.right)
+      .attr('height', this.height + this.margin.top + this.margin.bottom);
 
-  // Define the zoom behavior
-  const zoom = d3.zoom()
-      .scaleExtent([0.5, 4])
-      .translateExtent([
-        [-100, -100], // Limit the panning to 100px outside the SVG on each side
-        [width + margin.right + 100, height + margin.bottom + 100]
-      ])
+    // Create main group
+    this.g = this.svg.append('g')
+      .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
+
+    // Create tooltip
+    this.tooltip = d3.select(this.container)
+      .append('div')
+      .attr('class', 'network-tooltip')
+      .style('position', 'absolute')
+      .style('visibility', 'hidden')
+      .style('background', 'rgba(0, 0, 0, 0.9)')
+      .style('color', 'white')
+      .style('padding', '10px')
+      .style('border-radius', '5px')
+      .style('font-size', '14px')
+      .style('pointer-events', 'none')
+      .style('z-index', '1000');
+
+    // Setup zoom
+    this.zoom = d3.zoom()
+      .scaleExtent([0.3, 5])
       .on('zoom', (event) => {
-        svg.attr('transform', event.transform);
+        this.g.attr('transform', event.transform);
       });
 
-  // Apply the zoom behavior to the SVG element
-  svg.call(zoom);
+    this.svg.call(this.zoom);
 
-  // Create the links (lines)
-  const link = svg.selectAll('.link')
-      .data(links)
-      .enter().append('line')
-      .attr('class', 'link')
-      .style('stroke-width', 2)
-      .style('stroke', linkColor);
+    // Add title
+    this.svg.append('text')
+      .attr('x', (this.width + this.margin.left + this.margin.right) / 2)
+      .attr('y', 30)
+      .attr('text-anchor', 'middle')
+      .style('font-size', '20px')
+      .style('font-weight', 'bold')
+      .text('Network Topology');
+  }
 
-  // Create the nodes (circles)
-  const node = svg.selectAll('.node')
-      .data(nodes)
-      .enter().append('circle')
+  private createVisualization() {
+    // Create force simulation
+    this.simulation = d3.forceSimulation<Node>(this.nodes)
+      .force('link', d3.forceLink<Node, Link>(this.links)
+        .id(d => d.id)
+        .distance(100))
+      .force('charge', d3.forceManyBody().strength(-300))
+      .force('collision', d3.forceCollide(this.nodeRadius + 5));
+
+    if (this.layoutMode === 'hierarchical') {
+      this.applyHierarchicalLayout();
+    } else {
+      this.simulation.force('center', d3.forceCenter(this.width / 2, this.height / 2));
+    }
+
+    // Create links
+    const linkSelection = this.g.append('g')
+      .attr('class', 'links')
+      .selectAll('line')
+      .data(this.links)
+      .enter()
+      .append('line')
+      .attr('stroke', '#999')
+      .attr('stroke-opacity', 0.6)
+      .attr('stroke-width', d => Math.sqrt(d.paths.size) * 2);
+
+    // Create nodes
+    const nodeSelection = this.g.append('g')
+      .attr('class', 'nodes')
+      .selectAll('g')
+      .data(this.nodes)
+      .enter()
+      .append('g')
       .attr('class', 'node')
-      .attr('r', nodeRadius)
-      .style('fill', d => d.id.startsWith('Unreachable') ? unreachableColor : getNodeColor(d.id));
+      .call(this.createDragBehavior());
 
-  // Create labels for the nodes
-  const label = svg.selectAll('.label')
-      .data(nodes)
-      .enter().append('text')
-      .attr('class', 'label')
-      .text(d => d.label)
-      .style('font-family', 'Arial')
-      .style('font-size', textSize)
-      .attr('dx', '1em') // Offset the label horizontally
-      .attr('dy', '.35em'); // Offset the label vertically
+    // Add circles
+    nodeSelection.append('circle')
+      .attr('r', this.nodeRadius)
+      .attr('fill', d => this.getNodeColor(d))
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 2)
+      .style('cursor', 'pointer');
 
-  // Define the simulation
-  const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-      .force('charge', d3.forceManyBody().strength(-50))
-      .force('center', d3.forceCenter(width / 2, height / 2));
+    // Add labels
+    nodeSelection.append('text')
+      .attr('dy', 5)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'white')
+      .style('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text(d => d.label);
 
-  // Update positions on each tick
-  simulation.on('tick', () => {
-    link.attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
+    // Add hover interactions
+    nodeSelection
+      .on('mouseenter', (event, d) => this.showTooltip(event, d))
+      .on('mousemove', (event) => this.moveTooltip(event))
+      .on('mouseleave', () => this.hideTooltip());
 
-    node.attr('cx', d => d.x)
-        .attr('cy', d => d.y);
+    // Update positions on tick
+    this.simulation.on('tick', () => {
+      linkSelection
+        .attr('x1', d => (d.source as Node).x!)
+        .attr('y1', d => (d.source as Node).y!)
+        .attr('x2', d => (d.target as Node).x!)
+        .attr('y2', d => (d.target as Node).y!);
 
-    label.attr('x', d => d.x)
-        .attr('y', d => d.y);
-  });
+      nodeSelection
+        .attr('transform', d => `translate(${d.x},${d.y})`);
+    });
 
-  // Drag behavior for nodes
-  node.call(d3.drag()
+    // Add legend
+    this.createLegend();
+  }
+
+  private applyHierarchicalLayout() {
+    const xScale = d3.scaleLinear()
+      .domain([1, d3.max(this.nodes, d => d.hopNumber)!])
+      .range([50, this.width - 50]);
+
+    const nodesByHop = d3.group(this.nodes, d => d.hopNumber);
+    
+    nodesByHop.forEach((nodes, hop) => {
+      const x = xScale(hop);
+      const ySpacing = this.height / (nodes.length + 1);
+      
+      nodes.forEach((node, i) => {
+        node.fx = x;
+        node.fy = ySpacing * (i + 1);
+      });
+    });
+
+    this.simulation
+      .force('x', d3.forceX<Node>(d => d.fx!).strength(1))
+      .force('y', d3.forceY<Node>(d => d.fy!).strength(1));
+  }
+
+  private createDragBehavior() {
+    return d3.drag<SVGGElement, Node>()
       .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+        if (!event.active) this.simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
       })
@@ -270,116 +341,219 @@ function createNetworkMap(mtrResults: MtrResult[], graphElement: HTMLElement) {
         d.fy = event.y;
       })
       .on('end', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }));
+        if (!event.active) this.simulation.alphaTarget(0);
+        if (this.layoutMode === 'force') {
+          d.fx = null;
+          d.fy = null;
+        }
+      });
+  }
 
-  function getNodeColor(sourceNodeId) {
-    let link = links.find(link => link.source == sourceNodeId);
+  private showTooltip(event: MouseEvent, d: Node) {
+    let title = d.hostname || 'Unknown Host';
+    if (d.isUnknown) {
+      title = `Unknown Host (Hop ${d.hopNumber})`;
+    }
+    
+    const html = `
+      <strong>${title}</strong><br/>
+      ${d.ip ? `IP: ${d.ip}<br/>` : ''}
+      ${!d.isUnknown ? `Hop: ${d.hopNumber}<br/>` : ''}
+      Latency: ${d.latency.toFixed(2)} ms${d.paths.size > 1 ? ' (avg)' : ''}<br/>
+      Packet Loss: ${d.packetLoss.toFixed(1)}%${d.paths.size > 1 ? ' (avg)' : ''}<br/>
+      <!--Paths: ${Array.from(d.paths).join(', ')} (${d.paths.size} total)-->
+    `;
+    
+    this.tooltip
+      .html(html)
+      .style('visibility', 'visible');
+    
+    this.moveTooltip(event);
+  }
 
-    if (link === undefined) {
-      return '#FB5561'; // Default color for undefined link, using the last color in the provided palette
-    } else {
-      // Define thresholds
-      const packetLossThreshold = 10; // Adjust as needed
-      const latencyThreshold = 100;   // Adjust as needed
+  private moveTooltip(event: MouseEvent) {
+    const tooltipNode = this.tooltip.node();
+    if (!tooltipNode) return;
+    
+    const rect = this.container.getBoundingClientRect();
+    const x = event.clientX - rect.left + 10;
+    const y = event.clientY - rect.top - 10;
+    
+    this.tooltip
+      .style('left', `${x}px`)
+      .style('top', `${y}px`);
+  }
 
-      if (link.packetLoss == undefined || link.latency == undefined) {
-        return '#FB5561'; // Default color for undefined link, using the last color in the provided palette
-      }
+  private hideTooltip() {
+    this.tooltip.style('visibility', 'hidden');
+  }
 
-      // Calculate a score based on packet loss and latency
-      const score = (link.packetLoss / packetLossThreshold) + (link.latency / latencyThreshold);
-
-      // Normalize the score to the range of [0, 1] for color interpolation
-      const normalizedScore = Math.min(Math.max(score, 0), 1);
-
-      let color = interpolateColor(normalizedScore);
-
-      if (color == undefined) {
-        return '#FB5561';
-      }
-
-      // Interpolate color based on normalized score
-      return color;
+  private getNodeColor(node: Node): string {
+    if (node.isUnknown) return '#999';
+    
+    const packetLossColors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+    const latencyColors = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+    
+    const plIndex = Math.min(Math.floor(node.packetLoss / 20), 4);
+    const latIndex = Math.min(Math.floor(node.latency / 40), 4);
+    
+    switch (this.colorMode) {
+      case 'packetLoss':
+        return packetLossColors[plIndex];
+      case 'latency':
+        return latencyColors[latIndex];
+      default:
+        const plColor = packetLossColors[plIndex];
+        const latColor = latencyColors[latIndex];
+        return d3.interpolateRgb(plColor, latColor)(0.5);
     }
   }
 
-  function interpolateColor(fraction) {
-    // Define the color palette from the provided image
-    const palette = [
-      '#4E8A7D', // Color 1
-      '#83DCA1', // Color 2
-      '#E8E598', // Color 3
-      '#ED937B', // Color 4
-      '#FB5561'  // Color 5
+  private createLegend() {
+    const legendData = [
+      { color: '#22c55e', label: 'Excellent' },
+      { color: '#84cc16', label: 'Good' },
+      { color: '#eab308', label: 'Fair' },
+      { color: '#f97316', label: 'Poor' },
+      { color: '#ef4444', label: 'Critical' },
+      { color: '#999', label: 'Unknown' },
     ];
 
-    // Determine the section width in the palette
-    const sectionWidth = 1 / (palette.length - 1);
-    let sectionIndex = Math.floor(fraction / sectionWidth);
+    const legend = this.svg.append('g')
+      .attr('transform', `translate(${this.margin.left},${this.height + this.margin.top + 40})`);
 
-    // Cap sectionIndex to the second to last item to avoid going out of bounds
-    sectionIndex = Math.min(sectionIndex, palette.length - 2);
+    const items = legend.selectAll('.legend-item')
+      .data(legendData)
+      .enter()
+      .append('g')
+      .attr('transform', (d, i) => `translate(${i * 100},0)`);
 
-    // Calculate the local fraction (how far along the section the score is)
-    const localFraction = (fraction - sectionWidth * sectionIndex) / sectionWidth;
+    items.append('rect')
+      .attr('width', 18)
+      .attr('height', 18)
+      .attr('fill', d => d.color)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1);
 
-    let color2Max = sectionIndex + 1 < palette.length ? palette[sectionIndex + 1] : palette[sectionIndex]
-
-    // Interpolate between the two closest colors in the palette
-    return interpolateHexColor(palette[sectionIndex], color2Max, localFraction);
+    items.append('text')
+      .attr('x', 24)
+      .attr('y', 14)
+      .text(d => d.label)
+      .style('font-size', '12px');
   }
 
-  function interpolateHexColor(color1, color2, fraction) {
-    // Convert hex to RGB
-    const color1Rgb = hexToRgb(color1);
-    const color2Rgb = hexToRgb(color2);
-
-    // Calculate interpolated color in RGB
-    const resultRgb = {
-      r: interpolateValue(color1Rgb.r, color2Rgb.r, fraction),
-      g: interpolateValue(color1Rgb.g, color2Rgb.g, fraction),
-      b: interpolateValue(color1Rgb.b, color2Rgb.b, fraction)
-    };
-
-    // Convert back to hex and return
-    return rgbToHex(resultRgb.r, resultRgb.g, resultRgb.b);
+  public setLayout(mode: 'force' | 'hierarchical') {
+    this.layoutMode = mode;
+    
+    if (mode === 'hierarchical') {
+      this.applyHierarchicalLayout();
+    } else {
+      // Reset fixed positions
+      this.nodes.forEach(node => {
+        node.fx = null;
+        node.fy = null;
+      });
+      this.simulation.force('center', d3.forceCenter(this.width / 2, this.height / 2));
+    }
+    
+    this.simulation.alpha(1).restart();
   }
 
-  function hexToRgb(hex) {
-    // Strip the hash if present and convert 3-digit hex to 6-digit hex
-    hex = hex.replace(/^#/, '');
-    hex = hex.length === 3 ? hex.split('').map(char => char + char).join('') : hex;
-
-    // Parse the hexadecimal color
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    console.log(hex)
-
-    return { r, g, b };
+  public resetZoom() {
+    this.svg.transition()
+      .duration(750)
+      .call(this.zoom.transform, d3.zoomIdentity);
   }
 
-  function rgbToHex(r, g, b) {
-    // Convert each color component to a hexadecimal string
-    const toHex = c => ('0' + c.toString(16)).slice(-2);
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  public destroy() {
+    this.simulation.stop();
+    d3.select(this.container).selectAll('*').remove();
   }
-
-  function interpolateValue(value1, value2, fraction) {
-    // Linear interpolation
-    return Math.round(value1 + (value2 - value1) * fraction);
-  }
-
 }
 
+// Type definitions
+interface Node extends d3.SimulationNodeDatum {
+  id: string;
+  label: string;
+  hopNumber: number;
+  paths: Set<number>;
+  packetLoss: number;
+  latency: number;
+  hostname?: string;
+  ip?: string;
+  isUnknown: boolean;
+}
+
+interface Link extends d3.SimulationLinkDatum<Node> {
+  id: string;
+  paths: Set<number>;
+}
 </script>
 
 <style scoped>
+.network-map-container {
+  position: relative;
+  width: 100%;
+  min-height: 700px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 100;
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.control-btn {
+  padding: 6px 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.control-btn:hover {
+  background: #2563eb;
+}
+
+.control-select {
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
 .network-map {
-  /* Add your styles here */
+  width: 100%;
+  height: 700px;
+  position: relative;
+}
+
+/* Global styles for D3 elements */
+:global(.network-tooltip) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+:global(.node circle) {
+  transition: transform 0.2s;
+}
+
+:global(.node:hover circle) {
+  transform: scale(1.1);
 }
 </style>

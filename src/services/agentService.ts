@@ -15,6 +15,10 @@ export default {
         return await request.get(`/agents/site/${id}`)
     },
     async getAgent(id: string): Promise<any> {
+        console.log(id)
         return await request.get(`/agents/${id}`)
+    },
+    async deleteAgent(id: string): Promise<any> {
+        return await request.get(`/agents/delete/${id}`)
     },
 }

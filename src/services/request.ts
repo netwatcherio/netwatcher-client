@@ -43,7 +43,7 @@ function host(): string {
         return globalUrl;
     }
     // Return a hard coded value if no other url is found
-    return 'https://api.netwatcher.io:8080';
+    return 'https://api.netwatcher.io';
 }
 
 export default {

@@ -34,7 +34,7 @@ function submit() {
 
 <template>
   <div class="container-fluid">
-  <Title title="new workspace" subtitle="create a new site" :history="[{title: 'workspaces', link: '/sites'}]"></Title>
+  <Title title="new workspace" subtitle="create a new site" :history="[{title: 'workspaces', link: '/workspaces'}]"></Title>
     <div class="row">
       <div class="col-12">
         <div class="card">

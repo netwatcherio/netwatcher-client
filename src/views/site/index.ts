@@ -9,49 +9,61 @@ import AgentGroups from "@/views/site/AgentGroups.vue";
 import AgentGroupsNew from "@/views/site/NewAgentGroup.vue";
 import EditSite from "@/views/site/EditSite.vue";
 import Members from "@/views/site/Members.vue";
+import RemoveMember from "@/views/site/RemoveMember.vue";
+import EditMember from "@/views/site/EditMember.vue";
 
 export default {
-  path: '/sites',
+  path: '/workspace_view',
   name: 'siteView',
   component: SiteView,
   children: [
     {
-      path: '/sites/:siteId',
+      path: '/workspace/:siteId',
       name: 'site',
       component: Site,
     },
     {
-      path: '/sites',
+      path: '/workspaces',
       name: 'sites',
       component: Sites,
     },
     {
-      path: '/sites/new',
+      path: '/workspace/new',
       name: 'siteNew',
       component: SiteNew,
     },
     {
-      path: '/sites/:siteId/edit',
+      path: '/workspace/:siteId/edit',
       name: 'editSite',
       component: EditSite,
     },
     {
-      path: '/sites/:siteId/invite',
+      path: '/workspace/:siteId/invite',
       name: 'siteInvite',
       component: Invite,
     },
     {
-      path: '/sites/:siteId/groups',
+      path: '/workspace/:siteId/members/remove/:userId',
+      name: 'memberRemove',
+      component: RemoveMember,
+    },
+    {
+      path: '/workspace/:siteId/members/edit/:userId',
+      name: 'memberEdit',
+      component: EditMember,
+    },
+    {
+      path: '/workspace/:siteId/groups',
       name: 'agentGroups',
       component: AgentGroups,
     },
     {
-      path: '/sites/:siteId/groups/new',
+      path: '/site/:siteId/groups/new',
       name: 'agentGroupsNew',
       component: AgentGroupsNew,
     },
     {
-      path: '/sites/:siteId/members',
+      path: '/workspace/:siteId/members',
       name: 'members',
       component: Members,
     }

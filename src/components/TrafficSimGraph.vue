@@ -1,20 +1,20 @@
 <template>
-  <div class="latency-graph-container">
+  <div class="traffic-graph-container">
     <!-- Statistics Summary -->
     <div class="stats-row" v-if="statistics">
       <div class="stat-card">
-        <div class="stat-label">Current Latency</div>
-        <div class="stat-value" :class="getLatencyClass(statistics.current)">
-          {{ statistics.current.toFixed(1) }} ms
+        <div class="stat-label">Current RTT</div>
+        <div class="stat-value" :class="getLatencyClass(statistics.currentRtt)">
+          {{ statistics.currentRtt.toFixed(1) }} ms
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Average</div>
-        <div class="stat-value">{{ statistics.average.toFixed(1) }} ms</div>
+        <div class="stat-label">Average RTT</div>
+        <div class="stat-value">{{ statistics.avgRtt.toFixed(1) }} ms</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Min / Max</div>
-        <div class="stat-value">{{ statistics.min.toFixed(1) }} / {{ statistics.max.toFixed(1) }} ms</div>
+        <div class="stat-label">Min / Max RTT</div>
+        <div class="stat-value">{{ statistics.minRtt.toFixed(1) }} / {{ statistics.maxRtt.toFixed(1) }} ms</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Packet Loss</div>
@@ -23,13 +23,13 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Jitter</div>
-        <div class="stat-value">{{ statistics.jitter.toFixed(1) }} ms</div>
+        <div class="stat-label">Out of Sequence</div>
+        <div class="stat-value">{{ statistics.totalOutOfSequence }}</div>
       </div>
     </div>
 
     <!-- Chart Container -->
-    <div id="latencyGraph" ref="latencyGraph"></div>
+    <div id="trafficGraph" ref="trafficGraph"></div>
 
     <!-- Controls Row -->
     <div class="controls-row">
@@ -64,15 +64,15 @@
 <script lang="ts">
 import { onMounted, onUnmounted, ref, watch, computed } from 'vue';
 import ApexCharts from 'apexcharts'
-import type { PingResult } from '@/types';
+import type { TrafficSimResult } from '@/types';
 
 export default {
-  name: 'LatencyGraph',
+  name: 'TrafficGraph',
   props: {
-    pingResults: Array as () => PingResult[],
+    trafficResults: Array as () => TrafficSimResult[],
   },
-  setup(props: { pingResults: PingResult[]; }) {
-    const latencyGraph = ref(null);
+  setup(props: { trafficResults: TrafficSimResult[]; }) {
+    const trafficGraph = ref(null);
     const chart = ref<ApexCharts | null>(null);
     const selectedRange = ref('all');
     const showAnnotations = ref(true);
@@ -87,23 +87,21 @@ export default {
 
     // Calculate statistics
     const statistics = computed(() => {
-      if (!props.pingResults || props.pingResults.length === 0) return null;
+      if (!props.trafficResults || props.trafficResults.length === 0) return null;
       
-      const avgRtts = props.pingResults.map(d => d.avgRtt / 1e6);
-      const minRtts = props.pingResults.map(d => d.minRtt / 1e6);
-      const maxRtts = props.pingResults.map(d => d.maxRtt / 1e6);
-      const packetLosses = props.pingResults.map(d => d.packetLoss);
-      
-      // Calculate jitter (average of std devs)
-      const jitter = props.pingResults.reduce((sum, d) => sum + (d.stdDevRtt / 1e6), 0) / props.pingResults.length;
+      const avgRtts = props.trafficResults.map(d => d.averageRTT);
+      const minRtts = props.trafficResults.map(d => d.minRTT);
+      const maxRtts = props.trafficResults.map(d => d.maxRTT);
+      const packetLosses = props.trafficResults.map(d => (d.lostPackets / d.totalPackets) * 100);
+      const outOfSequence = props.trafficResults.map(d => d.outOfSequence);
       
       return {
-        current: avgRtts[avgRtts.length - 1] || 0,
-        average: avgRtts.reduce((a, b) => a + b, 0) / avgRtts.length,
-        min: Math.min(...minRtts),
-        max: Math.max(...maxRtts),
+        currentRtt: avgRtts[avgRtts.length - 1] || 0,
+        avgRtt: avgRtts.reduce((a, b) => a + b, 0) / avgRtts.length,
+        minRtt: Math.min(...minRtts),
+        maxRtt: Math.max(...maxRtts),
         avgPacketLoss: packetLosses.reduce((a, b) => a + b, 0) / packetLosses.length,
-        jitter: jitter
+        totalOutOfSequence: outOfSequence.reduce((a, b) => a + b, 0)
       };
     });
 
@@ -128,11 +126,12 @@ export default {
 
     const toggleAnnotations = () => {
       if (chart.value) {
+        // Update the chart with or without annotations
         drawGraph();
       }
     };
 
-    const filterDataByTimeRange = (data: PingResult[]) => {
+    const filterDataByTimeRange = (data: TrafficSimResult[]) => {
       if (selectedRange.value === 'all') return data;
       
       const now = new Date().getTime();
@@ -144,28 +143,28 @@ export default {
       };
       
       const cutoff = now - ranges[selectedRange.value];
-      return data.filter(d => d.stopTimestamp.getTime() > cutoff);
+      return data.filter(d => new Date(d.reportTime).getTime() > cutoff);
     };
 
     const drawGraph = () => {
-      if (!latencyGraph.value || !props.pingResults || props.pingResults.length === 0) {
+      if (!trafficGraph.value || !props.trafficResults || props.trafficResults.length === 0) {
         return;
       }
 
-      const filteredData = filterDataByTimeRange(props.pingResults);
+      const filteredData = filterDataByTimeRange(props.trafficResults);
       
       if (chart.value) {
-        chart.value.updateOptions(createChartOptions(filteredData, showAnnotations.value));
+        chart.value.updateOptions(createChartOptions(filteredData, selectedRange.value, showAnnotations.value));
       } else {
-        chart.value = new ApexCharts(latencyGraph.value, createChartOptions(filteredData, showAnnotations.value));
+        chart.value = new ApexCharts(trafficGraph.value, createChartOptions(filteredData, selectedRange.value, showAnnotations.value));
         chart.value.render();
       }
     };
 
     const resizeListener = () => {
-      if (chart.value && latencyGraph.value) {
+      if (chart.value && trafficGraph.value) {
         chart.value.updateOptions({ 
-          chart: { width: (latencyGraph.value as HTMLElement).clientWidth } 
+          chart: { width: (trafficGraph.value as HTMLElement).clientWidth } 
         });
       }
     };
@@ -183,10 +182,10 @@ export default {
       }
     });
 
-    watch(() => props.pingResults, drawGraph, { deep: true });
+    watch(() => props.trafficResults, drawGraph, { deep: true });
 
     return { 
-      latencyGraph, 
+      trafficGraph, 
       statistics, 
       getLatencyClass, 
       getPacketLossClass,
@@ -201,96 +200,141 @@ export default {
 
 const maxAllowedGap = 1000 * 90; // 90 seconds
 
-function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexCharts.ApexOptions {
-  const sortedData = data.sort((a, b) => a.stopTimestamp.getTime() - b.stopTimestamp.getTime());
-
-  // Decimate data if too many points
-  const maxPoints = 500;
-  const decimationStep = Math.ceil(sortedData.length / maxPoints);
-  const decimatedData = sortedData.length > maxPoints 
-    ? sortedData.filter((_, i) => i % decimationStep === 0)
-    : sortedData;
-
-  // Create a separate series for packet loss areas
-  const packetLossAreas = [];
-  let currentLossArea = null;
+function aggregateTrafficData(data: TrafficSimResult[], bucketSizeMs: number): TrafficSimResult[] {
+  if (bucketSizeMs === 0) return data; // No aggregation needed
   
-  decimatedData.forEach((d, index) => {
-    if (d.packetLoss > 0) {
-      if (!currentLossArea) {
-        currentLossArea = {
-          data: [{
-            x: d.stopTimestamp.getTime(),
-            y: d.packetLoss
-          }]
-        };
-      } else {
-        currentLossArea.data.push({
-          x: d.stopTimestamp.getTime(),
-          y: d.packetLoss
-        });
-      }
-    } else {
-      if (currentLossArea) {
-        // Add a zero point at the end to close the area
-        currentLossArea.data.push({
-          x: d.stopTimestamp.getTime(),
-          y: 0
-        });
-        packetLossAreas.push(currentLossArea);
-        currentLossArea = null;
-      }
+  const buckets: Map<number, TrafficSimResult[]> = new Map();
+  
+  // Group data into time buckets
+  data.forEach(point => {
+    const bucketTime = Math.floor(new Date(point.reportTime).getTime() / bucketSizeMs) * bucketSizeMs;
+    if (!buckets.has(bucketTime)) {
+      buckets.set(bucketTime, []);
     }
+    buckets.get(bucketTime)!.push(point);
   });
   
-  if (currentLossArea) {
-    packetLossAreas.push(currentLossArea);
+  // Aggregate each bucket
+  const aggregated: TrafficSimResult[] = [];
+  buckets.forEach((bucketData, bucketTime) => {
+    if (bucketData.length === 0) return;
+    
+    // Calculate aggregated values
+    const avgRtts = bucketData.map(d => d.averageRTT);
+    const minRtts = bucketData.map(d => d.minRTT);
+    const maxRtts = bucketData.map(d => d.maxRTT);
+    const totalPackets = bucketData.reduce((sum, d) => sum + d.totalPackets, 0);
+    const lostPackets = bucketData.reduce((sum, d) => sum + d.lostPackets, 0);
+    const outOfSeq = bucketData.reduce((sum, d) => sum + d.outOfSequence, 0);
+    
+    aggregated.push({
+      ...bucketData[0], // Copy other properties
+      reportTime: new Date(bucketTime + bucketSizeMs / 2).toISOString(), // Middle of bucket
+      averageRTT: avgRtts.reduce((a, b) => a + b, 0) / avgRtts.length,
+      minRTT: Math.min(...minRtts),
+      maxRTT: Math.max(...maxRtts),
+      totalPackets: totalPackets,
+      lostPackets: lostPackets,
+      outOfSequence: outOfSeq
+    });
+  });
+  
+  return aggregated.sort((a, b) => new Date(a.reportTime).getTime() - new Date(b.reportTime).getTime());
+}
+
+function getTrafficBucketSize(data: TrafficSimResult[], timeRange: string): number {
+  if (data.length === 0) return 0;
+  
+  // Define target points for each time range
+  const targetPoints = {
+    '1h': 360,    // ~10 second buckets
+    '6h': 360,    // ~1 minute buckets  
+    '24h': 288,   // ~5 minute buckets
+    '7d': 336,    // ~30 minute buckets
+    'all': 500    // Dynamic based on data span
+  };
+  
+  let dataSpanMs: number;
+  if (timeRange === 'all') {
+    const times = data.map(d => new Date(d.reportTime).getTime());
+    dataSpanMs = Math.max(...times) - Math.min(...times);
+  } else {
+    const ranges: Record<string, number> = {
+      '1h': 60 * 60 * 1000,
+      '6h': 6 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000
+    };
+    dataSpanMs = ranges[timeRange];
   }
+  
+  const target = targetPoints[timeRange as keyof typeof targetPoints] || 500;
+  const bucketSize = Math.floor(dataSpanMs / target);
+  
+  // Don't aggregate if we have fewer points than target
+  if (data.length <= target) return 0;
+  
+  return bucketSize;
+}
+
+function createChartOptions(data: TrafficSimResult[], timeRange: string, showAnnotations: boolean): ApexCharts.ApexOptions {
+  const sortedData = data.sort((a, b) => new Date(a.reportTime).getTime() - new Date(b.reportTime).getTime());
+  
+  // Determine aggregation bucket size based on time range
+  const bucketSize = getTrafficBucketSize(sortedData, timeRange);
+  const processedData = bucketSize > 0 ? aggregateTrafficData(sortedData, bucketSize) : sortedData;
 
   const series = [
     {
       name: 'Min RTT',
       type: 'line',
-      data: decimatedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.minRtt / 1e6 }))
+      data: processedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.minRTT }))
     },
     {
       name: 'Avg RTT',
       type: 'line',
-      data: decimatedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.avgRtt / 1e6 }))
+      data: processedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.averageRTT }))
     },
     {
       name: 'Max RTT',
       type: 'line',
-      data: decimatedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.maxRtt / 1e6 }))
+      data: processedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.maxRTT }))
     },
     {
       name: 'Packet Loss',
       type: 'area',
-      data: decimatedData.map(d => ({ x: d.stopTimestamp.getTime(), y: d.packetLoss }))
+      data: processedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: (d.lostPackets / d.totalPackets) * 100 }))
+    },
+    {
+      name: 'Out of Sequence',
+      type: 'scatter',
+      data: processedData.map(d => ({ x: new Date(d.reportTime).getTime(), y: d.outOfSequence }))
     }
   ];
 
+  // Initialize empty annotations
   const annotations: ApexAnnotations = {
     xaxis: [],
     yaxis: [],
     points: []
   };
 
-  // Gap annotations - always show these (check gaps in original data, not decimated data)
+  // Gap annotations - always show these
+  // Check gaps in original data, not decimated data
   sortedData.forEach((current, index, array) => {
     if (index > 0) {
       const prev = array[index - 1];
-      const gap = current.stopTimestamp.getTime() - prev.stopTimestamp.getTime();
+      const gap = new Date(current.reportTime).getTime() - new Date(prev.reportTime).getTime();
       if (gap > maxAllowedGap) {
         // Find the corresponding points in decimated data
-        const prevTime = prev.stopTimestamp.getTime();
-        const currentTime = current.stopTimestamp.getTime();
+        const prevTime = new Date(prev.reportTime).getTime();
+        const currentTime = new Date(current.reportTime).getTime();
         
-        // Only add annotation if both points exist in decimated data
-        const prevExists = decimatedData.some(d => d.stopTimestamp.getTime() === prevTime);
-        const currentExists = decimatedData.some(d => d.stopTimestamp.getTime() === currentTime);
+        // Only add annotation if both points exist in processed data
+        const prevExists = processedData.some(d => Math.abs(new Date(d.reportTime).getTime() - prevTime) < bucketSize);
+        const currentExists = processedData.some(d => Math.abs(new Date(d.reportTime).getTime() - currentTime) < bucketSize);
         
-        if (prevExists || currentExists) {
+        if (prevExists || currentExists || bucketSize === 0) {
           annotations.xaxis.push({
             x: prevTime,
             x2: currentTime,
@@ -313,32 +357,28 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
     }
   });
 
-  // Calculate Y-axis with limited scale for better readability
-  const allRttValues = decimatedData.flatMap(d => [d.minRtt / 1e6, d.avgRtt / 1e6, d.maxRtt / 1e6]);
-  const avgRttValues = decimatedData.map(d => d.avgRtt / 1e6);
-  
-  // Calculate percentiles for determining normal range
-  const sortedAvgRtts = [...avgRttValues].sort((a, b) => a - b);
-  const p90Index = Math.floor(sortedAvgRtts.length * 0.90);
-  const p90Value = sortedAvgRtts[p90Index] || sortedAvgRtts[sortedAvgRtts.length - 1];
-  
-  // Set a reasonable Y-axis limit based on 90th percentile
-  const yMax = Math.min(Math.ceil(p90Value * 1.5 / 50) * 50, 500); // Cap at 500ms for readability
-
   // Only add other annotations if showAnnotations is true
   if (showAnnotations) {
-    // Add high latency anomaly annotations (>300ms)
-    const anomalyThreshold = 300; // 300ms threshold for anomalies
-    decimatedData.forEach((d, index) => {
-      const avgRtt = d.avgRtt / 1e6;
-      const maxRtt = d.maxRtt / 1e6;
+
+    // Calculate Y-axis with limited scale for better readability
+    const avgRttValues = processedData.map(d => d.averageRTT);
+    const sortedAvgRtts = [...avgRttValues].sort((a, b) => a - b);
+    const p90Index = Math.floor(sortedAvgRtts.length * 0.90);
+    const p90Value = sortedAvgRtts[p90Index] || sortedAvgRtts[sortedAvgRtts.length - 1];
+    
+    // Set Y-axis limit based on 90th percentile
+    const yMax = Math.min(Math.ceil(p90Value * 1.5 / 50) * 50, 500); // Cap at 500ms
+
+    // Add high RTT anomaly annotations (>300ms)
+    const anomalyThreshold = 300;
+    processedData.forEach((d, index) => {
+      const avgRtt = d.averageRTT;
+      const maxRtt = d.maxRTT;
       
-      // Check if any RTT value exceeds the anomaly threshold
       if (avgRtt > anomalyThreshold || maxRtt > anomalyThreshold) {
-        // Add annotation for the anomaly
         annotations.points.push({
-          x: d.stopTimestamp.getTime(),
-          y: Math.min(avgRtt, yMax), // Cap at yMax for visibility
+          x: new Date(d.reportTime).getTime(),
+          y: Math.min(avgRtt, yMax),
           seriesIndex: 1, // Avg RTT series
           marker: {
             size: 8,
@@ -360,9 +400,9 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
           }
         });
         
-        // Also add a vertical line annotation for better visibility
+        // Vertical line for anomaly
         annotations.xaxis.push({
-          x: d.stopTimestamp.getTime(),
+          x: new Date(d.reportTime).getTime(),
           strokeDashArray: 0,
           borderColor: '#ef4444',
           borderWidth: 2,
@@ -380,7 +420,151 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
         });
       }
     });
+
+    // Enhanced packet loss annotations
+    let lossRegions: Array<{start: number, end: number, severity: string, color: string}> = [];
+    let currentRegion: any = null;
+
+    processedData.forEach((d, index) => {
+      const packetLoss = (d.lostPackets / d.totalPackets) * 100;
+      let severity = '';
+      let color = '';
+
+      if (packetLoss >= 1 && packetLoss < 5) {
+        severity = 'Low';
+        color = '#fbbf24'; // Amber
+      } else if (packetLoss >= 5 && packetLoss < 10) {
+        severity = 'Moderate';
+        color = '#fb923c'; // Orange
+      } else if (packetLoss >= 10) {
+        severity = 'High';
+        color = '#ef4444'; // Red
+      }
+
+      if (severity) {
+        if (!currentRegion || currentRegion.severity !== severity) {
+          if (currentRegion) {
+            lossRegions.push(currentRegion);
+          }
+          currentRegion = {
+            start: new Date(d.reportTime).getTime(),
+            end: new Date(d.reportTime).getTime(),
+            severity,
+            color
+          };
+        } else {
+          currentRegion.end = new Date(d.reportTime).getTime();
+        }
+      } else if (currentRegion) {
+        lossRegions.push(currentRegion);
+        currentRegion = null;
+      }
+    });
+
+    if (currentRegion) {
+      lossRegions.push(currentRegion);
+    }
+
+    // Add enhanced loss region annotations
+    lossRegions.forEach(region => {
+      annotations.xaxis.push({
+        x: region.start,
+        x2: region.end,
+        fillColor: region.color,
+        borderColor: region.color,
+        opacity: 0.2,
+        label: {
+          text: `${region.severity} Packet Loss`,
+          style: {
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: '#fff',
+            background: region.color,
+            padding: {
+              left: 10,
+              right: 10,
+              top: 4,
+              bottom: 4
+            }
+          },
+          position: 'top'
+        }
+      });
+    });
+
+    // Add individual packet loss point annotations
+    processedData.forEach((d, index) => {
+      const packetLoss = (d.lostPackets / d.totalPackets) * 100;
+      
+      if (packetLoss > 0) {
+        let color = '';
+        let severity = '';
+        
+        if (packetLoss >= 10) {
+          color = '#ef4444'; // Red
+          severity = 'High';
+        } else if (packetLoss >= 5) {
+          color = '#fb923c'; // Orange
+          severity = 'Moderate';
+        } else if (packetLoss >= 1) {
+          color = '#fbbf24'; // Amber
+          severity = 'Low';
+        }
+        
+        annotations.points.push({
+          x: new Date(d.reportTime).getTime(),
+          y: packetLoss,
+          seriesIndex: 3, // Packet Loss series
+          marker: {
+            size: 8,
+            fillColor: color,
+            strokeColor: '#fff',
+            strokeWidth: 2,
+            radius: 2
+          },
+          label: {
+            borderColor: color,
+            style: {
+              color: '#fff',
+              background: color,
+              fontSize: '12px',
+              fontWeight: 'bold'
+            },
+            text: `${packetLoss.toFixed(1)}% Loss`,
+            offsetY: -10
+          }
+        });
+        
+        // Vertical line for significant packet loss
+        if (packetLoss >= 5) {
+          annotations.xaxis.push({
+            x: new Date(d.reportTime).getTime(),
+            strokeDashArray: 0,
+            borderColor: color,
+            borderWidth: 2,
+            opacity: 0.3,
+            label: {
+              borderColor: color,
+              style: {
+                color: '#fff',
+                background: color
+              },
+              text: `${severity} Loss`,
+              position: 'bottom',
+              orientation: 'horizontal'
+            }
+          });
+        }
+      }
+    });
   }
+
+  // Calculate Y-axis for consistent scaling
+  const avgRttValues = processedData.map(d => d.averageRTT);
+  const sortedAvgRtts = [...avgRttValues].sort((a, b) => a - b);
+  const p90Index = Math.floor(sortedAvgRtts.length * 0.90);
+  const p90Value = sortedAvgRtts[p90Index] || sortedAvgRtts[sortedAvgRtts.length - 1];
+  const yMax = Math.min(Math.ceil(p90Value * 1.5 / 50) * 50, 500);
 
   return {
     series,
@@ -389,6 +573,7 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
       type: 'line',
       background: '#ffffff',
       foreColor: '#374151',
+      stacked: false,
       animations: {
         enabled: true,
         easing: 'easeinout',
@@ -401,7 +586,7 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
       zoom: {
         type: 'x',
         enabled: true,
-        autoScaleYaxis: false // Keep Y-axis fixed to maintain scale
+        autoScaleYaxis: false // Keep Y-axis fixed
       },
       toolbar: {
         show: true,
@@ -416,14 +601,14 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
         }
       }
     },
-    colors: ['#10b981', '#3b82f6', '#ef4444', '#f59e0b'],
+    colors: ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6'],
     stroke: {
-      width: [2, 3, 2, 0],
+      width: [2, 3, 2, 0, 0],
       curve: 'smooth',
-      dashArray: [5, 0, 5, 0]
+      dashArray: [5, 0, 5, 0, 0]
     },
     fill: {
-      type: ['solid', 'solid', 'solid', 'gradient'],
+      type: ['solid', 'solid', 'solid', 'gradient', 'solid'],
       gradient: {
         shadeIntensity: 1,
         opacityFrom: 0.5,
@@ -432,7 +617,7 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
       }
     },
     markers: {
-      size: 0,
+      size: [0, 0, 0, 0, 4],
       hover: {
         sizeOffset: 6
       }
@@ -496,6 +681,18 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
           },
           formatter: (val) => val.toFixed(0) + '%'
         }
+      },
+      {
+        seriesName: ['Out of Sequence'],
+        opposite: true,
+        show: false,
+        min: 0,
+        labels: {
+          style: {
+            colors: '#6b7280',
+            fontSize: '12px'
+          }
+        }
       }
     ],
     tooltip: {
@@ -510,8 +707,10 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
           if (typeof y !== "undefined") {
             if (seriesIndex <= 2) {
               return y.toFixed(1) + " ms";
-            } else {
+            } else if (seriesIndex === 3) {
               return y.toFixed(1) + "%";
+            } else {
+              return y.toFixed(0) + " packets";
             }
           }
           return y;
@@ -529,7 +728,15 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
           const value = series[idx][dataPointIndex];
           const color = w.config.colors[idx];
           const name = s.name;
-          const formattedValue = idx <= 2 ? value.toFixed(1) + ' ms' : value.toFixed(1) + '%';
+          let formattedValue;
+          
+          if (idx <= 2) {
+            formattedValue = value.toFixed(1) + ' ms';
+          } else if (idx === 3) {
+            formattedValue = value.toFixed(1) + '%';
+          } else {
+            formattedValue = value.toFixed(0) + ' packets';
+          }
           
           html += `
             <div class="tooltip-series">
@@ -586,7 +793,7 @@ function createChartOptions(data: PingResult[], showAnnotations: boolean): ApexC
 </script>
 
 <style scoped>
-.latency-graph-container {
+.traffic-graph-container {
   background: white;
   border-radius: 8px;
   padding: 1rem;
